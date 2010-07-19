@@ -1,0 +1,23 @@
+.PHONY: trace run example clean
+
+FILES[] =
+	dominion.promela
+
+pan.c: $(FILES)
+	spin -a $(FILES)
+
+a.out: pan.c
+	gcc pan.c
+
+trace:
+	spin $(FILES)
+
+run: a.out
+	./a.out
+
+example: a.out
+	./a.out -c5 -e
+	spin -t -c $(FILES)
+
+clean:
+	rm -f *.trail *~ a.out *.c *.b *.h *.m *.t

@@ -1,0 +1,105 @@
+#define BUF_SIZE 10
+mtype = { Connect, Start, Pass, Buy };
+chan server = [BUF_SIZE] of { mtype, chan, int };
+
+bool Go = false;
+
+proctype Oneshot(chan client; int value){
+  if
+    :: (Go == true) -> client ! value;
+  fi
+}
+
+proctype Server()
+{
+  int user = 0;
+  int wait = 0;
+  chan ch;
+
+  /* initial state */
+  do
+    :: server ? Connect(ch, _) ->
+       ch ! user;
+       user = user + 1;
+    :: server ? Start(ch, _) ->
+       wait = wait + 1;
+       run Oneshot(ch, 0);
+    :: (wait == user) && (user == 2) ->
+       Go = true;
+       goto game_start;
+  od;
+
+  int turn = 0;
+  int id = 0;
+
+game_start:
+  printf("game start[%d]\n",turn);
+
+action:
+  printf("action[%d]\n", turn);
+  do
+    ::server ? Pass(ch,id) ->
+       if
+	 ::(id == turn) ->
+	    goto buy;
+	 :: else ->
+	    server ! Pass(ch, id)
+       fi;
+  od;
+
+buy:
+  printf("buy[%d]\n", turn);
+  do
+    :: server ? Pass(ch,id) ->
+       if
+	 ::(id == turn) ->
+	    goto clean;
+	 :: else ->
+	    server ! Pass(ch, id)
+       fi;
+  od;
+
+clean:
+  printf("clean[%d]\n", turn);
+  do
+    :: server ? Pass(ch,id) ->
+       if
+	 ::(id == turn) ->
+	    turn = (turn + 1) % user;
+	    goto finish;
+	 :: else ->
+	    server ! Pass(ch, id)
+       fi;
+  od;
+
+finish:
+  printf("%d win", turn);
+}
+
+proctype User()
+{
+  chan me = [BUF_SIZE] of { int };
+  int id;
+
+  server ! Connect(me,0);
+  if
+    :: me ? id ->
+       printf("my id: %d\n",id);
+       server ! Start(me, id);
+       if
+	 :: me ? _ ->
+	    printf("notify game start\n");
+	    server ! Pass(me, id);
+	    server ! Pass(me, id);
+	    server ! Pass(me, id);
+	    printf("bye\n");
+       fi
+  fi
+}
+
+init {
+  run Server();
+  run User();
+  run User();
+/*  run User(); */
+}
