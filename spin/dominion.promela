@@ -1,4 +1,5 @@
 #define BUF_SIZE 10
+#define CLIENT_NUM 2
 mtype = { Connect, Start, Pass, Buy };
 chan server = [BUF_SIZE] of { mtype, chan, int };
 
@@ -15,11 +16,13 @@ proctype Server()
   int user = 0;
   int wait = 0;
   chan ch;
+  chan clients[CLIENT_NUM];
 
   /* initial state */
   do
     :: server ? Connect(ch, _) ->
        ch ! user;
+       clients[user] = ch;
        user = user + 1;
     :: server ? Start(ch, _) ->
        wait = wait + 1;
@@ -37,13 +40,14 @@ game_start:
 
 action:
   printf("action[%d]\n", turn);
+  clients[turn] ! turn;
   do
     ::server ? Pass(ch,id) ->
        if
 	 ::(id == turn) ->
 	    goto buy;
 	 :: else ->
-	    server ! Pass(ch, id)
+	    skip;
        fi;
   od;
 
@@ -55,7 +59,7 @@ buy:
 	 ::(id == turn) ->
 	    goto clean;
 	 :: else ->
-	    server ! Pass(ch, id)
+	    skip;
        fi;
   od;
 
@@ -66,9 +70,9 @@ clean:
        if
 	 ::(id == turn) ->
 	    turn = (turn + 1) % user;
-	    goto finish;
+	    goto action;
 	 :: else ->
-	    server ! Pass(ch, id)
+	    skip;
        fi;
   od;
 
@@ -88,10 +92,12 @@ proctype User()
        server ! Start(me, id);
        if
 	 :: me ? _ ->
-	    printf("notify game start\n");
-	    server ! Pass(me, id);
-	    server ! Pass(me, id);
-	    server ! Pass(me, id);
+	    do
+	      :: me ? _ ->
+		 server ! Pass(me, id);
+		 server ! Pass(me, id);
+		 server ! Pass(me, id);
+	    od;
 	    printf("bye\n");
        fi
   fi
