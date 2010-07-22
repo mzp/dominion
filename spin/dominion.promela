@@ -58,7 +58,13 @@ action:
 	    fi
 	 :: else ->
 	    skip;
-       fi;
+       fi
+    :: server ? NextPhase(ch, id) ->
+       if
+	 ::(id == turn) ->
+	    ch ! NEXT;
+	    goto buy;
+       fi
   od;
 
 buy:
@@ -73,7 +79,13 @@ buy:
 	    fi
 	 :: else ->
 	    skip;
-       fi;
+       fi
+    :: server ? NextPhase(ch, id) ->
+       if
+	 ::(id == turn) ->
+	    ch ! NEXT;
+	    goto clean;
+       fi
   od;
 
 clean:
@@ -103,13 +115,19 @@ action:
 		 server ! Action(me, id);
 		 do
 		   :: me ? KEEP ->
-		      server ! Action(me, id);
+		      if
+			:: server ! Action(me, id)
+			:: server ! NextPhase(me, id)
+		      fi
 		   :: me ? NEXT ->
 		      /* buy */
 		      server ! Buy(me, id);
 		      do
 			:: me ? KEEP ->
-			   server ! Buy(me, id);
+			   if
+			     :: server ! Buy(me, id)
+			     :: server ! NextPhase(me,id)
+			   fi
 			:: me ? NEXT ->
 			   goto action;
 		      od
