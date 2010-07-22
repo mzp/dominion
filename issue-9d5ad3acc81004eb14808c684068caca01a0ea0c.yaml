@@ -1,0 +1,22 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: documentation
+desc: !binary |
+  5paH5pu45YyW
+
+type: :feature
+component: protocol
+release: 
+reporter: mzp <mzpppp@gmail.com>
+status: :unstarted
+disposition: 
+creation_time: 2010-07-22 21:53:08.481505 Z
+references: []
+
+id: 9d5ad3acc81004eb14808c684068caca01a0ea0c
+log_events: 
+- - 2010-07-22 21:53:08.482334 Z
+  - mzp <mzpppp@gmail.com>
+  - created
+  - ""
+git_branch: 
+claimer: 

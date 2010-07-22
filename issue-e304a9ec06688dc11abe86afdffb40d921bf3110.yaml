@@ -1,0 +1,22 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: chat protocol
+desc: !binary |
+  44OB44Oj44OD44OI55So44Gu44OX44Ot44OI44Kz44Or44KS6ICD44GI44KL
+
+type: :feature
+component: protocol
+release: 
+reporter: mzp <mzpppp@gmail.com>
+status: :unstarted
+disposition: 
+creation_time: 2010-07-22 21:53:47.081016 Z
+references: []
+
+id: e304a9ec06688dc11abe86afdffb40d921bf3110
+log_events: 
+- - 2010-07-22 21:53:47.081812 Z
+  - mzp <mzpppp@gmail.com>
+  - created
+  - ""
+git_branch: 
+claimer: 
