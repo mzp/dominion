@@ -1,6 +1,9 @@
 #define BUF_SIZE 10
 #define CLIENT_NUM 2
-mtype = { Connect, Start, Pass, Buy };
+#define CARD_NUM 20
+#define OK 200
+
+mtype = { Connect, Start, Pass, Action,Buy,Cleanup };
 chan server = [BUF_SIZE] of { mtype, chan, int };
 
 bool Go = false;
@@ -17,6 +20,7 @@ proctype Server()
   int wait = 0;
   chan ch;
   chan clients[CLIENT_NUM];
+  byte cards[CARD_NUM];
 
   /* initial state */
   do
@@ -42,21 +46,24 @@ action:
   printf("action[%d]\n", turn);
   clients[turn] ! turn;
   do
-    ::server ? Pass(ch,id) ->
+    ::server ? Action(ch,id) ->
        if
 	 ::(id == turn) ->
+	    clients[turn] ! OK;
 	    goto buy;
 	 :: else ->
 	    skip;
        fi;
+    :: timeout ->
   od;
 
 buy:
   printf("buy[%d]\n", turn);
   do
-    :: server ? Pass(ch,id) ->
+    :: server ? Buy(ch,id) ->
        if
 	 ::(id == turn) ->
+	    clients[turn] ! OK;
 	    goto clean;
 	 :: else ->
 	    skip;
@@ -66,9 +73,10 @@ buy:
 clean:
   printf("clean[%d]\n", turn);
   do
-    :: server ? Pass(ch,id) ->
+    :: server ? Cleanup(ch,id) ->
        if
 	 ::(id == turn) ->
+	    clients[turn] ! OK;
 	    turn = (turn + 1) % user;
 	    goto action;
 	 :: else ->
@@ -85,7 +93,7 @@ proctype User()
   chan me = [BUF_SIZE] of { int };
   int id;
 
-  server ! Connect(me,0);
+  server ! Connect(me,0,0);
   if
     :: me ? id ->
        printf("my id: %d\n",id);
@@ -94,11 +102,23 @@ proctype User()
 	 :: me ? _ ->
 	    do
 	      :: me ? _ ->
-		 server ! Pass(me, id);
-		 server ! Pass(me, id);
-		 server ! Pass(me, id);
-	    od;
-	    printf("bye\n");
+		 /* action */
+		 server ! Action(me, id);
+		 if
+		   :: me ? _ ->
+		      /* buy */
+		      server ! Buy(me, id);
+		      if
+			:: me ? _ ->
+			   /* cleanup */
+			   server ! Cleanup(me, id);
+			   if
+			     :: me ? _ ->
+				skip
+			   fi
+		      fi
+		 fi
+	    od
        fi
   fi
 }
