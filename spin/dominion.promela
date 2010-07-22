@@ -5,7 +5,7 @@
 #define KEEP 1
 #define NEXT 2
 
-mtype = { Connect, Start, Pass, Action, Buy, Cleanup, NextPhase };
+mtype = { Connect, Start, Pass, Action, Buy, NextPhase };
 chan server = [BUF_SIZE] of { mtype, chan, int };
 
 bool Go = false;
@@ -78,17 +78,8 @@ buy:
 
 clean:
   printf("clean[%d]\n", turn);
-  do
-    :: server ? Cleanup(ch,id) ->
-       if
-	 ::(id == turn) ->
-	    clients[turn] ! NEXT;
-	    turn = (turn + 1) % user;
-	    goto action;
-	 :: else ->
-	    skip;
-       fi;
-  od;
+  turn = (turn + 1) % user;
+  goto action;
 
 finish:
   printf("%d win", turn);
@@ -120,12 +111,7 @@ action:
 			:: me ? KEEP ->
 			   server ! Buy(me, id);
 			:: me ? NEXT ->
-			   /* cleanup */
-			   server ! Cleanup(me, id);
-			   if
-			     :: me ? _ ->
-				goto action;
-			   fi
+			   goto action;
 		      od
 		 od
 	    fi
