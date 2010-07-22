@@ -1,0 +1,4 @@
+.SUBDIRS: spin
+
+clean:
+	rm -f *.trail *~ a.out *.c *.b *.h *.m *.t
