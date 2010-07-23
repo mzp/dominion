@@ -1,0 +1,23 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: connection lost
+desc: !binary |
+  44OX44Os44Kk5Lit44Gr5o6l57aa44GM5YiH44KM44Gf5aC05ZCI44Gu5Yem
+  55CG
+
+type: :feature
+component: protocol
+release: 
+reporter: mzp <mzpppp@gmail.com>
+status: :unstarted
+disposition: 
+creation_time: 2010-07-23 13:09:50.902653 Z
+references: []
+
+id: e73d7c9414522523fbeb39ff28520cc8b1ea3408
+log_events: 
+- - 2010-07-23 13:09:50.903467 Z
+  - mzp <mzpppp@gmail.com>
+  - created
+  - ""
+git_branch: 
+claimer: 
