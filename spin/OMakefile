@@ -7,7 +7,7 @@ pan.c: $(FILES)
 	spin -a $(FILES)
 
 a.out: pan.c
-	gcc pan.c
+	gcc -DSAFETY pan.c
 
 trace:
 	spin $(FILES)
