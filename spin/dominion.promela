@@ -5,9 +5,10 @@
 #define MsgType byte
 #define KEEP 1
 #define NEXT 2
-#define MSG  3
+#define EventNotify  3
+#define EventSend  4
 
-mtype = { Connect, Chat, Start, Pass, Msg, Action, Buy, NextPhase };
+mtype = { Connect, Chat, Start, Pass, Action, Buy, NextPhase };
 chan server = [BUF_SIZE] of { mtype, chan, MsgType };
 
 bool Go = false;
@@ -21,23 +22,20 @@ proctype Oneshot(chan client; MsgType value){
 bool fireChat = false;
 proctype chatEvent(chan client) {
   bool prev = fireChat;
-  chan from;
   do
-    :: client ? Msg(from) ->
+    :: client ? EventSend ->
        atomic { fireChat = !fireChat };
     :: prev != fireChat ->
        atomic {
 	 prev = fireChat;
 	 if
 	   :: nfull(client) ->
-	      client ! MSG;
-	   :: else ->
-	      skip;
+	      client ! EventNotify
+	   :: skip
 	 fi
        }
   od
 }
-
 
 proctype Server()
 {
@@ -125,8 +123,8 @@ finish:
 
 proctype ChatRecv(pid my_pid; chan ch){
   do
-    :: ch ? MSG ->
-       printf("chat[%d]\n", my_pid);
+    :: ch ? EventNotify ->
+       printf("event[%d]\n", my_pid);
   od
 }
 
@@ -147,7 +145,8 @@ proctype User() {
        if
 	 :: me ? _ ->
 action:
-	    chat ! MSG;
+	    printf("event ->\n");
+	    chat ! EventSend;
 	    if
 	      :: me ? _ ->
 		 /* action */
