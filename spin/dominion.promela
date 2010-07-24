@@ -2,18 +2,40 @@
 #define CLIENT_NUM 2
 #define CARD_NUM 20
 
+#define MsgType byte
 #define KEEP 1
 #define NEXT 2
+#define MSG  3
 
-mtype = { Connect, Start, Pass, Action, Buy, NextPhase };
-chan server = [BUF_SIZE] of { mtype, chan, int };
+mtype = { Connect, Chat, Start, Pass, Msg, Action, Buy, NextPhase };
+chan server = [BUF_SIZE] of { mtype, chan, MsgType };
 
 bool Go = false;
 
-proctype Oneshot(chan client; int value){
+proctype Oneshot(chan client; MsgType value){
   if
     :: (Go == true) -> client ! value;
   fi
+}
+
+bool fireChat = false;
+proctype chatEvent(chan client) {
+  bool prev = fireChat;
+  chan from;
+  do
+    :: client ? Msg(from) ->
+       atomic { fireChat = !fireChat };
+    :: prev != fireChat ->
+       atomic {
+	 prev = fireChat;
+	 if
+	   :: nfull(client) ->
+	      client ! MSG;
+	   :: else ->
+	      skip;
+	 fi
+       }
+  od
 }
 
 
@@ -37,6 +59,8 @@ proctype Server()
     :: (wait == user) && (user == 2) ->
        Go = true;
        goto game_start;
+    :: server ? Chat(ch, _) ->
+       run chatEvent(ch);
   od;
 
   int turn = 0;
@@ -65,6 +89,8 @@ action:
 	    ch ! NEXT;
 	    goto buy;
        fi
+    :: server ? Chat(ch, _) ->
+       run chatEvent(ch);
   od;
 
 buy:
@@ -97,18 +123,31 @@ finish:
   printf("%d win", turn);
 }
 
+proctype ChatRecv(pid my_pid; chan ch){
+  do
+    :: ch ? MSG ->
+       printf("chat[%d]\n", my_pid);
+  od
+}
+
 proctype User() {
-  chan me = [BUF_SIZE] of { int };
+  chan me = [BUF_SIZE] of { MsgType };
+  chan chat = [BUF_SIZE] of { MsgType };
   int id;
+
+  run ChatRecv(_pid, chat);
 
   server ! Connect(me,0);
   if
     :: me ? id ->
        printf("my id: %d\n",id);
        server ! Start(me, id);
+       server ! Chat(chat, id);
+
        if
 	 :: me ? _ ->
 action:
+	    chat ! MSG;
 	    if
 	      :: me ? _ ->
 		 /* action */
