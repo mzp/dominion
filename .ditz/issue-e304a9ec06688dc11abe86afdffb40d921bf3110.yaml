@@ -7,8 +7,8 @@ type: :feature
 component: protocol
 release: 
 reporter: mzp <mzpppp@gmail.com>
-status: :unstarted
-disposition: 
+status: :closed
+disposition: :fixed
 creation_time: 2010-07-22 21:53:47.081016 Z
 references: []
 
@@ -18,5 +18,11 @@ log_events:
   - mzp <mzpppp@gmail.com>
   - created
   - ""
+- - 2010-07-24 14:12:21.884287 Z
+  - mzp <mzpppp@gmail.com>
+  - closed with disposition fixed
+  - !binary |
+    44Go44KK44GC44GI44Ga5a6f6KOF44GX44Gf
+
 git_branch: 
 claimer: 
