@@ -7,6 +7,7 @@
 #define NEXT 2
 #define EventNotify  3
 #define EventSend  4
+#define INC(X) X = X + 1
 
 mtype = { Connect, Chat, Start, Pass, Action, Buy, NextPhase };
 chan server = [BUF_SIZE] of { mtype, chan, MsgType };
@@ -62,6 +63,7 @@ proctype Server()
   od;
 
   int turn = 0;
+  int count = 0;
   int id = 0;
 
 game_start:
@@ -69,13 +71,15 @@ game_start:
 
 action:
   clients[turn] ! turn;
+  count = 0;
   do
     :: server ? Action(ch,id) ->
        if
 	 ::(id == turn) ->
 	    printf("action[%d]\n", turn);
 	    if
-	      :: ch ! KEEP;
+	      ::(count == 100) -> ch ! NEXT; goto buy;
+	      :: ch ! KEEP; INC(count);
 	      :: ch ! NEXT; goto buy
 	    fi
 	 :: else ->
@@ -92,13 +96,15 @@ action:
   od;
 
 buy:
+  count = 0;
   do
     :: server ? Buy(ch,id) ->
        if
 	 ::(id == turn) ->
 	    printf("buy[%d]\n", turn);
 	    if
-	      :: ch ! KEEP;
+	      :: (count == 100) -> ch ! NEXT; goto clean;
+	      :: ch ! KEEP; INC(count);
 	      :: ch ! NEXT; goto clean;
 	    fi
 	 :: else ->
