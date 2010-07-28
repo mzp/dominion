@@ -2,18 +2,23 @@
 
 FILES[] =
 	dominion.promela
+CFLAGS=
+GCC=gcc $(CFLAGS)
 
 pan.c: $(FILES)
 	spin -a $(FILES)
 
-a.out: pan.c
-	gcc -DSAFETY pan.c
-
 trace:
 	spin $(FILES)
 
-run: a.out
-	./a.out
+dead: pan.c
+	$(GCC) -DSAFETY pan.c
+	./a.out -m100 -e
+
+live: pan.c
+	$(GCC) -DNP pan.c
+	./a.out -l
+
 
 example: a.out
 	./a.out -c5 -e

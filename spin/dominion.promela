@@ -149,6 +149,7 @@ action:
 	    chat ! EventSend;
 	    if
 	      :: me ? _ ->
+progress:
 		 /* action */
 		 server ! Action(me, id);
 		 do
