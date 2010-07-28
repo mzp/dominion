@@ -1,5 +1,5 @@
 #define BUF_SIZE 10
-#define CLIENT_NUM 2
+#define CLIENT_NUM 3
 #define CARD_NUM 20
 
 #define MsgType byte
@@ -55,7 +55,7 @@ proctype Server()
     :: server ? Start(ch, _) ->
        wait = wait + 1;
        run Oneshot(ch, 0);
-    :: (wait == user) && (user == 2) ->
+    :: (wait == user) && (user == 1) ->
        Go = true;
        goto game_start;
     :: server ? Chat(ch, _) ->
@@ -182,9 +182,36 @@ progress:
   fi
 }
 
+proctype Gorilla(){
+    chan me = [BUF_SIZE] of { MsgType };
+  chan chat = [BUF_SIZE] of { MsgType };
+  int id;
+
+  run ChatRecv(_pid, chat);
+
+  server ! Connect(me,0);
+  if
+    :: me ? id ->
+       printf("my id: %d\n",id);
+       server ! Start(me, id);
+       server ! Chat(chat, id);
+
+       if
+	 :: me ? _ ->
+	    do
+	      :: me ? _ ->
+		 /* action */
+		 if
+		   :: printf("gorilla action\n"); server ! Action(me, id)
+		   :: printf("gorilla bup\n"); server ! Buy(me, id)
+		   :: printf("gorilla next\n"); server ! NextPhase(me, id)
+		 fi
+	    od
+       fi
+  fi
+}
+
 init {
   run Server();
-  run User();
-  run User();
-/*  run User(); */
+  run Gorilla();
 }
