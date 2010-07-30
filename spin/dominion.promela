@@ -7,6 +7,7 @@
 #define NEXT 2
 #define EventNotify  3
 #define EventSend  4
+#define Error  5
 #define INC(X) X = X + 1
 
 mtype = { Connect, Chat, Start, Pass, Action, Buy, NextPhase };
@@ -18,6 +19,11 @@ proctype Oneshot(chan client; MsgType value){
   if
     :: (Go == true) -> client ! value;
   fi
+}
+
+inline error(ch){
+  printf("ERROR\n");
+  ch ! Error;
 }
 
 bool fireChat = false;
@@ -55,7 +61,7 @@ proctype Server()
     :: server ? Start(ch, _) ->
        wait = wait + 1;
        run Oneshot(ch, 0);
-    :: (wait == user) && (user == 1) ->
+    :: (wait == user) && (user == 2) ->
        Go = true;
        goto game_start;
     :: server ? Chat(ch, _) ->
@@ -93,6 +99,8 @@ action:
        fi
     :: server ? Chat(ch, _) ->
        run chatEvent(ch);
+    :: server ? (_,ch,_) ->
+       error(ch);
   od;
 
 buy:
@@ -116,6 +124,8 @@ buy:
 	    ch ! NEXT;
 	    goto clean;
        fi
+    :: server ? (_,ch,_) ->
+       error(ch);
   od;
 
 clean:
@@ -203,7 +213,7 @@ proctype Gorilla(){
 		 /* action */
 		 if
 		   :: printf("gorilla action\n"); server ! Action(me, id)
-		   :: printf("gorilla bup\n"); server ! Buy(me, id)
+		   :: printf("gorilla buy\n"); server ! Buy(me, id)
 		   :: printf("gorilla next\n"); server ! NextPhase(me, id)
 		 fi
 	    od
@@ -214,4 +224,5 @@ proctype Gorilla(){
 init {
   run Server();
   run Gorilla();
+  run User();
 }
