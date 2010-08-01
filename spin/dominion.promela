@@ -10,9 +10,13 @@
 #define EventNotify 4
 #define EventSend   5
 #define Error       6
-#define Refject     7
+#define Reject     7
+#define UserCount 2
 
 #define INC(X) X = X + 1
+#define RESET(X) X = 0
+
+#define ErrorMax 2
 
 mtype = { Connect, Chat, Start, Pass, Action, Buy, NextPhase };
 chan server = [BUF_SIZE] of { mtype, chan, MsgType };
@@ -54,13 +58,30 @@ proctype chatEvent(chan client) {
   od
 }
 
+inline rejectHandle(){
+  INC(errorCount);
+  if
+    :: (errorCount >= ErrorMax) ->
+       rejects[id] = true;
+       printf("reject[%d]\n",id);
+       ch ! Reject;
+       if
+	 :: id == turn ->
+	    goto clean;
+       fi
+    :: else ->
+       sendError(ch);
+  fi
+}
+
+chan clients[CLIENT_NUM];
+bool rejects[CLIENT_NUM];
+
 proctype Server()
 {
   int user = 0;
   int wait = 0;
   chan ch;
-  chan clients[CLIENT_NUM];
-  byte cards[CARD_NUM];
 
   /* initial state */
   do
@@ -71,7 +92,7 @@ proctype Server()
     :: server ? Start(ch, _) ->
        wait = wait + 1;
        run Oneshot(ch, 0);
-    :: (wait == user) && (user == 1) ->
+    :: (wait == user) && (user == UserCount) ->
        Go = true;
        goto game_start;
     :: server ? Chat(ch, _) ->
@@ -80,6 +101,7 @@ proctype Server()
 
   int turn = 0;
   int count = 0;
+  int errorCount = 0;
   int id = 0;
 
 game_start:
@@ -88,31 +110,42 @@ game_start:
 action:
   printf("===== change turn[%d] =====\n",turn);
   clients[turn] ! TurnStart;
-  count = 0;
+  RESET(count);
+  RESET(errorCount);
   printf("= action phase[%d] =\n",turn);
   do
     :: server ? Action(ch,id) ->
-       if
-	 ::(id == turn) ->
-	    printf("action[%d]\n", turn);
-	    if
-	      ::(count == 100) -> ch ! NEXT; goto buy;
-	      :: ch ! KEEP; INC(count);
-	      :: ch ! NEXT; goto buy
-	    fi
-	 :: else ->
-	    sendError(ch)
-       fi
+       atomic {
+	 if
+	   ::(id == turn) ->
+	      printf("action[%d]\n", turn);
+	      if
+		::(count == 100) -> ch ! NEXT; goto buy;
+		:: ch ! KEEP; INC(count);
+		:: ch ! NEXT; goto buy
+	      fi
+	   :: else ->
+	      rejectHandle();
+	 fi
+       }
     :: server ? NextPhase(ch, id) ->
-       if
-	 ::(id == turn) ->
-	    ch ! NEXT;
-	    goto buy;
-       fi
+       atomic {
+	 if
+	   ::(id == turn) ->
+	      ch ! NEXT;
+	      goto buy;
+	   :: else ->
+	      rejectHandle();
+	 fi
+       }
     :: server ? Chat(ch, _) ->
-       run chatEvent(ch);
-    :: server ? Buy(ch,_) ->
-       sendError(ch);
+       atomic {
+	 run chatEvent(ch);
+       }
+    :: server ? Buy(ch,id) ->
+       atomic {
+	 rejectHandle();
+       }
   od;
 
 buy:
@@ -120,30 +153,47 @@ buy:
   count = 0;
   do
     :: server ? Buy(ch,id) ->
-       if
-	 ::(id == turn) ->
-	    printf("buy[%d]\n", turn);
-	    if
-	      :: (count == 100) -> ch ! NEXT; goto clean;
-	      :: ch ! KEEP; INC(count);
-	      :: ch ! NEXT; goto clean;
-	    fi
-	 :: else ->
-	    sendError(ch)
-       fi
+       atomic {
+	 if
+	   ::(id == turn) ->
+	      printf("buy[%d]\n", turn);
+	      if
+		:: (count == 100) -> ch ! NEXT; goto clean;
+		:: ch ! KEEP; INC(count);
+		:: ch ! NEXT; goto clean;
+	      fi
+	   :: else ->
+	      rejectHandle();
+	 fi
+       }
     :: server ? NextPhase(ch, id) ->
-       if
-	 ::(id == turn) ->
-	    ch ! NEXT;
-	    goto clean;
-       fi
-    :: server ? Action(ch,_) ->
-       sendError(ch);
+       atomic {
+	 if
+	   ::(id == turn) ->
+	      ch ! NEXT;
+	      goto clean;
+	   :: else ->
+	      rejectHandle();
+	 fi
+       }
+    :: server ? Action(ch,id) ->
+       atomic{
+	 rejectHandle();
+       }
   od;
 
 clean:
   printf("= clean phase[%d] =\n", turn);
   turn = (turn + 1) % user;
+  do
+    :: (rejects[turn] == true) ->
+       atomic{
+	 printf("%d\n",turn);
+	 turn = (turn + 1) % user;
+       }
+    :: else ->
+       break
+  od;
   goto action;
 finish:
   printf("%d win", turn);
@@ -177,7 +227,6 @@ action:
 	    chat ! EventSend;
 	    if
 	      :: me ? _ ->
-progress:
 		 /* action */
 		 server ! Action(me, id);
 		 do
@@ -224,16 +273,31 @@ proctype Gorilla(){
        server ! Start(me, id);
        do
 	 ::
- 	    do
-	      ::len(me) > 0 -> me ? _;
-	      ::len(me) == 0 -> break
-	    od;
+	    if
+	      :: me ? Reject ->
+		 goto reject;
+	      :: len(me) > 0 ->
+		 do
+		   :: len(me) > 0 ->
+		      if
+			:: me ? Reject -> goto reject;
+			:: me ? _ -> skip
+		      fi
+		   :: len(me) == 0 -> break
+		 od;
+	    fi;
 	    gorilla(me, id)
        od
   fi;
+reject:
+  printf("reject\n");
+  do
+    :: me ? _ -> skip
+  od
 }
 
 init {
   run Server();
   run Gorilla();
+  run User();
 }

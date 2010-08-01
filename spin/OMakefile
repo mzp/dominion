@@ -9,7 +9,7 @@ pan.c: $(FILES)
 	spin -a $(FILES)
 
 trace:
-	spin $(FILES)
+	spin -c $(FILES)
 
 dead: pan.c
 	$(GCC) -DSAFETY pan.c
