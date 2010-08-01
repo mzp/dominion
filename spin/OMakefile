@@ -13,7 +13,7 @@ trace:
 
 dead: pan.c
 	$(GCC) -DSAFETY pan.c
-	./a.out -m100 -e
+	./a.out -e
 
 live: pan.c
 	$(GCC) -DNP pan.c

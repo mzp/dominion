@@ -1,18 +1,27 @@
-#define BUF_SIZE 10
+#define BUF_SIZE 3
 #define CLIENT_NUM 3
 #define CARD_NUM 20
 
 #define MsgType byte
-#define KEEP 1
-#define NEXT 2
-#define EventNotify  3
-#define EventSend  4
+#define TurnStart   0
+#define TurnEnd     1
+#define KEEP        2
+#define NEXT        3
+#define EventNotify 4
+#define EventSend   5
+#define Error       6
 #define INC(X) X = X + 1
 
 mtype = { Connect, Chat, Start, Pass, Action, Buy, NextPhase };
 chan server = [BUF_SIZE] of { mtype, chan, MsgType };
 
 bool Go = false;
+
+inline sendError(ch)
+{
+  printf("error\n");
+  ch ! Error
+}
 
 proctype Oneshot(chan client; MsgType value){
   if
@@ -30,7 +39,7 @@ proctype chatEvent(chan client) {
        atomic {
 	 prev = fireChat;
 	 if
-	   :: nfull(client) ->
+	   :: full(client) ->
 	      client ! EventNotify
 	   :: skip
 	 fi
@@ -70,8 +79,10 @@ game_start:
   printf("game start[%d]\n",turn);
 
 action:
-  clients[turn] ! turn;
+  printf("===== change turn[%d] =====\n",turn);
+  clients[turn] ! TurnStart;
   count = 0;
+  printf("= action phase[%d] =\n",turn);
   do
     :: server ? Action(ch,id) ->
        if
@@ -83,7 +94,7 @@ action:
 	      :: ch ! NEXT; goto buy
 	    fi
 	 :: else ->
-	    skip;
+	    sendError(ch)
        fi
     :: server ? NextPhase(ch, id) ->
        if
@@ -93,9 +104,12 @@ action:
        fi
     :: server ? Chat(ch, _) ->
        run chatEvent(ch);
+    :: server ? Buy(ch,_) ->
+       sendError(ch);
   od;
 
 buy:
+  printf("= buy phase[%d] =\n",turn);
   count = 0;
   do
     :: server ? Buy(ch,id) ->
@@ -108,7 +122,7 @@ buy:
 	      :: ch ! NEXT; goto clean;
 	    fi
 	 :: else ->
-	    skip;
+	    sendError(ch)
        fi
     :: server ? NextPhase(ch, id) ->
        if
@@ -116,13 +130,14 @@ buy:
 	    ch ! NEXT;
 	    goto clean;
        fi
+    :: server ? Action(ch,_) ->
+       sendError(ch);
   od;
 
 clean:
-  printf("clean[%d]\n", turn);
+  printf("= clean phase[%d] =\n", turn);
   turn = (turn + 1) % user;
   goto action;
-
 finish:
   printf("%d win", turn);
 }
@@ -149,7 +164,7 @@ proctype User() {
        server ! Chat(chat, id);
 
        if
-	 :: me ? _ ->
+	 :: me ? TurnStart ->
 action:
 	    printf("event ->\n");
 	    chat ! EventSend;
@@ -182,36 +197,38 @@ progress:
   fi
 }
 
+inline gorilla(me, id){
+  if
+    :: printf("gorilla action\n"); server ! Action(me, id)
+    :: printf("gorilla buy\n");    server ! Buy(me, id)
+    :: printf("gorilla next\n");   server ! NextPhase(me, id)
+  fi
+}
+
+  chan me = [BUF_SIZE] of { MsgType };
 proctype Gorilla(){
-    chan me = [BUF_SIZE] of { MsgType };
+
   chan chat = [BUF_SIZE] of { MsgType };
   int id;
-
-  run ChatRecv(_pid, chat);
 
   server ! Connect(me,0);
   if
     :: me ? id ->
        printf("my id: %d\n",id);
        server ! Start(me, id);
-       server ! Chat(chat, id);
-
-       if
-	 :: me ? _ ->
-	    do
-	      :: me ? _ ->
-		 /* action */
-		 if
-		   :: printf("gorilla action\n"); server ! Action(me, id)
-		   :: printf("gorilla bup\n"); server ! Buy(me, id)
-		   :: printf("gorilla next\n"); server ! NextPhase(me, id)
-		 fi
-	    od
-       fi
-  fi
+       do
+	 ::
+ 	    do
+	      ::len(me) > 0 -> me ? _;
+	      ::len(me) == 0 -> break
+	    od;
+	    gorilla(me, id)
+       od
+  fi;
 }
 
 init {
   run Server();
   run Gorilla();
+ /* run Gorilla();*/
 }
