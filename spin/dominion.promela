@@ -10,6 +10,7 @@
 #define EventNotify 4
 #define EventSend   5
 #define Error       6
+#define Refject     7
 #define INC(X) X = X + 1
 
 mtype = { Connect, Chat, Start, Pass, Action, Buy, NextPhase };
