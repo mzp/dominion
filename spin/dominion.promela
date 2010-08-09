@@ -43,13 +43,15 @@ inline error(ch){
 bool fireChat = false;
 proctype chatEvent(chan client) {
   bool prev = fireChat;
+  bool b;
   do
     :: client ? EventSend ->
        fireChat = !fireChat;
     :: prev != fireChat ->
        prev = fireChat;
+       b = full(client);
        if
-	 :: full(client) ->
+	 :: b ->
 	    skip
 	 :: else ->
 	    client ! EventNotify
