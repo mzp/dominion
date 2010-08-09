@@ -223,6 +223,7 @@ proctype User() {
 
        if
 	 :: me ? TurnStart ->
+progress:
 action:
 	    printf("event ->\n");
 	    chat ! EventSend;
