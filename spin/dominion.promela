@@ -1,5 +1,5 @@
 #define BUF_SIZE 3
-#define CLIENT_NUM 3
+#define CLIENT_NUM 2
 #define CARD_NUM 20
 
 #define MsgType byte
@@ -11,15 +11,15 @@
 #define EventSend   5
 #define Error       6
 #define Reject     7
-#define UserCount 2
+
 
 #define INC(X) X = X + 1
 #define RESET(X) X = 0
 
 #define ErrorMax 2
 
-mtype = { Connect, Chat, Start, Pass, Action, Buy, NextPhase };
-chan server = [BUF_SIZE] of { mtype, chan, MsgType };
+mtype = { Connect, Chat, Start, Action, Buy, NextPhase };
+chan server = [BUF_SIZE] of { mtype, chan, int };
 
 bool Go = false;
 
@@ -45,16 +45,15 @@ proctype chatEvent(chan client) {
   bool prev = fireChat;
   do
     :: client ? EventSend ->
-       atomic { fireChat = !fireChat };
+       fireChat = !fireChat;
     :: prev != fireChat ->
-       atomic {
-	 prev = fireChat;
-	 if
-	   :: full(client) ->
-	      client ! EventNotify
-	   :: skip
-	 fi
-       }
+       prev = fireChat;
+       if
+	 :: full(client) ->
+	    skip
+	 :: else ->
+	    client ! EventNotify
+       fi
   od
 }
 
@@ -92,7 +91,7 @@ proctype Server()
     :: server ? Start(ch, _) ->
        wait = wait + 1;
        run Oneshot(ch, 0);
-    :: (wait == user) && (user == UserCount) ->
+    :: (wait == user) && (user == CLIENT_NUM) ->
        Go = true;
        goto game_start;
     :: server ? Chat(ch, _) ->
@@ -265,7 +264,7 @@ proctype Gorilla(){
   chan me = [BUF_SIZE] of { MsgType };
   chan chat = [BUF_SIZE] of { MsgType };
   int id;
-
+  MsgType m;
   server ! Connect(me,0);
   if
     :: me ? id ->
@@ -280,8 +279,10 @@ proctype Gorilla(){
 		 do
 		   :: len(me) > 0 ->
 		      if
-			:: me ? Reject -> goto reject;
-			:: me ? _ -> skip
+			:: me ? m ->
+			   if :: (m == Reject) -> goto reject;
+			      :: else -> skip
+			   fi
 		      fi
 		   :: len(me) == 0 -> break
 		 od;
@@ -292,7 +293,7 @@ proctype Gorilla(){
 reject:
   printf("reject\n");
   do
-    :: me ? _ -> skip
+    :: me ? _ -> printf("recv after reject\n");
   od
 }
 
