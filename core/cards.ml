@@ -48,6 +48,9 @@ let cellar =
     And (Put((Draw (Bind x,Hands)),Discards),
         (Put((Draw((Ref x),Decks)),Hands)))
 
+let chapel =
+  Put (Draw (Min (Const 4,Bind 0),Hands),Trash)
+
 type bindisgs =
     (int * int) list
 
@@ -106,7 +109,8 @@ let rec eval bs action game k =
 	end
 
 (* example *)
-let SelectFromHands (bs,g,k) = eval [] cellar
+
+let SelectFromHands (bs,g,k) = eval [] chapel
   {me = {
     decks=[Card 0; Card 1; Card 2; Card 3];
     hands=[Card 4; Card 5; Card 6];
@@ -117,4 +121,3 @@ let SelectFromHands (bs,g,k) = eval [] cellar
   (fun _ _ p -> Result p);;
 
 let _ = k [(0,2)] [Card 4; Card 6] {g with me = {g.me with hands = [Card 5]}};;
-
