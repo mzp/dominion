@@ -1,32 +1,31 @@
 open Base
 
-type 'a var =
-    [ `Bind of int
-    | `Ref  of int
-    | `Const of 'a
-    | `Min of 'a var * 'a var ]
+type 'a var = [
+| `Bind of int
+| `Ref  of int
+| `Const of 'a
+| `Min of 'a var * 'a var ]
 
-type pred =
-    [ `Cost of int ]
+type pred = [
+| `Cost of int ]
 
-type source =
-    [ `Hands
-    | `Decks
-    | `Discards
-    | `Trash
-    | `Supply
-    | `Filter of pred * source ]
+type source = [
+|  `Hands
+| `Decks
+| `Discards
+| `Trash
+| `Supply
+| `Filter of pred * source ]
 
-type action =
-  [ `Draw of int var * source
-  | `Put  of action * source
-  | `And  of action * action ]
+type action = [
+| `Draw of int var * source
+| `Put  of action * source
+| `And  of action * action ]
 
-type card =
-    {
-      id   : int;
-      cost : int
-    }
+type card = {
+  id   : int;
+  cost : int
+}
 
 let (>>=) x f =
   match x with
