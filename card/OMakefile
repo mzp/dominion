@@ -1,6 +1,11 @@
 .PHONY: clean all
 
-FILES[] = definition
+FILES[] =
+	Rule
+	Eval
+	Util
+	SetUtil
+
 COQC = coqc
 
 open CoqBuildRule
