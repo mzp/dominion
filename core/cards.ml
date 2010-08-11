@@ -4,11 +4,13 @@ type 'a var =
     Bind of int
   | Ref  of int
   | Const of 'a
+  | Min of 'a var * 'a var
 
 type source =
     Hands
   | Decks
   | Discards
+  | Trash
 
 type action =
   | Draw of int var * source
@@ -18,18 +20,26 @@ type action =
 type card =
   | Card of int (* and more ... *)
 
-let resolve bs : 'a var -> 'a  option = function
+let rec resolve bs : 'a var -> 'a  option = function
     Bind _ ->
       None
   | Ref b ->
       option (List.assoc b) bs
   | Const x ->
       Some x
+  | Min(x,y) ->
+      min (resolve bs x) (resolve bs y)
 
 type player = {
   hands : card list;
   decks : card list;
-  discards : card list
+  discards : card list;
+}
+
+type game = {
+  me     : player;
+  others : player list;
+  trashs : card list
 }
 
 let cellar =
@@ -40,60 +50,71 @@ let cellar =
 
 type bindisgs =
     (int * int) list
+
 type 'a cont =
-    bindisgs -> card list -> player -> 'a
+    bindisgs -> card list -> game -> 'a
 
 type user_action =
-    SelectFromHands of int var * player * user_action cont
-  | DrawFrom of source * int var * player * user_action cont
-  | Result of player
+    SelectFromHands of int var * game    * user_action cont
+  | DrawFrom        of source  * int var * player * user_action cont
+  | Result          of game
 
-let map ~f src player =
+let map ~f src {me; trashs} =
   match src with
       Decks ->
-	f player.decks
+	f me.decks
     | Hands ->
-	f player.hands
+	f me.hands
     | Discards ->
-	f player.discards
+	f me.discards
+    | Trash ->
+	f trashs
 
-let update ~f src player =
+let update ~f src ({ me; trashs } as game) =
     match src with
       Decks ->
-	{ player with decks = f player.decks }
+	{ game with me = { me with decks = f me.decks } }
     | Hands ->
-	{ player with hands = f player.hands }
+	{ game with me = { me with hands = f me.hands } }
     | Discards ->
-	{ player with discards = f player.discards }
+	{ game with me = { me with discards = f me.discards } }
+    | Trash ->
+	{ game with trashs = f trashs }
 
-
-let rec eval bs action player k =
+let rec eval bs action game k =
   match action with
     | Draw (x, Hands) ->
-	SelectFromHands (x, player, k)
+	SelectFromHands (x, game, k)
     | Draw (x,src) ->
 	begin match resolve bs x with
 	    Some n ->
 	      k bs
-		(map ~f:(HList.take n) src player)
-		(update ~f:(HList.drop n) src player)
+	        (map ~f:(HList.take n) src game)
+		(update ~f:(HList.drop n) src game)
 	  | None ->
-	      DrawFrom (src, x, player, k)
+	      DrawFrom (src, x, game.me, k)
 	end
     | Put (action, src) ->
-	eval bs action player begin fun bs cs p' ->
-	  k bs cs (update src p' ~f:(fun x -> cs @ x))
+	eval bs action game begin fun bs cs g ->
+	  k bs cs (update src g ~f:(fun x -> cs @ x))
 	end
     | And (xs, ys) ->
-	eval bs xs player begin fun bs' _ p' ->
-	  eval bs' ys p' begin fun bs'' _ p'' ->
-	    k bs'' [] p''
+	eval bs xs game begin fun bs' _ g ->
+	  eval bs' ys g begin fun bs'' _ g' ->
+	    k bs'' [] g'
 	  end
 	end
 
-let SelectFromHands (bs,p,k) = eval [] cellar {
-  decks=[Card 0; Card 1; Card 2; Card 3];
-  hands=[Card 4; Card 5; Card 6];
-  discards=[]} (fun bs _ p -> Result p);;
+(* example *)
+let SelectFromHands (bs,g,k) = eval [] cellar
+  {me = {
+    decks=[Card 0; Card 1; Card 2; Card 3];
+    hands=[Card 4; Card 5; Card 6];
+    discards=[]
+  };
+   others = [];
+   trashs = []}
+  (fun _ _ p -> Result p);;
 
-let _ = k [(0,2)] [Card 4; Card 6] {p with hands = [Card 5]};;
+let _ = k [(0,2)] [Card 4; Card 6] {g with me = {g.me with hands = [Card 5]}};;
+
