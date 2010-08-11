@@ -1,2 +1,7 @@
-RM=rm -f *~
-.SUBDIRS: protocol card core
+RM=rm -f *~ *.omc
+.SUBDIRS: protocol core
+
+.PHONY: clean
+clean:
+	$(RM) .omakedb .omakedb.lock
+
