@@ -1,0 +1,13 @@
+.PHONY: clean check
+
+FILES[] = definition.v
+COQC = coqc
+
+.DEFAULT: check
+
+check:
+	$(COQC) $(FILES)
+
+
+clean:
+	$(RM) *.vo *.glob

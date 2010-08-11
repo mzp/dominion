@@ -1,0 +1,22 @@
+.PHONY: tdead live clean
+
+FILES[] =
+	dominion.promela
+
+GCC=gcc
+
+.DEFAULT: pan.c
+
+pan.c: $(FILES)
+	spin -a $(FILES)
+
+dead: pan.c
+	$(GCC) -DSAFETY pan.c
+	./a.out -e
+
+live: pan.c
+	$(GCC) -DNP pan.c
+	./a.out -l
+
+clean:
+	$(RM) *.trail a.out *.c *.b *.h *.m *.t

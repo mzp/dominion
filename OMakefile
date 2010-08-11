@@ -1,4 +1,2 @@
-.SUBDIRS: spin
-
-clean:
-	rm -f *.trail *~ a.out *.c *.b *.h *.m *.t
+RM=rm -f *~
+.SUBDIRS: protocol card
