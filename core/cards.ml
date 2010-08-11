@@ -1,138 +1,101 @@
-open Base
+type place = [
+| `Hands
+| `Discard
+| `Supply
+| `Trash
+]
 
-type 'a var =
-    [ `Bind of int
-    | `Ref  of int
-    | `Const of 'a
-    | `Min of 'a var * 'a var ]
+type kind = [
+  `Coin
+]
 
-type pred =
-    [ `Cost of int ]
+type move = {
+  src  : src_place;
+  dest : place;
+  num  : num;
+} and action = [
+| `Move of move
+] and num = [
+  `Const of int
+| `Any
+| `Range of int * int
+| `All
+| `NumOf of action
+] and pred = [
+  `Cost of int
+| `LowCostOf of action * int
+| `Only of kind
+] and src_place = [
+  place
+| `Filter of pred * src_place
+]
 
-type source =
-    [ `Hands
-    | `Decks
-    | `Discards
-    | `Trash
-    | `Supply
-    | `Filter of pred * source ]
+type effect = [
+| action
+| `Action of int
+| `Draw of int
+| `Buy of int
+| `Coin of int
+]
 
-type action =
-  [ `Draw of int var * source
-  | `Put  of action * source
-  | `And  of action * action ]
+let cellar : effect list = [
+  `Move {
+      src = `Supply;
+      dest = `Discard;
+      num = `NumOf (`Move {
+		      src  = `Hands;
+		      dest = `Discard;
+		      num  = `Any
+		    })
+   }]
 
-type card =
-    {
-      id   : int;
-      cost : int
-    }
+let market : effect list = [
+  `Action 1;
+  `Draw 1;
+  `Buy 1;
+  `Coin 1;
+]
 
-let (>>=) x f =
-  match x with
-      Some y ->
-	f y
-    | None ->
-	None
+let mine : effect list =
+  [ `Move {
+      src  = `Filter (`Only `Coin,`Filter (`LowCostOf (`Move {
+							 src = `Hands;
+							 dest = `Trash;
+							 num = `Const 1
+						       },3),`Supply));
+      dest = `Hands;
+      num  = `Const 1;
+    } ]
 
-let rec resolve bs : 'a var -> 'a  option = function
-    `Bind _ ->
-      None
-  | `Ref b ->
-      option (List.assoc b) bs
-  | `Const x ->
-      Some x
-  | `Min(x,y) ->
-      resolve bs x >>=
-	(fun x' ->
-	   resolve bs y >>=
-	     (fun y' ->
-		Some (min x' y')))
+let remodel : effect list = [
+  `Move {
+    src = `Filter (`LowCostOf (`Move {
+				 src = `Hands;
+				 dest = `Trash;
+				 num = `Const 1
+			       },2),`Supply);
+    dest = `Discard;
+    num = `Const 1
+  } ]
 
-type player = {
-  hands : card list;
-  decks : card list;
-  discards : card list;
-}
+let smity : effect list = [
+  `Draw 3
+]
 
-type game = {
-  me     : player;
-  others : player list;
-  trashs : card list;
-  supply : card list
-}
+let village : effect list = [
+  `Draw 1;
+  `Action 2;
+]
 
-type bindisgs =
-    (int * int) list
+let woodcutter : effect list = [
+  `Coin 2;
+  `Buy 1;
+]
 
-type 'a cont =
-    bindisgs -> card list -> game -> 'a
-
-type user_action =
-    SelectFrom of [ `Hands | `Supply ] * int var * game    * user_action cont
-  | DrawFrom   of source  * int var * player * user_action cont
-  | Result     of game
-
-let fun_of_pred = function
-    `Cost n ->
-      fun c -> c.cost <= n
-
-let rec map ~f src ({me; trashs; supply} as game) =
-  match src with
-      `Decks ->
-	f me.decks
-    | `Hands ->
-	f me.hands
-    | `Discards ->
-	f me.discards
-    | `Trash ->
-	f trashs
-    | `Supply ->
-	f supply
-    | `Filter (pred, src) ->
-	map src game ~f:(fun cs -> f (List.filter (fun_of_pred pred) cs))
-
-let rec update ~f src ({ me; trashs; supply } as game) =
-    match src with
-      `Decks ->
-	{ game with me = { me with decks = f me.decks } }
-    | `Hands ->
-	{ game with me = { me with hands = f me.hands } }
-    | `Discards ->
-	{ game with me = { me with discards = f me.discards } }
-    | `Trash ->
-	{ game with trashs = f trashs }
-    | `Supply ->
-	{ game with supply = f supply }
-    | `Filter (pred,src) ->
-	update src game ~f:begin fun cs ->
-	  let (xs, ys) =
-	    List.partition (fun_of_pred pred) cs in
-	    (f xs)@ys
-	end
-
-let rec eval bs action game k =
-  match action with
-    | `Draw (x, `Hands) ->
-	SelectFrom (`Hands, x, game, k)
-    | `Draw (x, `Supply) ->
-	SelectFrom (`Supply, x, game, k)
-    | `Draw (x,src) ->
-	begin match resolve bs x with
-	    Some n ->
-	      k bs
-	        (map ~f:(HList.take n) src game)
-		(update ~f:(HList.drop n) src game)
-	  | None ->
-	      DrawFrom (src, x, game.me, k)
-	end
-    | `Put (action, src) ->
-	eval bs action game begin fun bs cs g ->
-	  k bs cs (update src g ~f:(fun x -> cs @ x))
-	end
-    | `And (xs, ys) ->
-	eval bs xs game begin fun bs' _ g ->
-	  eval bs' ys g begin fun bs'' _ g' ->
-	    k bs'' [] g'
-	  end
-	end
+let workshop : effect list = [
+  `Move {
+    src = `Filter(`Cost 4,`Supply);
+    dest = `Discard;
+    num = `Const 1;
+  }
+]
