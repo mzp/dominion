@@ -1,13 +1,11 @@
-.PHONY: clean check
+.PHONY: clean all
 
-FILES[] = definition.v
+FILES[] = definition
 COQC = coqc
 
-.DEFAULT: check
+open CoqBuildRule
+.DEFAULT: all
 
-check:
-	$(COQC) $(FILES)
-
-
+all : $(CoqProof $(FILES))
 clean:
 	$(RM) *.vo *.glob
