@@ -43,25 +43,30 @@ let diff xs ys =
 let compile_num compile g n k =
   match n with
       #num as x  ->
-	k (g, x)
+	k (x, g)
     | `All as x ->
-	k (g, x)
+	k (x, g)
     | `NumOf action ->
 	perform begin
-	  (cs,g) <-- shift @@ compile g action;
-	  k (g, `Const (List.length cs))
+	  (cs, g) <-- shift @@ compile g action;
+	  k (`Const (List.length cs),g)
 	end
 
 let compile_pred compile g pred k  =
   match pred with
       `Cost n ->
-	k (g, fun {cost} -> cost <= n)
+	k ((fun {cost} -> cost <= n), g)
     | `Only _ ->
 	assert false
-    | `LowCostOf _ ->
-	assert false
+    | `LowCostOf (action,n) ->
+	perform begin
+	  (cs, g) <-- shift @@ compile g action;
+	  let thres =
+	    n + List.fold_left max 0 (List.map (fun{cost}->cost) cs) in
+	  k ((fun {cost} -> cost <= thres ),g)
+	end
 
-let compile_place compile g place k =
+let rec compile_place compile g place k =
   match place with
     | `Hands ->
 	let update f =
@@ -83,8 +88,40 @@ let compile_place compile g place k =
 	let update f =
 	  { g with trash = f g.trash } in
 	  k (g.trash, update)
-    | `Filter _ ->
-	assert false
+    | `Filter (pred, place) ->
+	perform begin
+	  (pred', g) <-- shift @@ compile_pred compile g pred;
+	  (cs, updater) <-- shift @@ compile_place compile g place;
+	  let updater' f =
+	    updater begin fun cs ->
+	      let order =
+		List.map (fun {name=name} -> name) cs in
+	      let (xs, ys) =
+		List.partition pred' cs in
+	      let zs =
+		(f xs) @ ys in
+		filter_map
+		  (fun n ->
+		     option (List.find (fun {name}->name=n)) zs)
+		  order
+	    end in
+	    k (List.filter pred' cs, updater')
+	end
+
+(*
+	    let cs' =
+	      List.filter p cs in
+	    let update' f =
+	      update begin fun cs ->
+		let (xs, ys) =
+		  List.partition p cs in
+		let (taken, rest) =
+		  f xs in
+		  (taken, rest @ ys)
+	      end in
+	      k (cs',update') g''
+
+*)
 
 let rec compile ~user g action k =
   match action with
@@ -99,8 +136,8 @@ let rec compile ~user g action k =
     | `Select {Rules.src; dest; num} ->
 	reset @@ perform begin
 	  (cs,src') <-- shift @@ compile_place (compile ~user) g src;
-	  (g,n)     <-- shift @@ compile_num (compile ~user) g num;
-	  cs'       <-- shift (fun k -> user (selectFrom g cs n k));
+	  (n,g)     <-- shift @@ compile_num (compile ~user) g num;
+	  (cs',g)   <-- shift (fun k -> user (selectFrom g cs n k));
 	  let g = src' (fun xs -> diff xs cs') in
 	  (_,dest') <-- shift @@ compile_place (compile ~user) g dest;
 	  k (cs', dest' (fun xs -> cs' @ xs))

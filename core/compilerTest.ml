@@ -10,8 +10,8 @@ let card name cost = {
 }
 
 let me = {
-    decks=[card "A" 0; card "B" 1; card "C" 0];
-    hands=[card "D" 0; card "E" 1; card "F" 0];
+    decks=[card "A" 3; card "B" 2; card "C" 4];
+    hands=[card "D" 3; card "E" 1; card "F" 2];
     discards=[card "G" 0; card "H" 1; card "I" 0];
     action=0;
     draw=0;
@@ -36,8 +36,8 @@ let action =
 let actioned_game= {
   game with me = {me with
 		    hands = [card "E" 1];
-		    discards = [card "D" 0;
-				card "F" 0;
+		    discards = [card "D" 3;
+				card "F" 2;
 				card "G" 0;
 				card "H" 1;
 				card "I" 0] } }
@@ -47,7 +47,7 @@ let user = function
       assert_equal game g;
       assert_equal me.hands cs;
       assert_equal (`Const 2) num;
-      k [card "D" 0; card "F" 0];
+      k ([card "D" 3; card "F" 2],g);
   | _ ->
       assert false
 
@@ -62,7 +62,7 @@ let run_compile f x =
   run_cont @@ f (compile ~user) game x
 
 let lit x =
-  ok (game, x) @@ reset @@
+  ok (x,game) @@ reset @@
     shift @@ compile_num (compile ~user) game x
 
 let _ = begin "compiler.ml" >::: [
@@ -75,7 +75,7 @@ let _ = begin "compiler.ml" >::: [
       lit @@ `Range (0,1)
     end;
     "アクションをともなう数字のコンパイル" >:: begin fun _ ->
-      let (g,num) =
+      let (num,g) =
 	run @@ reset @@
 	  shift @@ compile_num (compile ~user) game (`NumOf action) in
 	assert_equal actioned_game g;
@@ -84,7 +84,7 @@ let _ = begin "compiler.ml" >::: [
   ];
   "述語のコンパイル" >::: [
     "一定コスト以下ならtrueを返す関数" >:: begin fun _ ->
-      let (g, p) =
+      let (p, g) =
 	run_compile compile_pred @@ `Cost 2 in
 	assert_equal game g;
 	assert_equal true  @@ p (card "x" 0);
@@ -92,6 +92,15 @@ let _ = begin "compiler.ml" >::: [
 	assert_equal true  @@ p (card "x" 2);
 	assert_equal false @@ p (card "x" 3);
 	assert_equal false @@ p (card "x" 4)
+    end;
+    "アクションをともなう述語のテスト" >:: begin fun _ ->
+      let (p, g) =
+	run_compile compile_pred @@ `LowCostOf (action,3) in
+	assert_equal actioned_game g;
+	assert_equal true @@ p (card "x" 5);
+	assert_equal true @@ p (card "x" 6);
+	assert_equal false @@ p (card "x" 7);
+	assert_equal false @@ p (card "x" 8)
     end
   ];
   "場所のコンパイル"  >::: [
@@ -144,7 +153,27 @@ let _ = begin "compiler.ml" >::: [
 	assert_equal
 	  { game with trash = HList.drop 2 cards }
 	  game'
-    end
+    end;
+    "Filter(actionをともなわないやつ)" >:: begin fun _ ->
+      let (cards, updater) =
+	run_compile compile_place (`Filter (`Cost 2, `Hands)) in
+      let game' =
+	updater (HList.drop 1) in
+	assert_equal ~msg:"card" [card "E" 1; card "F" 2] cards;
+	assert_equal ~msg:"updater"
+	  { game with me = { me with hands = [card "D" 3; card "F" 2] } }
+	  game'
+    end;
+    "Filter(actionをともなうやつ" >:: begin fun _ ->
+      let (cards, updater) =
+	run_compile compile_place (`Filter (`LowCostOf (action,0), `Decks)) in
+      let game' =
+	updater (HList.drop 1) in
+	assert_equal ~msg:"card" [card "A" 3; card "B" 2] cards;
+	assert_equal ~msg:"updater" ~printer:Std.dump
+	  { actioned_game with me = { actioned_game.me with decks = [card "B" 2; card "C" 4] } }
+	  game'
+    end;
   ];
   "アクションのコンパイル" >::: [
     "+ n Draw系" >:: begin fun _ ->
@@ -163,7 +192,7 @@ let _ = begin "compiler.ml" >::: [
       let (cs,g') =
 	run_cont @@ compile game action ~user
       in
-	assert_equal [card "D" 0; card "F" 0] cs;
+	assert_equal [card "D" 3; card "F" 2] cs;
 	assert_equal
 	  actioned_game
 	  g'
