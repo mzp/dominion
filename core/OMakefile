@@ -21,6 +21,8 @@ FILES[] =
 	cards
 	compiler
 
+UseCamlp4(pa_monad)
+
 OCAMLFLAGS=-annot
 PROGRAM = test
 # OCAML_LIBS +=
