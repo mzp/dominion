@@ -30,14 +30,13 @@ type 'a select = {
   num  : 'a num;
 }
 
-type action = [
-| `Select of action select
+type 'a action = [
+| `Select of 'a select
 ]
 
 type effect = [
-| action
+| effect action
 | `Action of int
 | `Draw of int
 | `Buy of int
 | `Coin of int ]
-

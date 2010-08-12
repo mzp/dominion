@@ -24,14 +24,8 @@ type game = {
   trash  : card list
 }
 
-type ('a,'b) cont = 'a -> game -> 'b
-
 type num = [
   `Const of int | `Any | `Range of int * int
-]
-type user_action = [
-| `SelectFrom of game * card list * num * (card list,user_action) cont
-| `Result     of game
 ]
 
 let selectFrom g cs num k =
@@ -40,7 +34,7 @@ let selectFrom g cs num k =
 let diff xs ys =
   List.fold_left (fun xs' y -> List.remove xs' y) xs ys
 
-let compile_num compile g n k =
+let compile_num compile g (n:  Rules.effect Rules.num ) k =
   match n with
       #num as x  ->
 	k (x, g)
