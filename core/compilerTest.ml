@@ -30,16 +30,11 @@ let ok expect cont =
   assert_equal expect @@ run cont
 
 let run_compile f x =
-  run @@ perform begin
-    reset @@ perform (shift @@ f compile game x)
-  end
+  run @@ reset @@ shift @@ f compile game x
 
 let lit x =
-  ok (game, x) @@ perform begin
-    reset @@ perform begin
-      shift @@ compile_num compile game x;
-    end
-  end
+  ok (game, x) @@ reset @@
+    shift @@ compile_num compile game x
 
 let _ = begin "compiler.ml" >::: [
   "自己評価式のコンパイル" >:: begin fun _ ->
@@ -117,9 +112,7 @@ let _ = begin "compiler.ml" >::: [
     "+ n Draw系" >:: begin fun _ ->
       let ok expect x =
 	let (cs,g') =
-	  run @@ perform begin
-	    reset @@ perform (shift @@ compile game x)
-	  end
+	  run @@ reset @@ shift @@ compile game x
 	in
 	  assert_equal [] cs;
 	  assert_equal {game with me = expect} g' in
