@@ -1,36 +1,49 @@
+#use "topfind";;
+#require "extlib";;
 #load "base.cmo";;
 #load "hList.cmo";;
+#load "rules.cmo";;
 #load "cards.cmo";;
+#load "compiler.cmo";;
 
-open Cards
+open Base;;
+open Cards;;
+open Compiler;;
 
-let cellar =
-  let x = 0
-  in
-    `And (`Put((`Draw (`Bind x,`Hands)),`Discards),
-         (`Put((`Draw((`Ref x),`Supply)),`Discards)))
+let card name cost = {
+  name = name;
+  cost = cost;
+}
 
-let chapel =
-  `Put (`Draw (`Min (`Const 4,`Bind 0),`Hands),`Trash)
-
-let workshop =
-  `Put (`Draw (`Const 1,`Filter (`Cost 4,`Supply)), `Discards)
-
-let card id n =
-  { id = id;
-    cost = n }
-
-let SelectFrom (`Hands,_,g,k) = eval [] cellar
-  {me = {
+let game = {
+  me = {
     decks=[];
-    hands=[card 0 0; card 1 0; card 2 0];
+    hands=[card "A" 0; card "B" 1; card "C" 0];
     discards=[];
+    action=0;
+    draw=0;
+    buy=0;
+    coin=0;
   };
-   supply=[card 3 0; card 4 0; card 5 0; card 6 0];
-   others = [];
-   trashs = []}
-  (fun _ _ p -> Result p);;
+  supply=[card "D" 0; card "E" 4; card "F" 5; card "G" 10];
+  others = [];
+  trash = []};;
 
-let SelectFrom(`Supply,_,g,k') = k [(0,2)] [card 0 0; card 1 0] {g with me = {g.me with hands = [card 2 0]}};;
+let select x =
+  match x with
+      `SelectFrom _ as y ->
+	y
+    | _ ->
+	assert false
 
-k' [(0,2)] [card 3 0; card 4 0] {g with supply = [card 5 0; card 6 0]}
+let `SelectFrom (cs,num,k) =
+  select @@ compile (List.hd mine) game (fun _ x -> `Result x);;
+
+let `SelectFrom (cs',num',k') =
+  select @@ k [card "B" 1] game;;
+
+let `SelectFrom (cs'',num'',k'') =
+  select @@ k' [card "E" 4] game;;
+
+let _ =
+  k'' [card "B" 1] game;;

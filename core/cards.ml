@@ -1,48 +1,10 @@
-type place = [
-| `Hands
-| `Discard
-| `Supply
-| `Trash
-]
-
-type kind = [
-  `Coin
-]
-
-type move = {
-  src  : src_place;
-  dest : place;
-  num  : num;
-} and action = [
-| `Move of move
-] and num = [
-  `Const of int
-| `Any
-| `Range of int * int
-| `All
-| `NumOf of action
-] and pred = [
-  `Cost of int
-| `LowCostOf of action * int
-| `Only of kind
-] and src_place = [
-  place
-| `Filter of pred * src_place
-]
-
-type effect = [
-| action
-| `Action of int
-| `Draw of int
-| `Buy of int
-| `Coin of int
-]
+open Rules
 
 let cellar : effect list = [
-  `Move {
+  `Select {
       src = `Supply;
       dest = `Discard;
-      num = `NumOf (`Move {
+      num = `NumOf (`Select {
 		      src  = `Hands;
 		      dest = `Discard;
 		      num  = `Any
@@ -57,19 +19,19 @@ let market : effect list = [
 ]
 
 let mine : effect list =
-  [ `Move {
-      src  = `Filter (`Only `Coin,`Filter (`LowCostOf (`Move {
-							 src = `Hands;
-							 dest = `Trash;
-							 num = `Const 1
-						       },3),`Supply));
+  [ `Select {
+      src  = `Filter (`LowCostOf (`Select {
+				    src = `Hands;
+				    dest = `Trash;
+				    num = `Const 1
+				  },3),`Supply);
       dest = `Hands;
       num  = `Const 1;
     } ]
 
 let remodel : effect list = [
-  `Move {
-    src = `Filter (`LowCostOf (`Move {
+  `Select {
+    src = `Filter (`LowCostOf (`Select {
 				 src = `Hands;
 				 dest = `Trash;
 				 num = `Const 1
@@ -93,9 +55,10 @@ let woodcutter : effect list = [
 ]
 
 let workshop : effect list = [
-  `Move {
+  `Select {
     src = `Filter(`Cost 4,`Supply);
     dest = `Discard;
     num = `Const 1;
   }
 ]
+

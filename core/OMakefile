@@ -3,6 +3,7 @@
 USE_OCAMLFIND = true
 
 OCAMLPACKS[] =
+	extlib
 
 
 if $(not $(OCAMLFIND_EXISTS))
@@ -16,8 +17,11 @@ BYTE_ENABLED = true
 FILES[] =
 	base
 	hList
+	rules
 	cards
+	compiler
 
+OCAMLFLAGS=-annot
 PROGRAM = test
 # OCAML_LIBS +=
 # OCAML_CLIBS +=

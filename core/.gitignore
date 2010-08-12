@@ -2,4 +2,5 @@
 *.o
 *.opt
 *.run
+*.annot
 test
