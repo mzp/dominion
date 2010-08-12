@@ -79,7 +79,7 @@ let _ = begin "compiler.ml" >::: [
     end;
     "捨て札" >:: begin fun _ ->
       let (cards, updater) =
-	run_compile compile_place `Discards in
+	run_compile compile_place `Discard in
       let game' =
 	updater (HList.drop 2) in
 	assert_equal ~msg:"カード" me.discards cards;
@@ -112,7 +112,7 @@ let _ = begin "compiler.ml" >::: [
     "+ n Draw系" >:: begin fun _ ->
       let ok expect x =
 	let (cs,g') =
-	  run @@ reset @@ shift @@ compile game x
+	  run @@ reset @@ shift @@ compile game x ~user:(fun _ -> assert false)
 	in
 	  assert_equal [] cs;
 	  assert_equal {game with me = expect} g' in
@@ -120,6 +120,34 @@ let _ = begin "compiler.ml" >::: [
 	ok {me with draw = 2 } @@ `Draw 2;
 	ok {me with coin = 2 } @@ `Coin 2;
 	ok {me with buy  = 2 } @@ `Buy 2;
+    end;
+    "ユーザの入力をともなうアクション" >:: begin fun _ ->
+      let action =
+	`Select {
+	  Rules.src  = `Hands;
+	  dest = `Discard;
+	  num  = `Const 2
+	} in
+      let (cs,g') =
+	run @@ reset @@ shift @@ compile game action ~user:begin function
+	  | `SelectFrom (g, cs,num,k) ->
+	      assert_equal game g;
+	      assert_equal me.hands cs;
+	      assert_equal (`Const 2) num;
+	      k [card "D" 0; card "F" 0];
+	  | _ -> assert false
+	end
+      in
+	assert_equal [card "D" 0; card "F" 0] cs;
+	assert_equal
+	  {game with me = {me with
+			     hands = [card "E" 1];
+			     discards = [card "D" 0;
+					 card "F" 0;
+					 card "G" 0;
+					 card "H" 1;
+					 card "I" 0] } }
+	  g'
     end
   ]
 ] end +> run_test_tt_main

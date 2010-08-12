@@ -30,12 +30,12 @@ type num = [
   `Const of int | `Any | `Range of int * int
 ]
 type user_action = [
-| `SelectFrom of card list * num * (card list,user_action) cont
+| `SelectFrom of game * card list * num * (card list,user_action) cont
 | `Result     of game
 ]
 
-let selectFrom cs num k =
-  `SelectFrom (cs,num,k)
+let selectFrom g cs num k =
+  `SelectFrom (g,cs,num,k)
 
 let diff xs ys =
   List.fold_left (fun xs' y -> List.remove xs' y) xs ys
@@ -68,7 +68,7 @@ let compile_place compile g place k =
 	let update f =
 	  { g with me = { g.me with decks = f g.me.decks } } in
 	  k (g.me.decks, update)
-    | `Discards ->
+    | `Discard ->
 	let update f =
 	  { g with me = { g.me with discards = f g.me.discards } } in
 	  k (g.me.discards, update)
@@ -83,16 +83,25 @@ let compile_place compile g place k =
     | `Filter _ ->
 	assert false
 
-let compile g action k =
+let rec compile ~user g action k =
   match action with
       `Action n ->
-	k ([], { g with me = { g.me with action = g.me.action + n } })
+	k ([], { g with me = { g.me with action = g.me.action + n }})
     | `Buy n ->
-	k ([], { g with me = { g.me with buy    = g.me.buy + n } })
+	k ([], { g with me = { g.me with buy  = g.me.buy + n }})
     | `Coin n ->
-	k ([], { g with me = { g.me with coin = g.me.coin + n } })
+	k ([], { g with me = { g.me with coin = g.me.coin + n }})
     | `Draw n ->
-	k ([], { g with me = { g.me with draw = g.me.draw + n } })
+	k ([], { g with me = { g.me with draw = g.me.draw + n }})
+    | `Select {Rules.src; dest; num} ->
+	reset @@ perform begin
+	  (cs,src') <-- shift @@ compile_place (compile ~user) g src;
+	  (g,n)     <-- shift @@ compile_num (compile ~user) g num;
+	  cs'       <-- shift (fun k -> user (selectFrom g cs n k));
+	  let g = src' (fun xs -> diff xs cs') in
+	  (_,dest') <-- shift @@ compile_place (compile ~user) g dest;
+	  k (cs', dest' (fun xs -> cs' @ xs))
+	end
 
 (*
 let compile_pred compile_action g pred k =
@@ -152,16 +161,6 @@ let compile_pred compile_action g pred k =
 		    end
 		end
 	    | #num as n ->
-		compile_place src g1 begin fun (cs, update) _ ->
-		  selectFrom cs n begin fun cs' _ ->
-		    let g3 =
-		      update (fun xs -> (cs', diff xs cs'))
-		    in
-		      compile_place (dest :> Rules.src_place) g3 begin fun (_,update) _ ->
-			k cs' (update (fun xs -> ([], cs' @ xs)))
-		      end
-		  end
-		end
 	end
 
 and compile_place (p : Rules.src_place) (g:game) k : user_action =
@@ -243,3 +242,4 @@ and compile_num (n : Rules.num) (g : game) k : user_action =
 	  k (`Const (List.length cs)) g'
 	end
 *)
+
