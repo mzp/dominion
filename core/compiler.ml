@@ -47,15 +47,18 @@ let compile_num compile g n k =
     | `All as x ->
 	k (g, x)
     | `NumOf action ->
-	assert false
+	perform begin
+	  (cs,g) <-- shift @@ compile g action;
+	  k (g, `Const (List.length cs))
+	end
 
 let compile_pred compile g pred k  =
   match pred with
       `Cost n ->
 	k (g, fun {cost} -> cost <= n)
-    | `LowCostOf _ ->
-	assert false
     | `Only _ ->
+	assert false
+    | `LowCostOf _ ->
 	assert false
 
 let compile_place compile g place k =

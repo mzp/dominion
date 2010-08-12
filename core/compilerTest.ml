@@ -26,24 +26,62 @@ let game = {
   trash = [card "O" 0; card "P" 1; card "Q" 0];
 }
 
+let action =
+  `Select {
+    Rules.src  = `Hands;
+    dest = `Discard;
+    num  = `Const 2
+  }
+
+let actioned_game= {
+  game with me = {me with
+		    hands = [card "E" 1];
+		    discards = [card "D" 0;
+				card "F" 0;
+				card "G" 0;
+				card "H" 1;
+				card "I" 0] } }
+
+let user = function
+  | `SelectFrom (g, cs,num,k) ->
+      assert_equal game g;
+      assert_equal me.hands cs;
+      assert_equal (`Const 2) num;
+      k [card "D" 0; card "F" 0];
+  | _ ->
+      assert false
+
+(* custom assertion *)
 let ok expect cont =
   assert_equal expect @@ run cont
 
+let run_cont x =
+  run @@ reset @@ shift x
+
 let run_compile f x =
-  run @@ reset @@ shift @@ f compile game x
+  run_cont @@ f (compile ~user) game x
 
 let lit x =
   ok (game, x) @@ reset @@
-    shift @@ compile_num compile game x
+    shift @@ compile_num (compile ~user) game x
 
 let _ = begin "compiler.ml" >::: [
-  "自己評価式のコンパイル" >:: begin fun _ ->
-    lit @@ `Const 42;
-    lit @@ `Const 0;
-    lit `Any;
-    lit `All;
-    lit @@ `Range (0,1)
-  end;
+  "数字のコンパイル" >::: [
+    "自己評価式のコンパイル" >:: begin fun _ ->
+      lit @@ `Const 42;
+      lit @@ `Const 0;
+      lit `Any;
+      lit `All;
+      lit @@ `Range (0,1)
+    end;
+    "アクションをともなう数字のコンパイル" >:: begin fun _ ->
+      let (g,num) =
+	run @@ reset @@
+	  shift @@ compile_num (compile ~user) game (`NumOf action) in
+	assert_equal actioned_game g;
+	assert_equal (`Const 2) num
+    end
+  ];
   "述語のコンパイル" >::: [
     "一定コスト以下ならtrueを返す関数" >:: begin fun _ ->
       let (g, p) =
@@ -112,7 +150,7 @@ let _ = begin "compiler.ml" >::: [
     "+ n Draw系" >:: begin fun _ ->
       let ok expect x =
 	let (cs,g') =
-	  run @@ reset @@ shift @@ compile game x ~user:(fun _ -> assert false)
+	  run_cont @@ compile game x ~user:(fun _ -> assert false)
 	in
 	  assert_equal [] cs;
 	  assert_equal {game with me = expect} g' in
@@ -122,31 +160,12 @@ let _ = begin "compiler.ml" >::: [
 	ok {me with buy  = 2 } @@ `Buy 2;
     end;
     "ユーザの入力をともなうアクション" >:: begin fun _ ->
-      let action =
-	`Select {
-	  Rules.src  = `Hands;
-	  dest = `Discard;
-	  num  = `Const 2
-	} in
       let (cs,g') =
-	run @@ reset @@ shift @@ compile game action ~user:begin function
-	  | `SelectFrom (g, cs,num,k) ->
-	      assert_equal game g;
-	      assert_equal me.hands cs;
-	      assert_equal (`Const 2) num;
-	      k [card "D" 0; card "F" 0];
-	  | _ -> assert false
-	end
+	run_cont @@ compile game action ~user
       in
 	assert_equal [card "D" 0; card "F" 0] cs;
 	assert_equal
-	  {game with me = {me with
-			     hands = [card "E" 1];
-			     discards = [card "D" 0;
-					 card "F" 0;
-					 card "G" 0;
-					 card "H" 1;
-					 card "I" 0] } }
+	  actioned_game
 	  g'
     end
   ]
