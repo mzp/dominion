@@ -1,5 +1,6 @@
 open ExtList
 open Base
+open Cc
 
 type card = {
   name : string;
@@ -36,11 +37,96 @@ type user_action = [
 let selectFrom cs num k =
   `SelectFrom (cs,num,k)
 
-
 let diff xs ys =
   List.fold_left (fun xs' y -> List.remove xs' y) xs ys
 
-let rec compile (e : Rules.effect ) (g : game) k : user_action =
+let compile_num compile g n k =
+  match n with
+      #num as x  ->
+	k (g, x)
+    | `All as x ->
+	k (g, x)
+    | `NumOf action ->
+	assert false
+
+let compile_pred compile g pred k  =
+  match pred with
+      `Cost n ->
+	k (g, fun {cost} -> cost <= n)
+    | `LowCostOf _ ->
+	assert false
+    | `Only _ ->
+	assert false
+
+let compile_place compile g place k =
+  match place with
+    | `Hands ->
+	let update f =
+	  { g with me = { g.me with hands = f g.me.hands } } in
+	  k (g.me.hands, update)
+    | `Decks ->
+	let update f =
+	  { g with me = { g.me with decks = f g.me.decks } } in
+	  k (g.me.decks, update)
+    | `Discards ->
+	let update f =
+	  { g with me = { g.me with discards = f g.me.discards } } in
+	  k (g.me.discards, update)
+    | `Supply ->
+	let update f =
+	  { g with supply = f g.supply }  in
+	  k (g.supply, update)
+    | `Trash ->
+	let update f =
+	  { g with trash = f g.trash } in
+	  k (g.trash, update)
+    | `Filter _ ->
+	assert false
+
+let compile g action k =
+  match action with
+      `Action n ->
+	k ([], { g with me = { g.me with action = g.me.action + n } })
+    | `Buy n ->
+	k ([], { g with me = { g.me with buy    = g.me.buy + n } })
+    | `Coin n ->
+	k ([], { g with me = { g.me with coin = g.me.coin + n } })
+    | `Draw n ->
+	k ([], { g with me = { g.me with draw = g.me.draw + n } })
+
+(*
+let compile_pred compile_action g pred k =
+  match p with
+    | `Cost n ->
+	k (fun { cost } -> cost <= n) g
+    | `LowCostOf (action, n) ->
+	compile (action :> Rules.effect) g begin fun cs g' ->
+	  let thres =
+	    n + List.fold_left min max_int (List.map (fun{cost}->cost) cs)
+	  in
+	    k (fun { cost } -> cost <= thres ) g'
+	end
+    | `Only _ ->
+	(* todo *)
+	k (fun _ -> true) g*)
+
+
+(*
+  match n with
+    | `Const _ as x ->
+	k x g
+    | `Any as x ->
+	k x g
+    | `Range _ as x ->
+	k x g
+    | `All as x ->
+	k x g
+    | `NumOf action ->
+	compile (action :> Rules.effect) g begin fun cs g' ->
+	  k (`Const (List.length cs)) g'
+	end*)
+
+(*let rec compile (e : Rules.effect ) (g : game) k : user_action =
   match e with
     | `Action n ->
 	k [] {g with me = {g.me with action = g.me.action + n }}
@@ -127,8 +213,6 @@ and compile_place (p : Rules.src_place) (g:game) k : user_action =
 	  end
 	end
 
-and update _ ~f = assert false
-
 and compile_pred (p : Rules.pred) (g : game) k : user_action =
   match p with
     | `Cost n ->
@@ -158,3 +242,4 @@ and compile_num (n : Rules.num) (g : game) k : user_action =
 	compile (action :> Rules.effect) g begin fun cs g' ->
 	  k (`Const (List.length cs)) g'
 	end
+*)

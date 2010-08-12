@@ -1,4 +1,6 @@
 #use "topfind";;
+#load "dynlink.cmo";;
+#camlp4o;;
 #require "extlib";;
 #load "base.cmo";;
 #load "hList.cmo";;

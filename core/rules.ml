@@ -3,32 +3,35 @@ type place = [
 | `Discard
 | `Decks
 | `Supply
-| `Trash
-]
+| `Trash ]
 
 type kind = [
-  `Coin
-]
+| `Coin ]
 
-type select = {
-  src  : src_place;
-  dest : place;
-  num  : num;
-} and action = [
-| `Select of select
-] and num = [
-  `Const of int
+type 'a num = [
+| `Const of int
 | `Any
 | `Range of int * int
 | `All
-| `NumOf of action
-] and pred = [
+| `NumOf of 'a ]
+
+type 'a pred = [
   `Cost of int
-| `LowCostOf of action * int
-| `Only of kind
-] and src_place = [
-  place
-| `Filter of pred * src_place
+| `LowCostOf of 'a * int
+| `Only of kind ]
+
+type 'a src_place = [
+|  place
+| `Filter of 'a pred * 'a src_place ]
+
+type 'a select = {
+  src  : 'a src_place;
+  dest : place;
+  num  : 'a num;
+}
+
+type action = [
+| `Select of action select
 ]
 
 type effect = [
@@ -36,6 +39,5 @@ type effect = [
 | `Action of int
 | `Draw of int
 | `Buy of int
-| `Coin of int
-]
+| `Coin of int ]
 

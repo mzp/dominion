@@ -4,6 +4,7 @@ USE_OCAMLFIND = true
 
 OCAMLPACKS[] =
 	extlib
+	oUnit
 
 
 if $(not $(OCAMLFIND_EXISTS))
@@ -19,9 +20,11 @@ FILES[] =
 	hList
 	rules
 	cards
+	cc
 	compiler
 
 UseCamlp4(pa_monad)
+OUnitTest(compiler,base cc compiler hList)
 
 OCAMLFLAGS=-annot
 PROGRAM = test

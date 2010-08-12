@@ -1,7 +1,7 @@
 .PHONY: clean
 
 clean:
-	ocaml-clean
+	$(RM) *.cm[iox]
 
 USE_OCAMLFIND = false
 OCAMLINCLUDES += -I +camlp4
