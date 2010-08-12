@@ -47,7 +47,7 @@ let user = function
       assert_equal game g;
       assert_equal me.hands cs;
       assert_equal (`Const 2) num;
-      k ([card "D" 3; card "F" 2],g);
+      k [card "D" 3; card "F" 2];
   | _ ->
       assert false
 

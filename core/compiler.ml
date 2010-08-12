@@ -95,7 +95,7 @@ let rec compile_place compile g place k =
 	  let updater' f =
 	    updater begin fun cs ->
 	      let order =
-		List.map (fun {name=name} -> name) cs in
+		List.map (fun {name} -> name) cs in
 	      let (xs, ys) =
 		List.partition pred' cs in
 	      let zs =
@@ -108,21 +108,6 @@ let rec compile_place compile g place k =
 	    k (List.filter pred' cs, updater')
 	end
 
-(*
-	    let cs' =
-	      List.filter p cs in
-	    let update' f =
-	      update begin fun cs ->
-		let (xs, ys) =
-		  List.partition p cs in
-		let (taken, rest) =
-		  f xs in
-		  (taken, rest @ ys)
-	      end in
-	      k (cs',update') g''
-
-*)
-
 let rec compile ~user g action k =
   match action with
       `Action n ->
@@ -134,152 +119,11 @@ let rec compile ~user g action k =
     | `Draw n ->
 	k ([], { g with me = { g.me with draw = g.me.draw + n }})
     | `Select {Rules.src; dest; num} ->
-	reset @@ perform begin
+	perform begin
 	  (cs,src') <-- shift @@ compile_place (compile ~user) g src;
 	  (n,g)     <-- shift @@ compile_num (compile ~user) g num;
-	  (cs',g)   <-- shift (fun k -> user (selectFrom g cs n k));
+	  cs'   <-- shift (fun k -> user (selectFrom g cs n k));
 	  let g = src' (fun xs -> diff xs cs') in
 	  (_,dest') <-- shift @@ compile_place (compile ~user) g dest;
 	  k (cs', dest' (fun xs -> cs' @ xs))
 	end
-
-(*
-let compile_pred compile_action g pred k =
-  match p with
-    | `Cost n ->
-	k (fun { cost } -> cost <= n) g
-    | `LowCostOf (action, n) ->
-	compile (action :> Rules.effect) g begin fun cs g' ->
-	  let thres =
-	    n + List.fold_left min max_int (List.map (fun{cost}->cost) cs)
-	  in
-	    k (fun { cost } -> cost <= thres ) g'
-	end
-    | `Only _ ->
-	(* todo *)
-	k (fun _ -> true) g*)
-
-
-(*
-  match n with
-    | `Const _ as x ->
-	k x g
-    | `Any as x ->
-	k x g
-    | `Range _ as x ->
-	k x g
-    | `All as x ->
-	k x g
-    | `NumOf action ->
-	compile (action :> Rules.effect) g begin fun cs g' ->
-	  k (`Const (List.length cs)) g'
-	end*)
-
-(*let rec compile (e : Rules.effect ) (g : game) k : user_action =
-  match e with
-    | `Action n ->
-	k [] {g with me = {g.me with action = g.me.action + n }}
-    | `Draw n ->
-	k [] {g with me = {g.me with draw = g.me.draw + n }}
-    | `Buy n ->
-	k [] {g with me = {g.me with buy = g.me.buy + n }}
-    | `Coin n ->
-	k [] {g with me = {g.me with coin = g.me.coin + n }}
-    | `Select { Rules.src; dest; num } ->
-	compile_num num g begin fun n g1 ->
-	  match n with
-	    | `All ->
-		compile_place src g1 begin fun (cs, update) _ ->
-		  let g2 =
-		    update (fun xs -> (xs,[]))
-		  in
-		    compile_place (dest :> Rules.src_place) g2 begin fun (_,update) _ ->
-		      let g3 =
-			update (fun xs -> ([], cs @ xs))
-		      in
-			k cs g3
-		    end
-		end
-	    | #num as n ->
-	end
-
-and compile_place (p : Rules.src_place) (g:game) k : user_action =
-  match p with
-    | `Hands ->
-	let update f =
-	  let (xs, ys) =
-	    f g.me.hands in
-	    { g with me = { g.me with hands = ys} } in
-	  k (g.me.hands, update) g
-    | `Discard ->
-	let update f =
-	  let (xs, ys) =
-	    f g.me.discards in
-	    { g with me = { g.me with discards = ys} } in
-	  k (g.me.discards, update) g
-    | `Decks ->
-	let update f =
-	  let (xs, ys) =
-	    f g.me.decks in
-	    { g with me = { g.me with decks = ys} } in
-	  k (g.me.decks, update) g
-    | `Supply ->
-	let update f =
-	  let (xs, ys) =
-	    f g.me.hands in
-	    { g with supply = ys } in
-	  k (g.supply, update) g
-    | `Trash ->
-	let update f =
-	  let (xs, ys) =
-	    f g.trash in
-	    { g with trash = ys } in
-	  k (g.trash, update) g
-    | `Filter (pred, place) ->
-	compile_pred pred g begin fun p g' ->
-	  compile_place place g' begin fun (cs, update) g'' ->
-	    let cs' =
-	      List.filter p cs in
-	    let update' f =
-	      update begin fun cs ->
-		let (xs, ys) =
-		  List.partition p cs in
-		let (taken, rest) =
-		  f xs in
-		  (taken, rest @ ys)
-	      end in
-	      k (cs',update') g''
-	  end
-	end
-
-and compile_pred (p : Rules.pred) (g : game) k : user_action =
-  match p with
-    | `Cost n ->
-	k (fun { cost } -> cost <= n) g
-    | `LowCostOf (action, n) ->
-	compile (action :> Rules.effect) g begin fun cs g' ->
-	  let thres =
-	    n + List.fold_left min max_int (List.map (fun{cost}->cost) cs)
-	  in
-	    k (fun { cost } -> cost <= thres ) g'
-	end
-    | `Only _ ->
-	(* todo *)
-	k (fun _ -> true) g
-
-and compile_num (n : Rules.num) (g : game) k : user_action =
-  match n with
-    | `Const _ as x ->
-	k x g
-    | `Any as x ->
-	k x g
-    | `Range _ as x ->
-	k x g
-    | `All as x ->
-	k x g
-    | `NumOf action ->
-	compile (action :> Rules.effect) g begin fun cs g' ->
-	  k (`Const (List.length cs)) g'
-	end
-*)
-

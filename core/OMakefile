@@ -26,7 +26,7 @@ FILES[] =
 UseCamlp4(pa_monad)
 OUnitTest(compiler,base cc compiler hList)
 
-OCAMLFLAGS=-annot
+OCAMLFLAGS=-annot -w
 PROGRAM = test
 # OCAML_LIBS +=
 # OCAML_CLIBS +=

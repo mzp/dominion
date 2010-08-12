@@ -92,7 +92,7 @@ let check'prompt (PromptFP p) =
   lget p >>= (fun (mark,v) ->
                 if mark then lset p (false, v) >> return true
                 else return false)
-let set'mark (PromptFP p) = lget p >>= (fun (mark,v) -> lset p (true,v))
+let set'mark (PromptFP p) = lget p >>= (fun (_mark,v) -> lset p (true,v))
 
 
 type 'a cc1 = (unit, 'a) CONT.mc
