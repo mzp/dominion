@@ -18,13 +18,12 @@ BYTE_ENABLED = true
 FILES[] =
 	base
 	hList
-	rules
+	game
 	cards
 	cc
-	compiler
 
 UseCamlp4(pa_monad)
-OUnitTest(compiler,base cc compiler hList)
+# OUnitTest(compiler,base cc compiler hList)
 
 OCAMLFLAGS=-annot -w
 PROGRAM = test
@@ -36,4 +35,4 @@ PROGRAM = test
 .DEFAULT: $(OCamlProgram $(PROGRAM), $(FILES))
 
 clean:
-	$(RM) *.cm[iox] *.o $(PROGRAM) *.opt
+	$(RM) *.cm[iox] *.o $(PROGRAM) *.opt *-runner *.run *.annot

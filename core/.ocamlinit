@@ -1,0 +1,5 @@
+#use "topfind";;
+#load "dynlink.cma";;
+#camlp4o;;
+#load "../camlp4/pa_monad.cmo";;
+#load "cc.cmo";;

@@ -1,64 +1,18 @@
 open Rules
+open Cc
+let some_card p =
+  perform begin
+    x <-- shiftP p (fun k -> return (`Cont k));
+    return (`Other (x+1))
+  end
 
-let cellar : effect list = [
-  `Select {
-      src = `Decks;
-      dest = `Hands;
-      num = `NumOf (`Select {
-		      src  = `Hands;
-		      dest = `Discard;
-		      num  = `Any
-		    })
-  }]
-
-let market : effect list = [
-  `Action 1;
-  `Buy    1;
-  `Coin   1;
-  `Draw   1;
-]
-
-let mine : effect list =
-  [ `Select {
-      src  = `Filter( `Only `Coin,
-		      `Filter (`LowCostOf (`Select {
-					     src  = `Hands;
-					     dest = `Trash;
-					     num = `Const 1
-					   },3),
-			       `Supply));
-      dest = `Hands;
-      num  = `Const 1;
-    } ]
-
-let remodel : effect list = [
-  `Select {
-    src = `Filter (`LowCostOf (`Select {
-				 src  = `Hands;
-				 dest = `Trash;
-				 num  = `Const 1
-			       },2),`Supply);
-    dest = `Discard;
-    num  = `Const 1
-  } ]
-
-let smity : effect list = [
-  `Draw 3
-]
-
-let village : effect list = [
-  `Action 2;
-  `Draw 1;
-]
-
-let woodcutter : effect list = [
-  `Buy 1;
-  `Coin 2;
-]
-
-let workshop : effect list = [
-  `Select {
-    src  = `Filter(`Cost 4,`Supply);
-    dest = `Discard;
-    num  = `Const 1;
-  } ]
+let _ =
+  run (perform begin
+	 p <-- new_prompt ();
+	 r <-- pushP p (some_card p);
+	 match r with
+	   | `Cont k ->
+	       k (return 1)
+	   |_ ->
+	       assert false
+       end)
