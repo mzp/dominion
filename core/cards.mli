@@ -10,3 +10,4 @@ type 'a action =
 	 as 'b) Cc.prompt -> Game.t -> (unit, [> `Game of Game.t ]) Cc.CONT.mc
 
 val cellar : 'a action
+val market : 'a action

@@ -52,4 +52,10 @@ let cellar p g =
     ret @@ move `supply `hands ys g
   end
 
-
+let market p g =
+  ret @@ me g ~f:fun ({action;buy;coin;draw}as p) ->
+    {p with
+       action = action + 1;
+       buy    = buy    + 1;
+       coin   = coin   + 1;
+       draw   = draw   + 1}

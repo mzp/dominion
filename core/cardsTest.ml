@@ -85,5 +85,14 @@ let _ = begin "cards.ml" >::: [
       game [c;d] [a;b] [] in
       goal (second_step game2.supply)
 	~check:(assert_equal game3)
-  end
+  end;
+  "シナリオテスト(marketの場合)" >:: begin fun _ ->
+    goal (start Game.empty market)
+      ~check:(assert_equal {Game.empty with me = {
+			      Game.empty_player with
+				action = 1;
+				buy    = 1;
+				coin   = 1;
+				draw   = 1 } })
+  end;
 ] end +> run_test_tt_main
