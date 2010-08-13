@@ -17,34 +17,28 @@ let (--) xs ys =
 
 let (++) = (@)
 
-type response =
-    card list * Game.t
+let me g ~f =
+  { g with me = f g.me }
+
+let update ~f place g =
+  match place with
+      `discards ->
+	me g ~f:fun p -> { p with discards = f p.discards }
+    | `hands ->
+	me g ~f:fun p -> { p with hands = f p.hands }
+    | `supply ->
+	{g with supply = f g.supply }
+
+let moveTo place xs g =
+  update place g ~f:(fun ys -> xs ++ ys)
+
+let moveFrom place xs g =
+  update place g ~f:(fun ys -> ys -- xs)
 
 let cellar p g =
   perform begin
-    ((xs,g) : response) <-- user p @@ selectFrom g g.me.hands `Any;
-    ((ys,g) : response) <-- user p @@ selectFrom g g.supply @@ `Const (List.length xs);
-    ret { g with
-	    me = { g.me with
-		     hands    = ys ++ g.me.hands;
-		     discards = xs ++ g.me.discards } }
+    (xs : card list) <-- user p @@ selectFrom g g.me.hands `Any;
+    let g = moveTo `discards xs @@ moveFrom `hands xs g in
+    (ys : card list) <-- user p @@ selectFrom g g.supply @@ `Const (List.length xs);
+    ret @@ moveTo `hands ys @@ moveFrom `supply ys g
   end
-
-(*
-let some_card p =
-  perform begin
-    x <-- shiftP p (fun k -> return (`Cont k));
-    return (`Other (x+1))
-  end
-
-let _ =
-  run (perform begin
-	 p <-- new_prompt ();
-	 r <-- pushP p (some_card p);
-	 match r with
-	   | `Cont k ->
-	       k (return 1)
-	   |_ ->
-	       assert false
-       end)
-*)
