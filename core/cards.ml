@@ -20,15 +20,14 @@ let (++) = (@)
 type response =
     card list * Game.t
 
-let cellar p ({ me; supply } as g) =
+let cellar p g =
   perform begin
-    ((xs,g) : response) <-- user p (selectFrom g me.hands `Any);
-    ((ys,g) : response) <-- user p (selectFrom g supply @@ `Const (List.length xs));
+    ((xs,g) : response) <-- user p @@ selectFrom g g.me.hands `Any;
+    ((ys,g) : response) <-- user p @@ selectFrom g g.supply @@ `Const (List.length xs);
     ret { g with
-	    supply = supply -- ys;
-	    me     = { me with
-			 hands    = ys ++ (me.hands -- xs);
-			 discards = xs ++ me.discards } }
+	    me = { g.me with
+		     hands    = ys ++ g.me.hands;
+		     discards = xs ++ g.me.discards } }
   end
 
 (*

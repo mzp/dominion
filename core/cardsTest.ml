@@ -20,8 +20,8 @@ let take f game = function
 
 open Cc
 
-let ok x y =
-  assert_equal x y
+let ok msg x y =
+  assert_equal ~msg ~printer:Std.dump x y
 
 let selectOnly = function
     `SelectFrom _ as x ->
@@ -53,22 +53,23 @@ let _ = begin "cards.ml" >::: [
 	pushP p @@ cellar p game
        end
     in
-      ok game g;
-      ok game.me.hands cs;
-      ok `Any num;
+      ok "1st game" game g;
+      ok "1st cs" game.me.hands cs;
+      ok "1st num" `Any num;
     let (_, game') as r =
       take (HList.splitAt 2) game `hands in
     let `SelectFrom (g,cs,num,k) =
       selectOnly @@ run @@ k (return r)
     in
-      ok game' g;
-      ok game'.supply cs;
-      ok (`Const 2) num;
+      ok "2nd game" game' g;
+      ok "2nd cs" game'.supply cs;
+      ok "2nd hands" [] g.me.hands;
+      ok "2nd num" (`Const 2) num;
     let (_, game') as r =
-      take (HList.splitAt 2) game `supply in
+      take (HList.splitAt 2) g `supply in
     let `Game g =
       gameOnly @@ run @@ k (return r) in
-      ok {
+      ok "last game" {
 	empty with
 	  me = { empty_player with
 		   hands = [card "E"; card "F"];
