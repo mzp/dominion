@@ -23,7 +23,7 @@ FILES[] =
 	cc
 
 UseCamlp4(pa_monad)
-# OUnitTest(compiler,base cc compiler hList)
+OUnitTest(cards,base cc game cards hList)
 
 OCAMLFLAGS=-annot -w
 PROGRAM = test

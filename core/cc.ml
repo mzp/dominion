@@ -49,7 +49,7 @@
 (** Haskell's Cont monad _without_ the answer-type polymorphism. *)
 module CONT =
 struct
-  (* type 'a m = {cont: 'w . ('a -> 'w) -> 'w} *)
+  (* type 'a m = {cont: 'w .('a -> 'w) -> 'w} *)
   type ('w, 'a) mc = {cont: ('a -> 'w) -> 'w}
   let return x = {cont = fun k -> k x}
   let (>>=) m f = {cont = fun k -> m.cont (fun x -> (f x).cont k)}
