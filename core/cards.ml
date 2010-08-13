@@ -3,7 +3,11 @@ open Cc
 open Game
 open ExtList
 
-let selectFrom (g : Game.t) (cs : card list) (num : [`Const of int | `Any]) k =
+type num = [
+| `Const of int
+| `Any ]
+
+let selectFrom g cs num k =
   `SelectFrom (g,cs,num,k)
 
 let user p action =
@@ -29,16 +33,23 @@ let update ~f place g =
     | `supply ->
 	{g with supply = f g.supply }
 
-let moveTo place xs g =
-  update place g ~f:(fun ys -> xs ++ ys)
+let move src dest xs g =
+  update dest ~f:(fun ys -> xs ++ ys) @@
+    update src ~f:(fun ys -> ys -- xs) g
 
-let moveFrom place xs g =
-  update place g ~f:(fun ys -> ys -- xs)
+type 'a action =
+    'a constraint
+      'a = ([> `SelectFrom of
+	  Game.t * Game.card list * num *
+	    ((unit, Game.card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ]
+	 as 'b) Cc.prompt -> Game.t -> (unit, [> `Game of Game.t ]) Cc.CONT.mc
 
 let cellar p g =
   perform begin
     (xs : card list) <-- user p @@ selectFrom g g.me.hands `Any;
-    let g = moveTo `discards xs @@ moveFrom `hands xs g in
+    let g = move `hands `discards xs g in
     (ys : card list) <-- user p @@ selectFrom g g.supply @@ `Const (List.length xs);
-    ret @@ moveTo `hands ys @@ moveFrom `supply ys g
+    ret @@ move `supply `hands ys g
   end
+
+
