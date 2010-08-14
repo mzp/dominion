@@ -38,6 +38,18 @@ let select ~check actual =
     | _ ->
 	assert false
 
+let assert_attack name target game state =
+  ok (name ^ " game")  game  state.current;
+  ok (name ^ " target") target state.target
+
+let atack ~check actual =
+  match Cc.run actual with
+      `Atack (state, k) ->
+	check state;
+	(fun b -> k @@ return b)
+    | _ ->
+	assert false
+
 let goal ~check actual =
   match Cc.run actual with
       `Game g ->
@@ -187,4 +199,55 @@ let _ = begin "cards.ml" >::: [
       goal (first_step [b])
 	~check:(assert_equal @@ game [b] [a;c])
   end;
+  "moat/militia" >:: begin fun () ->
+    let alice =
+      { empty_player with
+	  player_name="alice";
+	  hands=[{a () with effect=Protect }]} in
+    let bob =
+      { empty_player with
+	  player_name="bob";
+	  hands=[{a () with effect=Protect};
+		 b ();
+		 c ();
+		 d ();
+		 e ()]} in
+    let charry = { empty_player with
+		     player_name="charry";
+		 hands = [a(); b(); c(); e()]} in
+    let game x y = {
+      empty with
+	me     = {empty_player with player_name="david"};
+	others = [alice; x; y] } in
+    let game1 =
+      game bob charry in
+    let alice_attacked =
+      atack (start game1 militia)
+	~check:(assert_attack "alice attacked" alice game1) in
+    let bob_attacked =
+      atack (alice_attacked true)
+	~check:(assert_attack "bob attacked" bob game1) in
+    let bob_select =
+      select (bob_attacked false)
+	~check:(assert_select "bob select" game1 bob.hands (`Const 2)) in
+    let charry_select =
+      select (bob_select [d (); e()])
+	~check:(assert_select "charry select"
+		  (game
+		     { bob with
+			 hands=[{a () with effect= Protect}; b (); c ()];
+			 discards=[d();e()] }
+		     charry)
+		  charry.hands
+		  (`Const 1)) in
+      goal (charry_select [a ()])
+	~check:(assert_equal @@
+		  game
+		  { bob with
+		      hands=[{a () with effect=Protect}; b (); c ()];
+		      discards=[d();e()] }
+		  { charry with
+		      hands =[b();c();e()];
+		      discards=[a()]})
+  end
 ] end +> run_test_tt_main

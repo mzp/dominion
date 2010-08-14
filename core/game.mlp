@@ -25,6 +25,7 @@ and 'a card = {
 constraint act
 
 and 'a player = {
+  player_name : string;
   hands : 'a card list;
   decks : 'a card list;
   discards : 'a card list;
@@ -50,13 +51,14 @@ and 'a state = {
 constraint act
 
 let empty_player = {
-    decks    = [];
-    hands    = [];
-    discards = [];
-    action   = 0;
-    draw     = 0;
-    buy      = 0;
-    coin     = 0
+  player_name = "";
+  decks    = [];
+  hands    = [];
+  discards = [];
+  action   = 0;
+  draw     = 0;
+  buy      = 0;
+  coin     = 0
 }
 
 let empty = {

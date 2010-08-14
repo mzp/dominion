@@ -112,3 +112,5 @@ let workshop p (`Game g) =
     xs <-- user p @@ selectFrom g one @@ cost 4 g.supply;
     ret @@ move `supply `discards xs g
   end
+
+let militia _ = assert false

@@ -7,3 +7,4 @@ val smithy : 'a Game.action
 val village : 'a Game.action
 val woodcutter : 'a Game.action
 val workshop : 'a Game.action
+val militia : 'a Game.action
