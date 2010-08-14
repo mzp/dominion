@@ -69,3 +69,9 @@ let market p g =
 	  +> draw   1)
 
 let mine _ = assert false
+
+let remodel _ = assert false
+let smithy _ = assert false
+let village _ = assert false
+let woodcutter _ = assert false
+let workshop _ = assert false

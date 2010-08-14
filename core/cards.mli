@@ -12,3 +12,8 @@ type 'a action =
 val cellar : 'a action
 val market : 'a action
 val mine   : 'a action
+val remodel: 'a action
+val smithy : 'a action
+val village : 'a action
+val woodcutter : 'a action
+val workshop : 'a action

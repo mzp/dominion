@@ -102,11 +102,11 @@ let _ = begin "cards.ml" >::: [
       empty with
 	me = { empty_player with
 		 hands };
-	supply; trash }
-    in
+	supply; trash }  in
+    let d =
+      {d with cost = 3 }  in
     let e =
-      {e with cost = 100 }
-    in
+      {e with cost = 4 } in
     (* 手札からaを捨てる *)
     let game1 =
       game [a;b] [] [c;d;e] in
@@ -123,5 +123,72 @@ let _ = begin "cards.ml" >::: [
     (* 選んだカードが手札に加わる *)
       goal (second_step [c])
 	~check:(assert_equal @@ game [c; b] [a] [d;e])
-  end
+  end;
+  "remodelの場合" >:: begin fun _ ->
+    let game hands trash discards supply = {
+      empty with
+	me = { empty_player with
+		 hands; discards };
+	supply; trash }  in
+    let d =
+      {d with cost = 2 }  in
+    let e =
+      {e with cost = 3 } in
+    (* 手札からaを捨てる *)
+    let game1 =
+      game [a;b] [] [] [c;d;e] in
+    let first_step =
+      select (start game1 mine)
+	~check:(assert_select "1st" game1 game1.me.hands (`Const 1)) in
+    (* a+2以下のコストをsupplyから選ぶ *)
+    let game2 =
+      game [b] [a] [] [c;d;e] in
+    let second_step =
+      select (first_step game1.me.hands)
+	~check:(assert_select "2nd" game2 [c; d] (`Const 1))
+    in
+    (* 選んだカードがsupplyに加わる *)
+      goal (second_step [c])
+	~check:(assert_equal @@ game [b] [a] [c] [d;e])
+  end;
+  "smityの場合" >:: begin fun () ->
+    goal (start Game.empty market)
+      ~check:(assert_equal {Game.empty with me = {
+			      Game.empty_player with
+				draw   = 3 } })
+  end;
+  "villageの場合" >:: begin fun () ->
+    goal (start Game.empty market)
+      ~check:(assert_equal {Game.empty with me = {
+			      Game.empty_player with
+				action = 2;
+				draw   = 1 } })
+  end;
+  "woodcutterの場合" >:: begin fun () ->
+    goal (start Game.empty market)
+      ~check:(assert_equal {Game.empty with me = {
+			      Game.empty_player with
+				buy = 1;
+				coin = 2 } })
+  end;
+  "workshopの場合" >:: begin fun () ->
+    let game discards supply = {
+      empty with
+	me = { empty_player with
+		 discards };
+	supply }  in
+    let b =
+      {d with cost = 4 }  in
+    let c =
+      {e with cost = 5 } in
+    (* supplyから4以下のカードを取る *)
+    let game1 =
+      game [] [a; b; c] in
+    let first_step =
+      select (start game1 mine)
+	~check:(assert_select "1st" game1 [a; b] (`Const 1)) in
+    (* 取ったカードがdiscardsに追加される *)
+      goal (first_step [b])
+	~check:(assert_equal @@ game [b] [a;c])
+  end;
 ] end +> run_test_tt_main
