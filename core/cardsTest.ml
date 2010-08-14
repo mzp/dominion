@@ -15,8 +15,7 @@ let gameOnly = function
 
 let card name = {
   name;
-  cost = 0;
-  body = Treasure
+  cost = 0
 }
 
 let a =
@@ -53,7 +52,7 @@ let goal ~check actual =
 let start game card =
   perform begin
     p <-- new_prompt ();
-    pushP p @@ card p game
+    pushP p @@ card p @@ `Game game
   end
 
 let _ = begin "cards.ml" >::: [

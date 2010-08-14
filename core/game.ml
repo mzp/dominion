@@ -1,9 +1,14 @@
+type num = [
+| `Const of int
+| `Any ]
+
+
 type card = {
   name : string;
   cost : int
 }
 
-type player = {
+and player = {
   hands : card list;
   decks : card list;
   discards : card list;
@@ -13,12 +18,25 @@ type player = {
   coin   : int
 }
 
-type t = {
+and t = {
   me     : player;
   others : player list;
   supply : card list;
   trash  : card list
 }
+
+and state = {
+  target  : player;
+  current : t
+}
+
+and 'a action =
+    'a constraint
+      'a = ([> `SelectFrom of
+	       state * card list * num *
+	    ((unit, card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ] as 'b) Cc.prompt
+    -> [`Game of t]
+    -> (unit, [> `Game of t ]) Cc.CONT.mc
 
 let empty_player = {
     decks=[];

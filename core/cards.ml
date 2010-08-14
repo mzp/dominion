@@ -3,22 +3,6 @@ open Cc
 open Game
 open ExtList
 
-type num = [
-| `Const of int
-| `Any ]
-
-type state = {
-  target  : player;
-  current : Game.t
-}
-
-type 'a action =
-    'a constraint
-      'a = ([> `SelectFrom of
-	       state * Game.card list * num *
-	    ((unit, Game.card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ]
-	      as 'b) Cc.prompt -> Game.t -> (unit, [> `Game of Game.t ]) Cc.CONT.mc
-
 let selectFrom g cs num k =
   `SelectFrom ({target=g.me; current=g}, cs,num,k)
 
@@ -70,7 +54,7 @@ let coin n =
 let draw n =
   me ~f:(fun ({draw} as p) -> { p with draw = draw + n })
 
-let cellar p g =
+let cellar p (`Game g) =
   perform begin
     xs <-- user p @@ selectFrom g g.me.hands any;
     let g = move `hands `discards xs g in
@@ -78,7 +62,7 @@ let cellar p g =
     ret @@ move `supply `hands ys g
   end
 
-let market _ g =
+let market _ (`Game g) =
   g
   +> action 1
   +> buy    1
@@ -86,16 +70,15 @@ let market _ g =
   +> draw   1
   +> ret
 
-let mine p g =
+let mine p (`Game g) =
   perform begin
-    (* todo: コインだけを捨てるようにする *)
     [ x ] <-- user p @@ selectFrom g g.me.hands one;
     let g = move `hands `trash [x] g in
     ys <-- user p @@ selectFrom g (cost (x.cost + 3) g.supply) one;
     ret @@ move `supply `hands ys g
   end
 
-let remodel p g =
+let remodel p (`Game g) =
   perform begin
     [ x ] <-- user p @@ selectFrom g g.me.hands one;
     let g = move `hands `trash [ x ] g in
@@ -103,24 +86,24 @@ let remodel p g =
     ret @@ move `supply `discards ys g
   end
 
-let smithy _ g =
+let smithy _ (`Game g) =
   g
   +> draw 3
   +> ret
 
-let village _ g =
+let village _ (`Game g) =
   g
   +> action 2
   +> draw 1
   +> ret
 
-let woodcutter _ g =
+let woodcutter _ (`Game g) =
   g
   +> buy 1
   +> coin 2
   +> ret
 
-let workshop p g =
+let workshop p (`Game g) =
   perform begin
     xs <-- user p @@ selectFrom g (cost 4 g.supply) one;
     ret @@ move `supply `discards xs g
