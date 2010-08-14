@@ -32,6 +32,8 @@ let c =
   card "C"
 let d =
   card "D"
+let e =
+  card "E"
 
 let assert_select name game cards num g cs n =
   ok (name ^ " game")  game g;
@@ -95,4 +97,31 @@ let _ = begin "cards.ml" >::: [
 				coin   = 1;
 				draw   = 1 } })
   end;
+  "mineの場合" >:: begin fun _ ->
+    let game hands trash supply = {
+      empty with
+	me = { empty_player with
+		 hands };
+	supply; trash }
+    in
+    let e =
+      {e with cost = 100 }
+    in
+    (* 手札からaを捨てる *)
+    let game1 =
+      game [a;b] [] [c;d;e] in
+    let first_step =
+      select (start game1 mine)
+	~check:(assert_select "1st" game1 game1.me.hands (`Const 1)) in
+    (* a+3以下のコストをsupplyから選ぶ *)
+    let game2 =
+      game [b] [a] [c;d;e] in
+    let second_step =
+      select (first_step game1.me.hands)
+	~check:(assert_select "2nd" game2 [c; d] (`Const 1))
+    in
+    (* 選んだカードが手札に加わる *)
+      goal (second_step [c])
+	~check:(assert_equal @@ game [c; b] [a] [d;e])
+  end
 ] end +> run_test_tt_main

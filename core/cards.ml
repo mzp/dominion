@@ -68,4 +68,4 @@ let market p g =
 	  +> coin   1
 	  +> draw   1)
 
-
+let mine _ = assert false

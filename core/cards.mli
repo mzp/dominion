@@ -11,3 +11,4 @@ type 'a action =
 
 val cellar : 'a action
 val market : 'a action
+val mine   : 'a action
