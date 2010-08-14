@@ -3,40 +3,40 @@ type num = [
 | `Any ]
 
 
-type card = {
+type 'a card = {
   name : string;
   cost : int
 }
 
-and player = {
-  hands : card list;
-  decks : card list;
-  discards : card list;
+and 'a player = {
+  hands : 'a card list;
+  decks : 'a card list;
+  discards : 'a card list;
   action : int;
   draw   : int;
   buy    : int;
   coin   : int
 }
 
-and t = {
-  me     : player;
-  others : player list;
-  supply : card list;
-  trash  : card list
+and 'a t = {
+  me     : 'a player;
+  others : 'a player list;
+  supply : 'a card list;
+  trash  : 'a card list
 }
 
-and state = {
-  target  : player;
-  current : t
+and 'a state = {
+  target  : 'a player;
+  current : 'a t
 }
 
 and 'a action =
     'a constraint
       'a = ([> `SelectFrom of
-	       state * card list * num *
-	    ((unit, card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ] as 'b) Cc.prompt
-    -> [`Game of t]
-    -> (unit, [> `Game of t ]) Cc.CONT.mc
+	       'a state * 'a card list * num *
+		 ((unit, 'a card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ] as 'b) Cc.prompt
+    -> [`Game of 'a t]
+    -> (unit, [> `Game of 'a t ]) Cc.CONT.mc
 
 let empty_player = {
     decks=[];
