@@ -13,21 +13,17 @@ let gameOnly = function
   | _ ->
       assert false
 
-let card name = {
+let card name () = {
   name;
   cost = 0
 }
 
-let a =
-  card "A"
-let b =
-  card "B"
-let c =
-  card "C"
-let d =
-  card "D"
-let e =
-  card "E"
+let a () = card "A" ()
+let b () = card "B" ()
+let c () = card "C" ()
+let d () = card "D" ()
+let e () = card "E" ()
+
 
 let assert_select name game cards num { current = g } cs n =
   ok (name ^ " game")  game  g;
@@ -63,6 +59,10 @@ let _ = begin "cards.ml" >::: [
 		 hands; discards };
 	supply }
     in
+    let a = a () in
+    let b = b () in
+    let c = c () in
+    let d = d () in
     (* step 1 *)
     let game1 =
       game [a;b] [] [c;d] in
@@ -97,10 +97,11 @@ let _ = begin "cards.ml" >::: [
 	me = { empty_player with
 		 hands };
 	supply; trash }  in
-    let d =
-      {d with cost = 3 }  in
-    let e =
-      {e with cost = 4 } in
+    let a = a () in
+    let b = b () in
+    let c = c () in
+    let d = { d () with cost = 3 }  in
+    let e = { e () with cost = 4 } in
     (* 手札からaを捨てる *)
     let game1 =
       game [a;b] [] [c;d;e] in
@@ -124,10 +125,11 @@ let _ = begin "cards.ml" >::: [
 	me = { empty_player with
 		 hands; discards };
 	supply; trash }  in
-    let d =
-      {d with cost = 2 }  in
-    let e =
-      {e with cost = 3 } in
+    let a = a () in
+    let b = b () in
+    let c = c () in
+    let d = { d () with cost = 2 }  in
+    let e = { e () with cost = 3 } in
     (* 手札からaを捨てる *)
     let game1 =
       game [a;b] [] [] [c;d;e] in
@@ -171,10 +173,9 @@ let _ = begin "cards.ml" >::: [
 	me = { empty_player with
 		 discards };
 	supply }  in
-    let b =
-      {d with cost = 4 }  in
-    let c =
-      {e with cost = 5 } in
+    let a = a () in
+    let b = { b () with cost = 4 }  in
+    let c = { c () with cost = 5 } in
     (* supplyから4以下のカードを取る *)
     let game1 =
       game [] [a; b; c] in

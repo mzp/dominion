@@ -7,6 +7,13 @@ type 'a card = {
   name : string;
   cost : int
 }
+constraint
+  'a = ([> `SelectFrom of
+	   'a state * 'a card list * num *
+	     ((unit, 'a card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ] as 'b) Cc.prompt
+    -> [`Game of 'a t]
+      -> (unit, [> `Game of 'a t ]) Cc.CONT.mc
+
 
 and 'a player = {
   hands : 'a card list;
@@ -17,6 +24,13 @@ and 'a player = {
   buy    : int;
   coin   : int
 }
+constraint
+  'a = ([> `SelectFrom of
+	   'a state * 'a card list * num *
+	     ((unit, 'a card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ] as 'b) Cc.prompt
+    -> [`Game of 'a t]
+      -> (unit, [> `Game of 'a t ]) Cc.CONT.mc
+
 
 and 'a t = {
   me     : 'a player;
@@ -24,17 +38,31 @@ and 'a t = {
   supply : 'a card list;
   trash  : 'a card list
 }
+constraint
+  'a = ([> `SelectFrom of
+	   'a state * 'a card list * num *
+	     ((unit, 'a card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ] as 'b) Cc.prompt
+    -> [`Game of 'a t]
+      -> (unit, [> `Game of 'a t ]) Cc.CONT.mc
+
 
 and 'a state = {
   target  : 'a player;
   current : 'a t
 }
+constraint 'a =
+    ([> `SelectFrom of
+	'a state * 'a card list * num *
+	  ((unit, 'a card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ] as 'b) Cc.prompt
+    -> [`Game of 'a t]
+    -> (unit, [> `Game of 'a t ]) Cc.CONT.mc
 
 and 'a action =
-    'a constraint
-      'a = ([> `SelectFrom of
-	       'a state * 'a card list * num *
-		 ((unit, 'a card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ] as 'b) Cc.prompt
+    'a
+constraint 'a =
+    ([> `SelectFrom of
+	'a state * 'a card list * num *
+	  ((unit, 'a card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ] as 'b) Cc.prompt
     -> [`Game of 'a t]
     -> (unit, [> `Game of 'a t ]) Cc.CONT.mc
 
