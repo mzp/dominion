@@ -13,17 +13,16 @@ let gameOnly = function
   | _ ->
       assert false
 
-let card name () = {
+let card name = {
   name;
   cost = 0
 }
 
-let a () = card "A" ()
-let b () = card "B" ()
-let c () = card "C" ()
-let d () = card "D" ()
-let e () = card "E" ()
-
+let a () = card "A"
+let b () = card "B"
+let c () = card "C"
+let d () = card "D"
+let e () = card "E"
 
 let assert_select name game cards num { current = g } cs n =
   ok (name ^ " game")  game  g;

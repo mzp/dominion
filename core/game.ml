@@ -12,8 +12,7 @@ constraint
 	   'a state * 'a card list * num *
 	     ((unit, 'a card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ] as 'b) Cc.prompt
     -> [`Game of 'a t]
-      -> (unit, [> `Game of 'a t ]) Cc.CONT.mc
-
+    -> (unit, [> `Game of 'a t ]) Cc.CONT.mc
 
 and 'a player = {
   hands : 'a card list;
@@ -29,8 +28,7 @@ constraint
 	   'a state * 'a card list * num *
 	     ((unit, 'a card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ] as 'b) Cc.prompt
     -> [`Game of 'a t]
-      -> (unit, [> `Game of 'a t ]) Cc.CONT.mc
-
+    -> (unit, [> `Game of 'a t ]) Cc.CONT.mc
 
 and 'a t = {
   me     : 'a player;
@@ -39,12 +37,12 @@ and 'a t = {
   trash  : 'a card list
 }
 constraint
-  'a = ([> `SelectFrom of
-	   'a state * 'a card list * num *
-	     ((unit, 'a card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ] as 'b) Cc.prompt
+  'a =
+    ([> `SelectFrom of
+	'a state * 'a card list * num *
+	  ((unit, 'a card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ] as 'b) Cc.prompt
     -> [`Game of 'a t]
-      -> (unit, [> `Game of 'a t ]) Cc.CONT.mc
-
+    -> (unit, [> `Game of 'a t ]) Cc.CONT.mc
 
 and 'a state = {
   target  : 'a player;
@@ -67,18 +65,18 @@ constraint 'a =
     -> (unit, [> `Game of 'a t ]) Cc.CONT.mc
 
 let empty_player = {
-    decks=[];
-    hands=[];
-    discards=[];
-    action=0;
-    draw=0;
-    buy=0;
-    coin=0
+    decks    = [];
+    hands    = [];
+    discards = [];
+    action   = 0;
+    draw     = 0;
+    buy      = 0;
+    coin     = 0
 }
 
 let empty = {
-  me = empty_player;
-  supply=[];
+  me     = empty_player;
+  supply = [];
   others = [];
-  trash = []
+  trash  = []
 }
