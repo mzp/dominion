@@ -37,6 +37,15 @@ let move src dest xs g =
   update dest ~f:(fun ys -> xs ++ ys) @@
     update src ~f:(fun ys -> ys -- xs) g
 
+let action n =
+  me ~f:(fun ({action} as p) -> { p with action = action + n })
+let buy n =
+  me ~f:(fun ({buy} as p) -> { p with buy = buy + n })
+let coin n =
+  me ~f:(fun ({coin} as p) -> { p with coin = coin + n })
+let draw n =
+  me ~f:(fun ({draw} as p) -> { p with draw = draw + n })
+
 type 'a action =
     'a constraint
       'a = ([> `SelectFrom of
@@ -53,9 +62,10 @@ let cellar p g =
   end
 
 let market p g =
-  ret @@ me g ~f:fun ({action;buy;coin;draw}as p) ->
-    {p with
-       action = action + 1;
-       buy    = buy    + 1;
-       coin   = coin   + 1;
-       draw   = draw   + 1}
+  ret @@ (g
+	  +> action 1
+	  +> buy    1
+	  +> coin   1
+	  +> draw   1)
+
+
