@@ -7,8 +7,20 @@ type num = [
 | `Const of int
 | `Any ]
 
+type state = {
+  target  : player;
+  current : Game.t
+}
+
+type 'a action =
+    'a constraint
+      'a = ([> `SelectFrom of
+	       state * Game.card list * num *
+	    ((unit, Game.card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ]
+	      as 'b) Cc.prompt -> Game.t -> (unit, [> `Game of Game.t ]) Cc.CONT.mc
+
 let selectFrom g cs num k =
-  `SelectFrom (g,cs,num,k)
+  `SelectFrom ({target=g.me; current=g}, cs,num,k)
 
 let user p action =
   shiftP p (fun k -> return (action k))
@@ -57,13 +69,6 @@ let coin n =
   me ~f:(fun ({coin} as p) -> { p with coin = coin + n })
 let draw n =
   me ~f:(fun ({draw} as p) -> { p with draw = draw + n })
-
-type 'a action =
-    'a constraint
-      'a = ([> `SelectFrom of
-	  Game.t * Game.card list * num *
-	    ((unit, Game.card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ]
-	 as 'b) Cc.prompt -> Game.t -> (unit, [> `Game of Game.t ]) Cc.CONT.mc
 
 let cellar p g =
   perform begin

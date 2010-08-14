@@ -2,12 +2,6 @@ open Base
 open OUnit
 open Game
 open Cards
-
-let card name cost = {
-  name = name;
-  cost = cost;
-}
-
 open Cc
 
 let ok msg x y =
@@ -22,6 +16,7 @@ let gameOnly = function
 let card name = {
   name;
   cost = 0;
+  body = Treasure
 }
 
 let a =
@@ -35,15 +30,15 @@ let d =
 let e =
   card "E"
 
-let assert_select name game cards num g cs n =
-  ok (name ^ " game")  game g;
+let assert_select name game cards num { current = g } cs n =
+  ok (name ^ " game")  game  g;
   ok (name ^ " cards") cards cs;
   ok (name ^ " num")   num n
 
 let select ~check actual =
   match Cc.run actual with
-      `SelectFrom (g,cs,n,k) ->
-	check g cs n;
+      `SelectFrom (state,cs,n,k) ->
+	check state cs n;
 	(fun cs -> k @@ return cs)
     | _ ->
 	assert false
