@@ -3,19 +3,20 @@ open Cc
 open Game
 open ExtList
 
-let selectFrom g cs num k =
-  `SelectFrom ({target=g.me; current=g}, cs,num,k)
+let (++) =
+  (@)
+
+let (--) xs ys =
+  List.fold_left (fun xs' y -> List.remove xs' y) xs ys
+
+let selectFrom (g : 'a Game.t) (n : Game.num) (cs : 'a Game.card list) k =
+  `SelectFrom ({target=g.me; current=g}, cs, n, k)
 
 let user p action =
   shiftP p (fun k -> return (action k))
 
 let ret game =
   return (`Game game)
-
-let (--) xs ys =
-  List.fold_left (fun xs' y -> List.remove xs' y) xs ys
-
-let (++) = (@)
 
 let me g ~f =
   { g with me = f g.me }
@@ -38,6 +39,9 @@ let move src dest xs g =
 let cost n xs =
   List.filter (fun {cost} -> cost <= n) xs
 
+let treasure xs =
+  List.filter (function {effect = Treasure _ } -> true | _ -> false) xs
+
 let one =
   `Const 1
 let two =
@@ -56,9 +60,9 @@ let draw n =
 
 let cellar p (`Game g) =
   perform begin
-    xs <-- user p @@ selectFrom g g.me.hands any;
+    xs <-- user p @@ selectFrom g any g.me.hands;
     let g = move `hands `discards xs g in
-    ys <-- user p @@ selectFrom g g.supply @@ `Const (List.length xs);
+    ys <-- user p @@ selectFrom g (`Const (List.length xs)) g.supply;
     ret @@ move `supply `hands ys g
   end
 
@@ -72,17 +76,17 @@ let market _ (`Game g) =
 
 let mine p (`Game g) =
   perform begin
-    [ x ] <-- user p @@ selectFrom g g.me.hands one;
+    [ x ] <-- user p @@ selectFrom g one g.me.hands;
     let g = move `hands `trash [x] g in
-    ys <-- user p @@ selectFrom g (cost (x.cost + 3) g.supply) one;
+    ys <-- user p @@ selectFrom g one @@ treasure @@ cost (x.cost + 3) g.supply;
     ret @@ move `supply `hands ys g
   end
 
 let remodel p (`Game g) =
   perform begin
-    [ x ] <-- user p @@ selectFrom g g.me.hands one;
+    [ x ] <-- user p @@ selectFrom g one g.me.hands;
     let g = move `hands `trash [ x ] g in
-    ys <-- user p @@ selectFrom g (cost (x.cost + 2) g.supply) one;
+    ys <-- user p @@ selectFrom g one @@ cost (x.cost + 2) g.supply;
     ret @@ move `supply `discards ys g
   end
 
@@ -105,6 +109,6 @@ let woodcutter _ (`Game g) =
 
 let workshop p (`Game g) =
   perform begin
-    xs <-- user p @@ selectFrom g (cost 4 g.supply) one;
+    xs <-- user p @@ selectFrom g one @@ cost 4 g.supply;
     ret @@ move `supply `discards xs g
   end

@@ -102,22 +102,23 @@ let _ = begin "cards.ml" >::: [
     let c = c () in
     let d = { d () with cost = 3 }  in
     let e = { e () with cost = 4 } in
+    let f = { card "F" with effect = Victory 1 } in
     (* 手札からaを捨てる *)
     let game1 =
-      game [a;b] [] [c;d;e] in
+      game [a;b] [] [c;d;e;f] in
     let first_step =
       select (start game1 mine)
 	~check:(assert_select "1st" game1 game1.me.hands (`Const 1)) in
     (* a+3以下のコストをsupplyから選ぶ *)
     let game2 =
-      game [b] [a] [c;d;e] in
+      game [b] [a] [c;d;e;f] in
     let second_step =
       select (first_step [a])
 	~check:(assert_select "2nd" game2 [c; d] (`Const 1))
     in
     (* 選んだカードが手札に加わる *)
       goal (second_step [c])
-	~check:(assert_equal @@ game [c; b] [a] [d;e])
+	~check:(assert_equal @@ game [c; b] [a] [d;e;f])
   end;
   "remodelの場合" >:: begin fun _ ->
     let game hands trash discards supply = {
