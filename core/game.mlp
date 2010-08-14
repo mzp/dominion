@@ -1,0 +1,67 @@
+#include "game.h"
+
+
+type num = [
+| `Const of int
+| `Any ]
+
+type 'a action =
+    'a
+constraint act
+
+and 'a effect =
+  | Action   of 'a action
+  | Protect
+  | Treasure of int
+  | Victory  of int
+  | Curese   of int
+constraint act
+
+and 'a card = {
+  name   : string;
+  cost   : int;
+  effect : 'a effect
+}
+constraint act
+
+and 'a player = {
+  hands : 'a card list;
+  decks : 'a card list;
+  discards : 'a card list;
+  action : int;
+  draw   : int;
+  buy    : int;
+  coin   : int
+}
+constraint act
+
+and 'a t = {
+  me     : 'a player;
+  others : 'a player list;
+  supply : 'a card list;
+  trash  : 'a card list
+}
+constraint act
+
+and 'a state = {
+  target  : 'a player;
+  current : 'a t
+}
+constraint act
+
+let empty_player = {
+    decks    = [];
+    hands    = [];
+    discards = [];
+    action   = 0;
+    draw     = 0;
+    buy      = 0;
+    coin     = 0
+}
+
+let empty = {
+  me     = empty_player;
+  supply = [];
+  others = [];
+  trash  = []
+}
