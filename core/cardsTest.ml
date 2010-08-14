@@ -117,7 +117,7 @@ let _ = begin "cards.ml" >::: [
     let game2 =
       game [b] [a] [c;d;e] in
     let second_step =
-      select (first_step game1.me.hands)
+      select (first_step [a])
 	~check:(assert_select "2nd" game2 [c; d] (`Const 1))
     in
     (* 選んだカードが手札に加わる *)
@@ -138,34 +138,34 @@ let _ = begin "cards.ml" >::: [
     let game1 =
       game [a;b] [] [] [c;d;e] in
     let first_step =
-      select (start game1 mine)
+      select (start game1 remodel)
 	~check:(assert_select "1st" game1 game1.me.hands (`Const 1)) in
     (* a+2以下のコストをsupplyから選ぶ *)
     let game2 =
       game [b] [a] [] [c;d;e] in
     let second_step =
-      select (first_step game1.me.hands)
+      select (first_step [a])
 	~check:(assert_select "2nd" game2 [c; d] (`Const 1))
     in
-    (* 選んだカードがsupplyに加わる *)
+    (* 選んだカードがdiscardsに加わる *)
       goal (second_step [c])
 	~check:(assert_equal @@ game [b] [a] [c] [d;e])
   end;
-  "smityの場合" >:: begin fun () ->
-    goal (start Game.empty market)
+  "smithyの場合" >:: begin fun () ->
+    goal (start Game.empty smithy)
       ~check:(assert_equal {Game.empty with me = {
 			      Game.empty_player with
 				draw   = 3 } })
   end;
   "villageの場合" >:: begin fun () ->
-    goal (start Game.empty market)
+    goal (start Game.empty village)
       ~check:(assert_equal {Game.empty with me = {
 			      Game.empty_player with
 				action = 2;
 				draw   = 1 } })
   end;
   "woodcutterの場合" >:: begin fun () ->
-    goal (start Game.empty market)
+    goal (start Game.empty woodcutter)
       ~check:(assert_equal {Game.empty with me = {
 			      Game.empty_player with
 				buy = 1;
@@ -185,7 +185,7 @@ let _ = begin "cards.ml" >::: [
     let game1 =
       game [] [a; b; c] in
     let first_step =
-      select (start game1 mine)
+      select (start game1 workshop)
 	~check:(assert_select "1st" game1 [a; b] (`Const 1)) in
     (* 取ったカードがdiscardsに追加される *)
       goal (first_step [b])
