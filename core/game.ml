@@ -2,10 +2,32 @@ type num = [
 | `Const of int
 | `Any ]
 
+type 'a action =
+    'a
+constraint 'a =
+    ([> `SelectFrom of
+	'a state * 'a card list * num *
+	  ((unit, 'a card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ] as 'b) Cc.prompt
+    -> [`Game of 'a t]
+    -> (unit, [> `Game of 'a t ]) Cc.CONT.mc
 
-type 'a card = {
-  name : string;
-  cost : int
+and 'a effect =
+  | Action   of 'a action
+  | Protect
+  | Treasure of int
+  | Victory  of int
+  | Curese   of int
+constraint
+  'a = ([> `SelectFrom of
+	   'a state * 'a card list * num *
+	     ((unit, 'a card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ] as 'b) Cc.prompt
+    -> [`Game of 'a t]
+    -> (unit, [> `Game of 'a t ]) Cc.CONT.mc
+
+and 'a card = {
+  name   : string;
+  cost   : int;
+  effect : 'a effect
 }
 constraint
   'a = ([> `SelectFrom of
@@ -48,15 +70,6 @@ and 'a state = {
   target  : 'a player;
   current : 'a t
 }
-constraint 'a =
-    ([> `SelectFrom of
-	'a state * 'a card list * num *
-	  ((unit, 'a card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) ] as 'b) Cc.prompt
-    -> [`Game of 'a t]
-    -> (unit, [> `Game of 'a t ]) Cc.CONT.mc
-
-and 'a action =
-    'a
 constraint 'a =
     ([> `SelectFrom of
 	'a state * 'a card list * num *

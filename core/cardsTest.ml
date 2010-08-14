@@ -15,7 +15,8 @@ let gameOnly = function
 
 let card name = {
   name;
-  cost = 0
+  cost   = 0;
+  effect = Treasure 1
 }
 
 let a () = card "A"
