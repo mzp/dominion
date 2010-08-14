@@ -10,10 +10,36 @@ let (--) xs ys =
   List.fold_left (fun xs' y -> List.remove xs' y) xs ys
 
 let selectFrom (g : 'a Game.t) (n : Game.num) (cs : 'a Game.card list) k =
-  `SelectFrom ({target=g.me; current=g}, cs, n, k)
+  `SelectFrom (g, cs, n, k)
+
+let atackTo g target k =
+  `AtackTo (g,target,k)
 
 let user p action =
   shiftP p (fun k -> return (action k))
+
+let rec atacksTo p g targets ~f =
+  let atack p g x xs =
+    perform begin
+      g <-- f p g x;
+      atacksTo p g xs ~f
+    end in
+  match targets with
+      [] -> return g
+    | x::xs ->
+	if List.exists
+	  (fun c -> c.effect = Protect)
+	  x.hands
+	then
+	  perform begin
+	    revealed <-- user p @@ atackTo g x;
+	    if revealed then
+	      atacksTo p g xs ~f
+	    else
+	      atack p g x xs
+	  end
+	else
+	  atack p g x xs
 
 let ret game =
   return (`Game game)
@@ -113,4 +139,8 @@ let workshop p (`Game g) =
     ret @@ move `supply `discards xs g
   end
 
-let militia _ = assert false
+let militia p (`Game g) =
+  perform begin
+    atacksTo p g g.others ~f:(fun _ -> assert false);
+    ret g
+  end

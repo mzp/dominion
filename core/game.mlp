@@ -44,12 +44,6 @@ and 'a t = {
 }
 constraint act
 
-and 'a state = {
-  target  : 'a player;
-  current : 'a t
-}
-constraint act
-
 let empty_player = {
   player_name = "";
   decks    = [];

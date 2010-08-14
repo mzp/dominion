@@ -25,7 +25,7 @@ let c () = card "C"
 let d () = card "D"
 let e () = card "E"
 
-let assert_select name game cards num { current = g } cs n =
+let assert_select name game cards num g cs n =
   ok (name ^ " game")  game  g;
   ok (name ^ " cards") cards cs;
   ok (name ^ " num")   num n
@@ -38,14 +38,14 @@ let select ~check actual =
     | _ ->
 	assert false
 
-let assert_attack name target game state =
-  ok (name ^ " game")  game  state.current;
-  ok (name ^ " target") target state.target
+let assert_atack name target game g t =
+  ok (name ^ " game")   game   g;
+  ok (name ^ " target") target t
 
 let atack ~check actual =
   match Cc.run actual with
-      `Atack (state, k) ->
-	check state;
+      `AtackTo (g,target, k) ->
+	check g target;
 	(fun b -> k @@ return b)
     | _ ->
 	assert false
@@ -221,14 +221,14 @@ let _ = begin "cards.ml" >::: [
 	others = [alice; x; y] } in
     let game1 =
       game bob charry in
-    let alice_attacked =
+    let alice_atacked =
       atack (start game1 militia)
-	~check:(assert_attack "alice attacked" alice game1) in
-    let bob_attacked =
-      atack (alice_attacked true)
-	~check:(assert_attack "bob attacked" bob game1) in
+	~check:(assert_atack "alice atacked" alice game1) in
+    let bob_atacked =
+      atack (alice_atacked true)
+	~check:(assert_atack "bob atacked" bob game1) in
     let bob_select =
-      select (bob_attacked false)
+      select (bob_atacked false)
 	~check:(assert_select "bob select" game1 bob.hands (`Const 2)) in
     let charry_select =
       select (bob_select [d (); e()])
