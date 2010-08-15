@@ -46,16 +46,16 @@ let atacksTo p game targets ~f =
       (fun c -> c.effect = Protect)
       player.hands in
     fold_m game targets ~f:begin fun g player ->
-    if  has_protect player then
-      perform begin
-	revealed <-- user p @@ atackTo g player;
-	if revealed then
-	  return g
-	else
-	  atack player g
-      end
-    else
-      atack player g
+      if has_protect player then
+	perform begin
+	  revealed <-- user p @@ atackTo g player;
+	  if revealed then
+	    return g
+	  else
+	    atack player g
+	end
+      else
+	atack player g
     end
 
 let select p g target n cards =
@@ -71,12 +71,12 @@ let update ~f place g =
   match place with
       `discards ->
 	me g ~f:fun p -> { p with discards = f p.discards }
-    | `hands ->
-	me g ~f:fun p -> { p with hands = f p.hands }
-    | `supply ->
-	{g with supply = f g.supply }
-    | `trash ->
-	{g with trash = f g.trash }
+	| `hands ->
+	    me g ~f:fun p -> { p with hands = f p.hands }
+	    | `supply ->
+		{g with supply = f g.supply }
+	    | `trash ->
+		{g with trash = f g.trash }
 
 let move src dest xs g =
   update dest ~f:(fun ys -> xs ++ ys) @@
@@ -108,8 +108,8 @@ let cellar p (`Game g) =
   perform begin
     xs <-- select p g g.me any g.me.hands;
     let g = move `hands `discards xs g in
-    ys <-- select p g g.me (`Const (List.length xs)) g.supply;
-    ret @@ move `supply `hands ys g
+      ys <-- select p g g.me (`Const (List.length xs)) g.supply;
+      ret @@ move `supply `hands ys g
   end
 
 let market _ (`Game g) =
@@ -124,16 +124,16 @@ let mine p (`Game g) =
   perform begin
     [ x ] <-- select p g g.me one g.me.hands;
     let g = move `hands `trash [x] g in
-    ys    <-- select p g g.me one @@ treasure @@ cost (x.cost + 3) g.supply;
-    ret @@ move `supply `hands ys g
+      ys    <-- select p g g.me one @@ treasure @@ cost (x.cost + 3) g.supply;
+      ret @@ move `supply `hands ys g
   end
 
 let remodel p (`Game g) =
   perform begin
     [ x ] <-- select p g g.me one g.me.hands;
     let g = move `hands `trash [ x ] g in
-    ys    <-- select p g g.me one @@ cost (x.cost + 2) g.supply;
-    ret @@ move `supply `discards ys g
+      ys    <-- select p g g.me one @@ cost (x.cost + 2) g.supply;
+      ret @@ move `supply `discards ys g
   end
 
 let smithy _ (`Game g) =
@@ -163,16 +163,16 @@ let militia p (`Game g) =
   perform begin
     g <-- atacksTo p g g.others ~f:begin fun player game ->
       let n = List.length player.hands - 3 in
-      if n > 0 then
-	perform begin
-	  cs <-- select p game player (`Const n) player.hands;
-	  return ({ player with
-		      hands = player.hands -- cs;
-		      discards = cs ++ player.discards },
-		  game)
-	end
-      else
-	return (player,game)
+	if n > 0 then
+	  perform begin
+	    cs <-- select p game player (`Const n) player.hands;
+	    return ({ player with
+			hands = player.hands -- cs;
+			discards = cs ++ player.discards },
+		    game)
+	  end
+	else
+	  return (player, game)
     end;
     ret g
   end
