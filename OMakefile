@@ -1,5 +1,38 @@
+# ------------------------------
+# camlp4 rules
+# ------------------------------
+public.UseCamlp4(files) =
+	protected.CAMLP4CMO = $(addprefix $(ROOT)/camlp4/,$(addsuffix .cmo,$(files)))
+	OCAMLPPFLAGS+=-pp 'camlp4o $(CAMLP4CMO)'
+	OCAMLDEPFLAGS+=-pp 'camlp4o $(CAMLP4CMO)'
+	export
+
+	.SCANNER: scan-ocaml-%.ml: %.ml $(CAMLP4CMO)
+
+OUNIT_SRC_DIR=./
+OUNIT_LIBS[]=
+
+public.OUnitTest(name,files) =
+	protected.test_file = $(addsuffix Test,$(name))
+	protected.target    = $(addsuffix -runner,$(test_file))
+	protected.src_files = $(addprefix $(OUNIT_SRC_DIR),$(files))
+
+	.PHONY: check check-$(name) clean check-detail-$(name) check-detail
+	OCamlProgram($(target), $(test_file) $(src_files) $(OUNIT_LIBS))
+
+	check-$(name): $(target)
+		$(addprefix ./,$(target))
+
+	check-detail-$(name): $(target)
+		($(addprefix ./,$(target)) -verbose ; true) | tee -a $(ROOT)/unittest.log
+
+	check: check-$(name)
+	check-detail: check-detail-$(name)
+
+	export
+
 RM=rm -f *~ *.omc
-.SUBDIRS: protocol core
+.SUBDIRS: protocol core camlp4
 
 .PHONY: clean
 clean:

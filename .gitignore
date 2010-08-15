@@ -3,3 +3,9 @@ a.out
 *.omc
 .omakedb
 .omakedb.lock
+*.cm[ixo]
+*.o
+*.opt
+*.run
+*.annot
+*-runner

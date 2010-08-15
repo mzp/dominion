@@ -1,0 +1,8 @@
+#use "topfind";;
+#load "dynlink.cma";;
+#camlp4o;;
+#require "extlib";;
+#load "../camlp4/pa_monad.cmo";;
+#load "cc.cmo";;
+#load "base.cmo";;
+#load "game.cmo";;

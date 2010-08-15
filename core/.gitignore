@@ -1,5 +1,2 @@
-*.cm[ixo]
-*.o
-*.opt
-*.run
 test
+game.ml

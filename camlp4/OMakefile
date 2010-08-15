@@ -1,0 +1,19 @@
+.PHONY: clean
+
+clean:
+	$(RM) *.cm[iox]
+
+USE_OCAMLFIND = false
+OCAMLINCLUDES += -I +camlp4
+OCAML_WARN_FLAGS=-w Alez -warn-error A
+
+NATIVE_ENABLED = false
+BYTE_ENABLED = true
+
+OCAMLPPFLAGS  += $`(if $(equal $<,pa_openin.ml),-pp camlp4of,-pp camlp4orf)
+OCAMLDEPFLAGS += $(OCAMLPPFLAGS)
+
+OCamlProgram(pa_oo,pa_oo)
+OCamlProgram(pa_monad,pa_monad)
+OCamlProgram(pa_openin,pa_openin)
+OCamlProgram(pa_field,pa_field)

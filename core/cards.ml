@@ -1,137 +1,178 @@
 open Base
+open Game
+open ExtList
+open Cc
 
-type 'a var = [
-| `Bind of int
-| `Ref  of int
-| `Const of 'a
-| `Min of 'a var * 'a var ]
+let (++) =
+  (@)
 
-type pred = [
-| `Cost of int ]
+let (--) xs ys =
+  List.fold_left (fun xs' y -> List.remove xs' y) xs ys
 
-type source = [
-|  `Hands
-| `Decks
-| `Discards
-| `Trash
-| `Supply
-| `Filter of pred * source ]
+let selectFrom (game : 'a Game.t) target (n : Game.num) (cs : 'a Game.card list) k =
+  `SelectFrom ({ game; target}, cs, n, k)
 
-type action = [
-| `Draw of int var * source
-| `Put  of action * source
-| `And  of action * action ]
+let atackTo game target k =
+  `AtackTo ({ game; target },k)
 
-type card = {
-  id   : int;
-  cost : int
-}
+let user p action =
+  shiftP p (fun k -> return (action k))
 
-let (>>=) x f =
-  match x with
-      Some y ->
-	f y
-    | None ->
-	None
+let rec fold_m ~f a = function
+    [] ->
+      return a
+  | x::xs ->
+      perform begin
+	b <-- f a x;
+	fold_m ~f b xs
+      end
 
-let rec resolve bs : 'a var -> 'a  option = function
-    `Bind _ ->
-      None
-  | `Ref b ->
-      option (List.assoc b) bs
-  | `Const x ->
-      Some x
-  | `Min(x,y) ->
-      resolve bs x >>=
-	(fun x' ->
-	   resolve bs y >>=
-	     (fun y' ->
-		Some (min x' y')))
+let rec replace x y = function
+    [] -> []
+  | z::zs ->
+      if x = z then
+	y :: replace x y zs
+      else
+	z :: replace x y zs
 
-type player = {
-  hands : card list;
-  decks : card list;
-  discards : card list;
-}
-
-type game = {
-  me     : player;
-  others : player list;
-  trashs : card list;
-  supply : card list
-}
-
-type bindisgs =
-    (int * int) list
-
-type 'a cont =
-    bindisgs -> card list -> game -> 'a
-
-type user_action =
-    SelectFrom of [ `Hands | `Supply ] * int var * game    * user_action cont
-  | DrawFrom   of source  * int var * player * user_action cont
-  | Result     of game
-
-let fun_of_pred = function
-    `Cost n ->
-      fun c -> c.cost <= n
-
-let rec map ~f src ({me; trashs; supply} as game) =
-  match src with
-      `Decks ->
-	f me.decks
-    | `Hands ->
-	f me.hands
-    | `Discards ->
-	f me.discards
-    | `Trash ->
-	f trashs
-    | `Supply ->
-	f supply
-    | `Filter (pred, src) ->
-	map src game ~f:(fun cs -> f (List.filter (fun_of_pred pred) cs))
-
-let rec update ~f src ({ me; trashs; supply } as game) =
-    match src with
-      `Decks ->
-	{ game with me = { me with decks = f me.decks } }
-    | `Hands ->
-	{ game with me = { me with hands = f me.hands } }
-    | `Discards ->
-	{ game with me = { me with discards = f me.discards } }
-    | `Trash ->
-	{ game with trashs = f trashs }
-    | `Supply ->
-	{ game with supply = f supply }
-    | `Filter (pred,src) ->
-	update src game ~f:begin fun cs ->
-	  let (xs, ys) =
-	    List.partition (fun_of_pred pred) cs in
-	    (f xs)@ys
+let atacksTo p game targets ~f =
+  let atack player g =
+    perform begin
+      (p',g) <-- f player g;
+      return { g with others = replace player p' g.others }
+    end in
+  let has_protect player =
+    List.exists
+      (fun c -> c.effect = Protect)
+      player.hands in
+    fold_m game targets ~f:begin fun g player ->
+      if has_protect player then
+	perform begin
+	  revealed <-- user p @@ atackTo g player;
+	  if revealed then
+	    return g
+	  else
+	    atack player g
 	end
+      else
+	atack player g
+    end
 
-let rec eval bs action game k =
-  match action with
-    | `Draw (x, `Hands) ->
-	SelectFrom (`Hands, x, game, k)
-    | `Draw (x, `Supply) ->
-	SelectFrom (`Supply, x, game, k)
-    | `Draw (x,src) ->
-	begin match resolve bs x with
-	    Some n ->
-	      k bs
-	        (map ~f:(HList.take n) src game)
-		(update ~f:(HList.drop n) src game)
-	  | None ->
-	      DrawFrom (src, x, game.me, k)
-	end
-    | `Put (action, src) ->
-	eval bs action game begin fun bs cs g ->
-	  k bs cs (update src g ~f:(fun x -> cs @ x))
-	end
-    | `And (xs, ys) ->
-	eval bs xs game begin fun bs' _ g ->
-	  eval bs' ys g begin fun bs'' _ g' ->
-	    k bs'' [] g'
+let select p g target n cards =
+  user p @@ selectFrom g target n cards
+
+let ret game =
+  return (`Game game)
+
+let me g ~f =
+  { g with me = f g.me }
+
+let update ~f place g =
+  match place with
+      `discards ->
+	me g ~f:fun p -> { p with discards = f p.discards }
+	| `hands ->
+	    me g ~f:fun p -> { p with hands = f p.hands }
+	    | `supply ->
+		{g with supply = f g.supply }
+	    | `trash ->
+		{g with trash = f g.trash }
+
+let move src dest xs g =
+  update dest ~f:(fun ys -> xs ++ ys) @@
+    update src ~f:(fun ys -> ys -- xs) g
+
+let cost n xs =
+  List.filter (fun {cost} -> cost <= n) xs
+
+let treasure xs =
+  List.filter (function {effect = Treasure _ } -> true | _ -> false) xs
+
+let one =
+  `Const 1
+let two =
+  `Const 2
+let any =
+  `Any
+
+let action n =
+  me ~f:(fun ({action} as p) -> { p with action = action + n })
+let buy n =
+  me ~f:(fun ({buy} as p) -> { p with buy = buy + n })
+let coin n =
+  me ~f:(fun ({coin} as p) -> { p with coin = coin + n })
+let draw n =
+  me ~f:(fun ({draw} as p) -> { p with draw = draw + n })
+
+let cellar p (`Game g) =
+  perform begin
+    xs <-- select p g g.me any g.me.hands;
+    let g = move `hands `discards xs g in
+      ys <-- select p g g.me (`Const (List.length xs)) g.supply;
+      ret @@ move `supply `hands ys g
+  end
+
+let market _ (`Game g) =
+  g
+  +> action 1
+  +> buy    1
+  +> coin   1
+  +> draw   1
+  +> ret
+
+let mine p (`Game g) =
+  perform begin
+    [ x ] <-- select p g g.me one g.me.hands;
+    let g = move `hands `trash [x] g in
+      ys    <-- select p g g.me one @@ treasure @@ cost (x.cost + 3) g.supply;
+      ret @@ move `supply `hands ys g
+  end
+
+let remodel p (`Game g) =
+  perform begin
+    [ x ] <-- select p g g.me one g.me.hands;
+    let g = move `hands `trash [ x ] g in
+      ys    <-- select p g g.me one @@ cost (x.cost + 2) g.supply;
+      ret @@ move `supply `discards ys g
+  end
+
+let smithy _ (`Game g) =
+  g
+  +> draw 3
+  +> ret
+
+let village _ (`Game g) =
+  g
+  +> action 2
+  +> draw 1
+  +> ret
+
+let woodcutter _ (`Game g) =
+  g
+  +> buy 1
+  +> coin 2
+  +> ret
+
+let workshop p (`Game g) =
+  perform begin
+    xs <-- select p g g.me one @@ cost 4 g.supply;
+    ret @@ move `supply `discards xs g
+  end
+
+let militia p (`Game g) =
+  perform begin
+    g <-- atacksTo p g g.others ~f:begin fun player game ->
+      let n = List.length player.hands - 3 in
+	if n > 0 then
+	  perform begin
+	    cs <-- select p game player (`Const n) player.hands;
+	    return ({ player with
+			hands = player.hands -- cs;
+			discards = cs ++ player.discards },
+		    game)
 	  end
-	end
+	else
+	  return (player, game)
+    end;
+    ret g
+  end

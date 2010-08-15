@@ -3,6 +3,8 @@
 USE_OCAMLFIND = true
 
 OCAMLPACKS[] =
+	extlib
+	oUnit
 
 
 if $(not $(OCAMLFIND_EXISTS))
@@ -16,8 +18,14 @@ BYTE_ENABLED = true
 FILES[] =
 	base
 	hList
+	game
 	cards
+	cc
 
+UseCamlp4(pa_monad)
+OUnitTest(cards,base cc game cards hList)
+
+OCAMLFLAGS=-annot -w
 PROGRAM = test
 # OCAML_LIBS +=
 # OCAML_CLIBS +=
@@ -27,4 +35,4 @@ PROGRAM = test
 .DEFAULT: $(OCamlProgram $(PROGRAM), $(FILES))
 
 clean:
-	$(RM) *.cm[iox] *.o $(PROGRAM) *.opt
+	$(RM) *.cm[iox] *.o $(PROGRAM) *.opt *-runner *.run *.annot
