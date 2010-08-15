@@ -1,7 +1,7 @@
 open Base
-open Cc
 open Game
 open ExtList
+open Cc
 
 let (++) =
   (@)
@@ -9,37 +9,57 @@ let (++) =
 let (--) xs ys =
   List.fold_left (fun xs' y -> List.remove xs' y) xs ys
 
-let selectFrom (g : 'a Game.t) (n : Game.num) (cs : 'a Game.card list) k =
-  `SelectFrom (g, cs, n, k)
+let selectFrom (game : 'a Game.t) target (n : Game.num) (cs : 'a Game.card list) k =
+  `SelectFrom ({ game; target}, cs, n, k)
 
-let atackTo g target k =
-  `AtackTo (g,target,k)
+let atackTo game target k =
+  `AtackTo ({ game; target },k)
 
 let user p action =
   shiftP p (fun k -> return (action k))
 
-let rec atacksTo p g targets ~f =
-  let atack p g x xs =
+let rec fold_m ~f a = function
+    [] ->
+      return a
+  | x::xs ->
+      perform begin
+	b <-- f a x;
+	fold_m ~f b xs
+      end
+
+let rec replace x y = function
+    [] -> []
+  | z::zs ->
+      if x = z then
+	y :: replace x y zs
+      else
+	z :: replace x y zs
+
+let atacksTo p game targets ~f =
+  let atack player g =
     perform begin
-      g <-- f p g x;
-      atacksTo p g xs ~f
+      (p',g) <-- f player g;
+      return { g with others = replace player p' g.others }
     end in
-  match targets with
-      [] -> return g
-    | x::xs ->
-	if List.exists
-	  (fun c -> c.effect = Protect)
-	  x.hands
-	then
-	  perform begin
-	    revealed <-- user p @@ atackTo g x;
-	    if revealed then
-	      atacksTo p g xs ~f
-	    else
-	      atack p g x xs
-	  end
+  let has_protect player =
+    List.exists
+      (fun c -> c.effect = Protect)
+      player.hands in
+    fold_m game targets ~f:begin fun g player ->
+    if  has_protect player then
+      perform begin
+	revealed <-- user p @@ atackTo g player;
+	if revealed then
+	  return g
 	else
-	  atack p g x xs
+	  atack player g
+      end
+    else
+      atack player g
+    end
+
+let select p g target n cards =
+  user p @@ selectFrom g target n cards
 
 let ret game =
   return (`Game game)
@@ -86,9 +106,9 @@ let draw n =
 
 let cellar p (`Game g) =
   perform begin
-    xs <-- user p @@ selectFrom g any g.me.hands;
+    xs <-- select p g g.me any g.me.hands;
     let g = move `hands `discards xs g in
-    ys <-- user p @@ selectFrom g (`Const (List.length xs)) g.supply;
+    ys <-- select p g g.me (`Const (List.length xs)) g.supply;
     ret @@ move `supply `hands ys g
   end
 
@@ -102,17 +122,17 @@ let market _ (`Game g) =
 
 let mine p (`Game g) =
   perform begin
-    [ x ] <-- user p @@ selectFrom g one g.me.hands;
+    [ x ] <-- select p g g.me one g.me.hands;
     let g = move `hands `trash [x] g in
-    ys <-- user p @@ selectFrom g one @@ treasure @@ cost (x.cost + 3) g.supply;
+    ys    <-- select p g g.me one @@ treasure @@ cost (x.cost + 3) g.supply;
     ret @@ move `supply `hands ys g
   end
 
 let remodel p (`Game g) =
   perform begin
-    [ x ] <-- user p @@ selectFrom g one g.me.hands;
+    [ x ] <-- select p g g.me one g.me.hands;
     let g = move `hands `trash [ x ] g in
-    ys <-- user p @@ selectFrom g one @@ cost (x.cost + 2) g.supply;
+    ys    <-- select p g g.me one @@ cost (x.cost + 2) g.supply;
     ret @@ move `supply `discards ys g
   end
 
@@ -135,12 +155,24 @@ let woodcutter _ (`Game g) =
 
 let workshop p (`Game g) =
   perform begin
-    xs <-- user p @@ selectFrom g one @@ cost 4 g.supply;
+    xs <-- select p g g.me one @@ cost 4 g.supply;
     ret @@ move `supply `discards xs g
   end
 
 let militia p (`Game g) =
   perform begin
-    atacksTo p g g.others ~f:(fun _ -> assert false);
+    g <-- atacksTo p g g.others ~f:begin fun player game ->
+      let n = List.length player.hands - 3 in
+      if n > 0 then
+	perform begin
+	  cs <-- select p game player (`Const n) player.hands;
+	  return ({ player with
+		      hands = player.hands -- cs;
+		      discards = cs ++ player.discards },
+		  game)
+	end
+      else
+	return (player,game)
+    end;
     ret g
   end

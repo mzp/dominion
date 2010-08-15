@@ -1,8 +1,7 @@
-#define act 'a = ([> `SelectFrom of \
-	'a t * 'a card list * num * \
+#define act 'a = ([> \
+ `SelectFrom of 'a state * 'a card list * num * \
 	  ((unit, 'a card list) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) | \
-   `AtackTo of						       \
-	'a t * 'a player * \
+ `AtackTo    of 'a state * \
 	  ((unit, bool) Cc.CONT.mc -> (unit, 'b) Cc.CONT.mc) \
 ] as 'b) Cc.prompt \
     -> [`Game of 'a t] \

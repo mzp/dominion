@@ -37,10 +37,16 @@ and 'a player = {
 constraint act
 
 and 'a t = {
-  me     : 'a player;
+  me      : 'a player;
   others : 'a player list;
-  supply : 'a card list;
-  trash  : 'a card list
+  supply  : 'a card list;
+  trash   : 'a card list
+}
+constraint act
+
+and 'a state = {
+  game : 'a t;
+  target : 'a player
 }
 constraint act
 
@@ -56,8 +62,8 @@ let empty_player = {
 }
 
 let empty = {
-  me     = empty_player;
-  supply = [];
+  me      = empty_player;
+  supply  = [];
   others = [];
-  trash  = []
+  trash   = []
 }
