@@ -2,7 +2,7 @@
 #define CLIENT_NUM 2
 #define CARD_NUM 20
 
-#define MsgType byte
+#define MsgType int
 #define TurnStart   0
 #define TurnEnd     1
 #define KEEP        2
@@ -10,18 +10,17 @@
 #define EventNotify 4
 #define EventSend   5
 #define Error       6
-#define Reject     7
-
+#define Reject      7
+#define SelectFrom  8
+#define AtackTo     9
 
 #define INC(X) X = X + 1
 #define RESET(X) X = 0
 
 #define ErrorMax 2
 
-mtype = { Connect, Chat, Start, Action, Buy, NextPhase };
+mtype = { Connect, Chat, Start, Action, Buy, NextPhase,Response };
 chan server = [BUF_SIZE] of { mtype, chan, int };
-
-bool Go = false;
 
 inline sendError(ch)
 {
@@ -29,10 +28,28 @@ inline sendError(ch)
   ch ! Error
 }
 
-proctype Oneshot(chan client; MsgType value){
-  if
-    :: (Go == true) -> client ! value;
-  fi
+inline forEach(value){
+  i = 0;
+  do
+    :: (i == user) -> break;
+    :: (i < user)  ->
+       clients[i] ! value;
+       i = i + 1;
+  od;
+}
+
+inline recvAll(){
+  i = 0;
+
+  do
+    :: (i == user) -> break;
+    :: (i < user)  ->
+       if
+	 :: server ? Response ->
+	    printf("recv-%d\n",i);
+	    i = i + 1;
+       fi
+  od;
 }
 
 inline error(ch){
@@ -83,7 +100,7 @@ proctype Server()
   int user = 0;
   int wait = 0;
   chan ch;
-
+  int i;
   /* initial state */
   do
     :: server ? Connect(ch, _) ->
@@ -92,9 +109,8 @@ proctype Server()
        user = user + 1;
     :: server ? Start(ch, _) ->
        wait = wait + 1;
-       run Oneshot(ch, 0);
     :: (wait == user) && (user == CLIENT_NUM) ->
-       Go = true;
+       forEach(0);
        goto game_start;
     :: server ? Chat(ch, _) ->
        run chatEvent(ch);
@@ -104,6 +120,7 @@ proctype Server()
   int count = 0;
   int errorCount = 0;
   int id = 0;
+  MsgType m;
 
 game_start:
   printf("game start[%d]\n",turn);
@@ -123,6 +140,29 @@ action:
 	      if
 		::(count == 100) -> ch ! NEXT; goto buy;
 		:: ch ! KEEP; INC(count);
+		:: ch ! SelectFrom ->
+		   printf("SELECT\n");
+		   if
+		     :: server ? m(_,_) ->
+			if
+			  :: m == Response ->
+			     if
+			       :: ch ! KEEP;
+			       :: ch ! NEXT; goto buy
+			     fi
+			  :: else ->
+			     printf("<- %d\n",m);
+			     rejectHandle();
+			fi
+		   fi;
+		:: printf("atack all\n");
+		   forEach(AtackTo) ->
+		   printf("wait for response\n");
+		   recvAll();
+		   if
+		     :: ch ! KEEP;
+		     :: ch ! NEXT; goto buy
+		   fi
 		:: ch ! NEXT; goto buy
 	      fi
 	   :: else ->
@@ -221,17 +261,34 @@ proctype User() {
        server ! Start(me, id);
        server ! Chat(chat, id);
 
+start:
        if
+	 :: me ? AtackTo ->
+	    printf("atacked\n");
+	    server ! Response(me,id);
+	    goto start;
+
 	 :: me ? TurnStart ->
 progress:
 action:
 	    printf("event ->\n");
 	    chat ! EventSend;
 	    if
-	      :: me ? _ ->
+	      :: me ? AtackTo ->
+		 printf("atacked\n");
+		 server ! Response(me,id);
+		 goto action;
+
+	      :: me ? TurnStart ->
 		 /* action */
 		 server ! Action(me, id);
 		 do
+		   :: me ? AtackTo ->
+		      printf("atacked\n");
+		      server ! Response(me,id);
+		   :: me ? SelectFrom ->
+		      printf("select from\n");
+		      server ! Response(me,id);
 		   :: me ? KEEP ->
 		      if
 			:: server ! Action(me, id)
@@ -249,6 +306,8 @@ action:
 			:: me ? NEXT ->
 			   goto action;
 		      od
+		   :: me ? AtackTo ->
+		      server ! Response;
 		 od
 	    fi
        fi
@@ -260,6 +319,7 @@ inline gorilla(me, id){
     :: printf("gorilla action\n"); server ! Action(me, id)
     :: printf("gorilla buy\n");    server ! Buy(me, id)
     :: printf("gorilla next\n");   server ! NextPhase(me, id)
+           :: printf("gorilla response\n");   server ! Response(me, id)
   fi
 }
 
@@ -302,6 +362,7 @@ reject:
 
 init {
   run Server();
+/*  run User();*/
   run Gorilla();
   run User();
 }
