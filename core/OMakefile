@@ -6,6 +6,7 @@ OCAMLPACKS[] =
 	extlib
 	oUnit
 	threads
+	ccell
 
 
 if $(not $(OCAMLFIND_EXISTS))

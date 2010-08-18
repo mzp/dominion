@@ -2,11 +2,6 @@ open Base
 open Unix
 
 module M : Server.Transport = struct
-  type 'a channel = file_descr
-  type 'a event   =
-      Send of file_descr * string
-    | Recv of file_descr
-
   let string_of_bytes n =
     let s =
       String.make 4 ' ' in
@@ -22,47 +17,45 @@ module M : Server.Transport = struct
       (Char.code s.[2] lsl 16) lor
       (Char.code s.[3] lsl 24)
 
-  let send ch v =
-    Send (ch, Marshal.to_string v [])
+  let send sock e =
+    let str =
+      Marshal.to_string e [] in
+    let size =
+      String.length str in
+      ignore @@ Unix.send sock (string_of_bytes size) 0 4 [];
+      ignore @@ Unix.send sock str 0 (String.length str) []
 
-  let receive ch =
-    Recv ch
+  let recv_until sock size =
+      let buf =
+	String.make size ' ' in
+      let n =
+	ref 0 in
+	while !n < size do
+	  n := !n + (Unix.recv sock buf !n (size - !n) [])
+	done;
+	buf
 
-  let choose xs =
-    let readers =
-      filter_map (function Recv ch -> Some ch | _ -> None) xs in
-    let writers =
-      filter_map (function Send (ch,_) -> Some ch | _ -> None) xs in
-      match select readers writers [] (-1.) with
-	  [],[],_ ->
-	    assert false
-	| (x::_),_,_ ->
-	    Recv x
-	| [],x::_,_ ->
-	    List.find (function
-			   Send (fd,_) when fd = x ->
-			     true
-			 | _ ->
-			     false)
-	      xs
+  let recv sock =
+    let size =
+      bytes_of_string (recv_until sock 4) in
+      Marshal.from_string (recv_until sock size) 0
 
-  let sync = function
-      Send (sock, str) ->
-	let size =
-	  String.length str in
-	  ignore @@ Unix.send sock (string_of_bytes size) 0 4 [];
-	  ignore @@ Unix.send sock str 0 (String.length str) [];
-	  Obj.magic () (* must be unit *)
-    | Recv sock ->
-	let recv n =
-	  let buf =
-	    String.make n ' ' in
-	    ignore @@ Unix.recv sock buf 0 n [];
-	    buf in
-	let size =
-	  bytes_of_string (recv 4) in
-	  Marshal.from_string (recv size) 0
 
+  let proxy ch sock =
+    ignore @@ Thread.create begin fun () ->
+      while true do
+	match select [sock] [] [] 0. with
+	  | [x],_,_ ->
+	      Event.sync @@ Event.send ch @@ recv x
+	  | _ ->  begin
+	      match Event.poll (Event.receive ch) with
+		  Some e ->
+		    send sock e
+		| None ->
+		    ()
+	    end
+      done
+    end ()
 
   let socket_with host port f =
     let s =
@@ -71,13 +64,16 @@ module M : Server.Transport = struct
       List.hd @@ getaddrinfo host (string_of_int port) [] in
       f s ai_addr
 
-  let connect ~host ~port =
-    socket_with host port begin fun s addr ->
-      connect s addr;
-      s
-    end
+  let connect host port =
+    let ch =
+      Event.new_channel () in
+      socket_with host port begin fun s addr ->
+	connect s addr;
+	proxy ch s;
+	ch
+      end
 
-  let server ~host ~port ~f =
+  let server host port ~f =
     socket_with host port begin fun s addr ->
       bind   s addr;
       listen s 1;
@@ -85,7 +81,10 @@ module M : Server.Transport = struct
       while true do
 	let (client, _) =
 	  accept s in
-	  ignore @@ Thread.create (fun () -> f client) ()
+	let ch =
+	  Event.new_channel () in
+	  proxy ch client;
+	  ignore @@ Thread.create f ch
       done
     end
 end
