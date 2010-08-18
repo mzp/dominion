@@ -1,5 +1,6 @@
 open Base
 open Unix
+open Ccell
 
 module M : Server.Transport = struct
   let string_of_bytes n =
