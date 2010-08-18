@@ -5,6 +5,7 @@ USE_OCAMLFIND = true
 OCAMLPACKS[] =
 	extlib
 	oUnit
+	threads
 
 
 if $(not $(OCAMLFIND_EXISTS))
@@ -21,18 +22,23 @@ FILES[] =
 	game
 	cards
 	cc
+	server
+	socket
 
 UseCamlp4(pa_monad)
 OUnitTest(cards,base cc game cards hList)
 
+OCAMLC=ocamlc -thread
 OCAMLFLAGS=-annot -w
-PROGRAM = test
+PROGRAM = server
 # OCAML_LIBS +=
 # OCAML_CLIBS +=
 # OCAML_OTHER_LIBS +=
 # OCAML_LIB_FLAGS +=
 #
-.DEFAULT: $(OCamlProgram $(PROGRAM), $(FILES))
+.DEFAULT: $(PROGRAM)
+
+OCamlProgram($(PROGRAM), main $(FILES))
 
 clean:
 	$(RM) *.cm[iox] *.o $(PROGRAM) *.opt *-runner *.run *.annot
