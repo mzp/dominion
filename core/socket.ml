@@ -42,14 +42,14 @@ module M : Server.Transport = struct
       Marshal.from_string (recv_until sock size) 0
 
 
-  let proxy ch sock =
+  let proxy read write sock =
     ignore @@ Thread.create begin fun () ->
       while true do
-	match select [sock] [] [] 0. with
+	match select [sock] [] [] 0.1 with
 	  | [x],_,_ ->
-	      Event.sync @@ Event.send ch @@ recv x
+	      ignore @@	      Event.poll @@ Event.send read @@ recv x
 	  | _ ->  begin
-	      match Event.poll (Event.receive ch) with
+	      match Event.poll (Event.receive write) with
 		  Some e ->
 		    send sock e
 		| None ->
@@ -66,12 +66,14 @@ module M : Server.Transport = struct
       f s ai_addr
 
   let connect host port =
-    let ch =
+    let read =
+      Event.new_channel () in
+    let write =
       Event.new_channel () in
       socket_with host port begin fun s addr ->
 	connect s addr;
-	proxy ch s;
-	ch
+	proxy read write s;
+	(read,write)
       end
 
   let server host port ~f =
@@ -82,10 +84,12 @@ module M : Server.Transport = struct
       while true do
 	let (client, _) =
 	  accept s in
-	let ch =
+	let read =
 	  Event.new_channel () in
-	  proxy ch client;
-	  ignore @@ Thread.create f ch
+	let write =
+	  Event.new_channel () in
+	  proxy read write client;
+	  ignore @@ Thread.create (fun () -> f read write) ()
       done
     end
 end
