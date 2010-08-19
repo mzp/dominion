@@ -24,35 +24,35 @@ type state = {
   rooms : string list
 }
 
+let state_daemon f init =
+  let rec g state =
+    g (f state) in
+    Thread.create g init
+
 module Make(T : Transport) = struct
   let empty = {
     rooms = []
   }
 
-  let rec manager r w state =
-    p "manager" ();
-    match Event.sync @@ Event.receive r with
-      | (`ListRoom,ch) ->
-	  Event.sync @@ Event.send ch (`Rooms state.rooms);
-	  manager r w state
-      | (`MakeRoom s,_) ->
-	  manager r w { rooms = s :: state.rooms }
-
+  let master (ch : (request * response ch) ch) state =
+    p "master" ();
+    match Event.sync @@ Event.receive ch with
+      | `ListRoom, client ->
+	  Event.sync @@ Event.send client (`Rooms state.rooms);
+	  state
+      | `MakeRoom s, _ ->
+	  { rooms = s :: state.rooms }
 
   let run host port =
-    let to_manager =
+    let ch =
       Event.new_channel () in
-    let from_manager =
-      Bcast.make () in
     let _ =
-      Thread.create (fun () -> manager to_manager from_manager empty) () in
+      state_daemon (master ch) empty in
       T.server host port ~f:begin fun r w ->
 	p "accept" ();
 	ignore @@ Event.select [
 	    Event.wrap (Event.receive r)
-	      (fun request -> Event.sync @@ Event.send to_manager (request,w));
-	    Event.wrap (Bcast.receive from_manager)
-	      (Event.sync $ Event.send w);
+	      (fun request -> Event.sync @@ Event.send ch (request,w));
 	  ]
       end
 
