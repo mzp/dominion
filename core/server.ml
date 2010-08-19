@@ -3,12 +3,14 @@ open Ccell
 
 type 'a ch = 'a Event.channel
 
-type response =
-  | Rooms of string list
+type response = [
+| `Rooms of string list
+]
 
-type request =
-  | ListRoom
-  | MakeRoom of string
+type request = [
+| `ListRoom
+| `MakeRoom of string
+]
 
 module type Transport = sig
   val connect : string -> int -> (request ch * response ch)
@@ -30,10 +32,10 @@ module Make(T : Transport) = struct
   let rec manager r w state =
     p "manager" ();
     match Event.sync @@ Event.receive r with
-      | (ListRoom,ch) ->
-	  Event.sync @@ Event.send ch (Rooms state.rooms);
+      | (`ListRoom,ch) ->
+	  Event.sync @@ Event.send ch (`Rooms state.rooms);
 	  manager r w state
-      | (MakeRoom s,_) ->
+      | (`MakeRoom s,_) ->
 	  manager r w { rooms = s :: state.rooms }
 
 
@@ -60,19 +62,19 @@ module Make(T : Transport) = struct
     let _ =
       daemon begin fun () ->
 	match Event.sync @@ Event.receive r with
-	  | Rooms [] ->
+	  | `Rooms [] ->
 	      p "--> no room" ()
-	  | Rooms xs ->
+	  | `Rooms xs ->
 	      List.iter (fun x -> p "--> %s" x ()) xs
       end in
     let f _ = begin
       match read_line () with
 	  "ls" ->
 	    p "send ls" ();
-	    Event.sync @@ Event.send w ListRoom
+	    Event.sync @@ Event.send w `ListRoom
 	| "make" ->
 	    p "make room" ();
-	    Event.sync @@ Event.send w (MakeRoom "Foo")
+	    Event.sync @@ Event.send w (`MakeRoom "Foo")
 	| _ ->
 	    ()
     end in
