@@ -126,8 +126,11 @@ let open_in_with path f =
 	`Val v ->  v
       | `Error e -> raise e
 
+let forever f () =
+  while true do
+    f ()
+  done
+
 let undefined =  Obj.magic 42
 let undef     = undefined
-
-
 

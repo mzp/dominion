@@ -61,6 +61,8 @@ module M : Server.Transport = struct
   let socket_with host port f =
     let s =
       Unix.socket PF_INET SOCK_STREAM 0 in
+    let _ =
+      at_exit (fun () -> shutdown s SHUTDOWN_ALL) in
     let { ai_addr } =
       List.hd @@ getaddrinfo host (string_of_int port) [] in
       f s ai_addr
@@ -80,7 +82,6 @@ module M : Server.Transport = struct
     socket_with host port begin fun s addr ->
       bind   s addr;
       listen s 1;
-      at_exit (fun () -> shutdown s SHUTDOWN_ALL);
       while true do
 	let (client, _) =
 	  accept s in
@@ -89,7 +90,7 @@ module M : Server.Transport = struct
 	let write =
 	  Event.new_channel () in
 	  proxy read write client;
-	  ignore @@ Thread.create (fun () -> f read write) ()
+	  ignore @@ Thread.create (forever (fun () -> f read write)) ()
       done
     end
 end
