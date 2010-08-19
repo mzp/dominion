@@ -21,8 +21,6 @@ type state = {
   rooms : string list
 }
 
-let p fmt = Printf.kprintf (fun s () -> print_endline s; flush stdout) fmt
-
 module Make(T : Transport) = struct
   let empty = {
     rooms = []

@@ -134,3 +134,4 @@ let forever f () =
 let undefined =  Obj.magic 42
 let undef     = undefined
 
+let p fmt = Printf.kprintf (fun s () -> print_endline s; flush stdout) fmt
