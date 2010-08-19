@@ -2,10 +2,6 @@ open Base
 open Ccell
 
 type 'a ch = 'a Event.channel
-module type Transport = sig
-  val connect : string -> int -> ('a ch * 'b ch)
-  val server  : string -> int -> f:('a ch -> 'b ch -> unit) -> unit
-end
 
 type response =
   | Rooms of string list
@@ -13,6 +9,11 @@ type response =
 type request =
   | ListRoom
   | MakeRoom of string
+
+module type Transport = sig
+  val connect : string -> int -> (request ch * response ch)
+  val server  : string -> int -> f:(request ch -> response ch -> unit) -> unit
+end
 
 let daemon f =
   Thread.create (forever f) ()
@@ -54,7 +55,7 @@ module Make(T : Transport) = struct
       end
 
   let connect host port =
-    let (r,w) =
+    let (w,r) =
       T.connect host port in
     let _ =
       daemon begin fun () ->
