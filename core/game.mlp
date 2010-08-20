@@ -19,6 +19,7 @@ constraint act
 
 and 'a card = {
   name   : string;
+  id     : int;
   cost   : int;
   effect : 'a effect
 }

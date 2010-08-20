@@ -176,3 +176,52 @@ let militia p (`Game g) =
     end;
     ret g
   end
+
+type t = [
+  `Gold
+| `Silver
+| `Copper
+| `Estate
+| `Duchy
+| `Province
+| `Curse
+| `Cellar
+| `Market
+| `Mine
+| `Remodel
+| `Smithy
+| `Village
+| `Woodcutter
+| `Workshop
+| `Militia
+| `Moat
+]
+
+let make kind id =
+  let (name, cost, effect) =
+    match kind with
+      | `Gold ->
+	  "gold", 6, Treasure 3
+      | `Silver ->
+	  "silver", 3, Treasure 2
+      | _ ->
+	  assert false in
+    { cost; name; effect; id }
+
+(*      | `Silver
+| `Kupfer
+| `Anwesen
+| `Herzogtum
+| `Provinz
+| `Fluch
+| `Cellar
+| `Market
+| `Mine
+| `Remodel
+| `Smithy
+| `Village
+| `Woodcutter
+| `Workshop
+| `Militia
+| `Moat
+*)
