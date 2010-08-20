@@ -14,11 +14,11 @@ and 'a effect =
   | Protect
   | Treasure of int
   | Victory  of int
-  | Curese   of int
 constraint act
 
 and 'a card = {
   name   : string;
+  id     : int;
   cost   : int;
   effect : 'a effect
 }

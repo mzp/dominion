@@ -7,11 +7,10 @@ open Cc
 let ok msg x y =
   assert_equal ~msg ~printer:Std.dump x y
 
-let card name = {
-  name;
-  cost   = 0;
-  effect = Treasure 1
-}
+let card name =
+  {make `Gold 0 with
+     name = name;
+     cost = 0}
 
 let a () = card "A"
 let b () = card "B"

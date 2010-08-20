@@ -6,6 +6,7 @@ type response = [
 | `Error of string
 | `Games of string list
 | `Chat  of player_name * string
+| `GameStart
 ]
 
 type card_id = string
@@ -16,6 +17,7 @@ type player_req = [
 | `Buy of card_id
 | `Part
 | `Say of string
+| `Ready
 ]
 
 type game_req = [
