@@ -6,6 +6,6 @@ end
 
 module Make : functor(S : S) -> sig
   type state
-  val make : string -> state
-  val run  : S.t -> Protocol.game_req -> state -> state
+  val make : string -> state * 'a Game.t
+  val run  : S.t -> Protocol.game_req -> (state * 'a Game.t) -> (state * 'a Game.t)
 end

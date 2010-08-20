@@ -16,8 +16,10 @@ module Make(T : Protocol.S) = struct
 	      p "[%s]%s" name msg ()
 	  | `Ok ->
 	      p "ok" ()
-	  | _ ->
-	      p "unknown response" ()
+	  | `Error s ->
+	      p "error: %s" s ()
+	  | `GameStart ->
+	      p "game start" ()
       end in
     let game =
 	ref "" in
@@ -25,16 +27,18 @@ module Make(T : Protocol.S) = struct
       print_string "$ ";
       flush stdout;
       match Str.split (Str.regexp " ") @@ read_line () with
-	  ["ls"] ->
+	  ["/rooms"] ->
 	    Event.sync @@ Event.send req `List
-	| ["make"; name] ->
+	| ["/room"; name] ->
 	    Event.sync @@ Event.send req (`Game (name,`Create))
-	| ["connect"; x; y] ->
+	| ["/join"; x; y] ->
 	    game := x;
 	    Event.sync @@ Event.send req (`Game (x,`Join y))
-	| "chat"::msgs ->
+	| "/chat"::msgs ->
 	    Event.sync @@ Event.send req (`Game (!game,
-					       `Say (String.concat " " msgs)))
+						 `Say (String.concat " " msgs)))
+	| ["/ready"] ->
+	    Event.sync @@ Event.send req (`Game (!game,`Ready))
 	| _ ->
 	    ()
     end in
