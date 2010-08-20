@@ -17,7 +17,7 @@ module Make(S : S) = struct
     name_table : (t * string) list
   }
 
-  let empty name = {
+  let make name = {
     name = name;
     name_table = [];
   }
@@ -30,7 +30,8 @@ module Make(S : S) = struct
 	else
 	  lookup x ys
 
-  let run s id = function
+  let run id req s =
+    match req with
     | `Join player ->
 	  ret { s with
 		  name_table    = (id, player) :: s.name_table } @@

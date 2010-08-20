@@ -24,10 +24,10 @@ module Make(T : Protocol.S) = struct
     let ch =
       Event.new_channel () in
       ret ch begin
-	state_daemon (R.empty name) ~f:begin fun state ->
+	state_daemon (R.make name) ~f:begin fun state ->
 	  let (req, client, id) =
 	    Event.sync @@ Event.receive ch in
-	    R.run state (id, client) req
+	    R.run (id, client) req state
 	end
       end
 
