@@ -15,6 +15,7 @@ if $(not $(OCAMLFIND_EXISTS))
     eprintln(You need to install ocamlfind and run "omake --configure".)
     exit 1
 
+OCAMLC=ocamlc -thread
 
 NATIVE_ENABLED=false
 BYTE_ENABLED = true
@@ -31,7 +32,6 @@ FILES[] =
 UseCamlp4(pa_monad)
 OUnitTest(cards,base cc game cards hList)
 
-OCAMLC=ocamlc -thread
 OCAMLFLAGS=-annot -w
 PROGRAM = server
 # OCAML_LIBS +=
