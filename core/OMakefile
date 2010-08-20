@@ -26,14 +26,17 @@ FILES[] =
 	cards
 	cc
 	server
+	client
 	socket
 	logger
+	protocol
+	threadUtils
 
 UseCamlp4(pa_monad)
 OUnitTest(cards,base cc game cards hList)
 
 OCAMLFLAGS=-annot -w
-PROGRAM = server
+PROGRAM = dominion
 # OCAML_LIBS +=
 # OCAML_CLIBS +=
 # OCAML_OTHER_LIBS +=

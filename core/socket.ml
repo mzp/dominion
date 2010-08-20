@@ -2,7 +2,7 @@ open Base
 open Unix
 open Ccell
 
-module M : Server.Transport = struct
+module M : Protocol.S = struct
   let string_of_bytes n =
     let s =
       String.make 4 ' ' in
