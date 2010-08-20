@@ -7,6 +7,7 @@ OCAMLPACKS[] =
 	oUnit
 	threads
 	ccell
+	str
 
 
 if $(not $(OCAMLFIND_EXISTS))
@@ -25,6 +26,7 @@ FILES[] =
 	cc
 	server
 	socket
+	logger
 
 UseCamlp4(pa_monad)
 OUnitTest(cards,base cc game cards hList)

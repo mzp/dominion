@@ -45,9 +45,9 @@ module M : Server.Transport = struct
   let proxy read write sock =
     ignore @@ Thread.create begin fun () ->
       while true do
-	match select [sock] [] [] 0.1 with
+	match select [sock] [] [] 0. with
 	  | [x],_,_ ->
-	      ignore @@	      Event.poll @@ Event.send read @@ recv x
+	      ignore @@	Event.sync @@ Event.send read @@ recv x
 	  | _ ->  begin
 	      match Event.poll (Event.receive write) with
 		  Some e ->
@@ -62,7 +62,7 @@ module M : Server.Transport = struct
     let s =
       Unix.socket PF_INET SOCK_STREAM 0 in
     let _ =
-      at_exit (fun () -> shutdown s SHUTDOWN_ALL) in
+      at_exit (fun () -> shutdown s SHUTDOWN_ALL; close s) in
     let { ai_addr } =
       List.hd @@ getaddrinfo host (string_of_int port) [] in
       f s ai_addr
@@ -75,7 +75,7 @@ module M : Server.Transport = struct
       socket_with host port begin fun s addr ->
 	connect s addr;
 	proxy read write s;
-	(read,write)
+	(write, read)
       end
 
   let server host port ~f =
