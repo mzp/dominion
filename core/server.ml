@@ -3,64 +3,73 @@ open Ccell
 open Protocol
 open ThreadUtils
 
+let ret x f =
+  f ();
+  x
+
 module Make(T : Protocol.S) = struct
-  type room = {
-    clients : response ch list;
+  type game = {
+    players : (T.t * (response ch * string)) list;
+    dummy : int
   }
 
   type state = {
-    rooms : (string * (room_req * response ch) ch) list
+    games : (string * (game_req * response ch * T.t) ch) list;
+    x : int
   }
 
   let empty = {
-    rooms = []
+    games = [];
+    x = 0;
   }
 
-  let make_room name =
-    let ch =
+  let make_game name =
+    let master =
       Event.new_channel () in
     let _ =
-      state_daemon {clients=[]} ~f:begin fun s ->
-	let (req, client) =
-	  Event.sync @@ Event.receive ch in
+      state_daemon {players=[]; dummy=42} ~f:begin fun ({players} as s) ->
+	let (req, client, id) =
+	  Event.sync @@ Event.receive master in
 	  match req with
-	    | `Connect _ ->
-		Logger.debug "<Room:%s> connect" name ();
-		{ clients = client :: s.clients }
-	    | `Chat (_, msg) ->
-		Logger.debug "<Room:%s> chat: %s" name msg ();
-		if List.mem client s.clients then
-		  List.iter
-		    (fun ch ->
-		       thread (fun () ->
-				 Event.sync @@
-				   Event.send ch @@
-				   `Chat msg))
-		    s.clients;
+	    | `Join player ->
+		Logger.debug "[Game:%s]%s join" name player ();
+		Event.sync @@ Event.send client `Ok;
+		{ s with players = (id, (client, player)) :: players }
+	    | `Say msg ->
+		begin match lookup id players with
+		    Some (ch, player) ->
+		      ret s begin fun () ->
+			Logger.debug "[Game:%s]%s say %s" name player msg ();
+			ListLabels.iter players ~f:begin fun (_,(ch,_)) ->
+			  ignore @@
+			    Thread.create (Event.sync $ Event.send ch)
+			    (`Chat (player, msg))
+			end
+		      end
+		  | None ->
+		      s
+		end
+	    | _ ->
 		s
       end in
-      ch
+      master
 
-  let room_name = function
-    | `Connect name | `Chat (name,_) ->
-	name
-
-  let master (ch : (request * response ch) ch) state =
-    let (req, client) =
+  let master ch state =
+    let (req, client, id) =
       Event.sync @@ Event.receive ch in
       Logger.debug "accept request" ();
     match req with
-      | `ListRoom ->
-	  Event.sync @@ Event.send client (`Rooms (List.map fst state.rooms));
+      | `List ->
+	  Event.sync @@ Event.send client (`Games (List.map fst state.games));
 	  state
-      | `MakeRoom s ->
-	  { rooms = (s, make_room s) :: state.rooms }
-      | #room_req as req ->
-	  begin match assoc (room_name req) state.rooms with
-	    | Some room ->
-		Event.sync @@ Event.send room (req, client)
+      | `Game (name,`Create) ->
+	  { state with games = (name, make_game name) :: state.games }
+      | `Game (name, req) ->
+	  begin match lookup name state.games with
+	    | Some game ->
+		Event.sync @@ Event.send game (req, client,id)
 	    | None ->
-		Logger.error "no room: %s" (room_name req) ()
+		Logger.error "no room: %s" name ()
 	  end;
 	  state
 
@@ -69,9 +78,9 @@ module Make(T : Protocol.S) = struct
       Event.new_channel () in
     let _ =
       state_daemon ~f:(master ch) empty in
-      T.server host port ~f:begin fun r w ->
-	let req =
-	  Event.sync @@ Event.receive r in
-	  Event.sync @@ Event.send ch (req,w)
+      T.server host port ~f:begin fun {req; res; id} ->
+	let request =
+	  Event.sync @@ Event.receive req in
+	  Event.sync @@ Event.send ch (request, res, id)
       end
 end

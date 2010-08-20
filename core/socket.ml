@@ -1,8 +1,11 @@
 open Base
 open Unix
 open Ccell
+open Protocol
 
 module M : Protocol.S = struct
+  type t = file_descr
+
   let string_of_bytes n =
     let s =
       String.make 4 ' ' in
@@ -75,7 +78,11 @@ module M : Protocol.S = struct
       socket_with host port begin fun s addr ->
 	connect s addr;
 	proxy read write s;
-	(write, read)
+	{
+	  id = s;
+	  req = write;
+	  res = read
+	}
       end
 
   let server host port ~f =
@@ -90,7 +97,9 @@ module M : Protocol.S = struct
 	let write =
 	  Event.new_channel () in
 	  proxy read write client;
-	  ignore @@ Thread.create (forever (fun () -> f read write)) ()
+	  ignore @@ Thread.create (forever (fun () -> f { req = read;
+							  res = write;
+							  id  = client })) ()
       done
     end
 end

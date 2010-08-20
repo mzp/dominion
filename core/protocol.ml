@@ -1,23 +1,49 @@
 type 'a ch = 'a Ccell.Event.channel
 
+type player_name = string
 type response = [
 | `Ok
-| `Rooms of string list
-| `Chat  of string
+| `Error of string
+| `Games of string list
+| `Chat  of player_name * string
 ]
 
-type room_req = [
-| `Connect  of string
-| `Chat     of string * string
+type card_id = string
+type player_req = [
+| `Join of player_name
+| `Query
+| `Put of card_id
+| `Buy of card_id
+| `Part
+| `Say of string
+]
+
+type game_req = [
+| `Create
+| `Query
+(* | `Update TODO: 利用カードなどを設定できるようにする *)
+| `Delete
+| player_req
+]
+
+type game_name = string
+type master = [
+  `List
+| `Game of game_name * game_req
 ]
 
 type request = [
-| `ListRoom
-| `MakeRoom of string
-| room_req
+  master
 ]
 
+type 'a peer = {
+  id  : 'a;
+  req : request ch;
+  res : response ch;
+}
+
 module type S = sig
-  val connect : string -> int -> (request ch * response ch)
-  val server  : string -> int -> f:(request ch -> response ch -> unit) -> unit
+  type t
+  val connect : string -> int -> t peer
+  val server  : string -> int -> f:(t peer -> unit) -> unit
 end

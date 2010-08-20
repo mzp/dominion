@@ -24,7 +24,7 @@ type ('a,'b) either = Left of 'a | Right of 'b
 
 let failwithf fmt = Printf.kprintf (fun s () -> failwith s) fmt
 
-let assoc x xs = (option @@ List.assoc x) xs
+let lookup x xs = (option @@ List.assoc x) xs
 
 let string_of_list xs =
   Printf.sprintf "[%s]"
