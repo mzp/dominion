@@ -30,6 +30,8 @@ FILES[] =
 	socket
 	logger
 	protocol
+	rules
+	maybe
 	threadUtils
 
 UseCamlp4(pa_monad)

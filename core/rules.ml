@@ -1,42 +1,49 @@
-type place = [
-| `Hands
-| `Discard
-| `Decks
-| `Supply
-| `Trash ]
+open Base
+module type S = sig
+  type t
+  val equal : t -> t -> bool
+  val send  : t -> Protocol.response -> unit
+end
 
-type kind = [
-| `Coin ]
+module Make(S : S) = struct
+  open S
 
-type 'a num = [
-| `Const of int
-| `Any
-| `Range of int * int
-| `All
-| `NumOf of 'a ]
+  type request = {
+    id : t;
+  }
 
-type 'a pred = [
-  `Cost of int
-| `LowCostOf of 'a * int
-| `Only of kind ]
+  type state = {
+    name : string;
+    name_table : (t * string) list
+  }
 
-type 'a src_place = [
-|  place
-| `Filter of 'a pred * 'a src_place ]
+  let empty name = {
+    name = name;
+    name_table = [];
+  }
 
-type 'a select = {
-  src  : 'a src_place;
-  dest : place;
-  num  : 'a num;
-}
+  let rec lookup x = function
+      [] -> None
+    | (k,v)::ys ->
+	if equal x k then
+	  Some v
+	else
+	  lookup x ys
 
-type 'a action = [
-| `Select of 'a select
-]
-
-type effect = [
-| effect action
-| `Action of int
-| `Draw of int
-| `Buy of int
-| `Coin of int ]
+  let run s id = function
+    | `Join player ->
+	  ret { s with
+		  name_table    = (id, player) :: s.name_table } @@
+	    send id `Ok
+    | `Say msg ->
+	ret s @@ ignore @@
+	  Maybe.(perform begin
+		   player <-- lookup id s.name_table;
+		   let _ =
+		     List.map fst s.name_table
+		     +> List.iter (flip send @@ `Chat (player, msg)) in
+		   return ()
+		 end)
+    | _ ->
+	failwith "not yet"
+end
