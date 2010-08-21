@@ -23,7 +23,6 @@ type player_req = [
 type game_req = [
 | `Create
 | `Query
-(* | `Update TODO: 利用カードなどを設定できるようにする *)
 | `Delete
 | player_req
 ]

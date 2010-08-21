@@ -12,22 +12,22 @@ module Make(T : Protocol.S) = struct
   }
 
 
-  module R = Rules.Make(struct
-			  type t = (T.t * response ch)
-			  let equal (x,_) (y,_)= x = y
-			  let send (_,ch) e =
-			    ignore @@
-			      Thread.create (Event.sync $ Event.send ch) e
-			end)
+  module M = StateMachine.Make(struct
+				 type t = (T.t * response ch)
+				 let equal (x,_) (y,_)= x = y
+				 let send (_,ch) e =
+				   ignore @@
+				     Thread.create (Event.sync $ Event.send ch) e
+			       end)
 
   let make_game name =
     let ch =
       Event.new_channel () in
       ret ch begin
-	state_daemon (R.make name) ~f:begin fun state ->
+	state_daemon M.initial  ~f:begin fun state ->
 	  let (req, client, id) =
 	    Event.sync @@ Event.receive ch in
-	    R.run (id, client) req state
+	    M.request (id, client) req state
 	end
       end
 

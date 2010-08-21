@@ -31,9 +31,10 @@ type board = {
 }
 
 type t = {
-  player : player list;
-  board  : board;
-  me     : player
+  players : player list;
+  board   : board;
+  me      : player option
 }
 
-val make : string list -> t
+val make_player : string -> hands:card list -> decks: card list -> player
+val make : player list -> card list -> t

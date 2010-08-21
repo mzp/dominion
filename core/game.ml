@@ -33,9 +33,9 @@ type board = {
 }
 
 type t = {
-  player : player list;
-  board  : board;
-  me     : player
+  players : player list;
+  board   : board;
+  me      : player option
 }
 
 let make_player name = {
@@ -45,14 +45,18 @@ let make_player name = {
   discards = []
 }
 
-let make xs =
-  let players =
-    List.map make_player xs in
-    {
-      boards = {
-	play_area = [];
-	supply = [];
-	trash  = [];
-      };
-      players;
+let make_player name ~hands ~decks = {
+  name; hands; decks;
+  discards = []
+}
 
+let make players supply =
+  {
+    board = {
+      play_area = [];
+      supply = supply;
+      trash  = [];
+    };
+    players;
+    me = None;
+  }
