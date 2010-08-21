@@ -177,25 +177,6 @@ let militia p (`Game g) =
     ret g
   end
 
-type t = [
-  `Gold
-| `Silver
-| `Copper
-| `Estate
-| `Duchy
-| `Province
-| `Curse
-| `Cellar
-| `Market
-| `Mine
-| `Remodel
-| `Smithy
-| `Village
-| `Woodcutter
-| `Workshop
-| `Militia
-| `Moat
-]
 
 let make kind id =
   let (name, cost, effect) =

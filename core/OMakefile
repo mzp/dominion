@@ -23,15 +23,14 @@ FILES[] =
 	base
 	hList
 	game
-	cards
 	cc
 	server
 	client
 	socket
 	logger
 	protocol
-	rules
 	maybe
+	rules
 	threadUtils
 
 UseCamlp4(pa_monad)
