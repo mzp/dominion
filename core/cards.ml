@@ -197,7 +197,7 @@ type t = [
 | `Moat
 ]
 
-let make (kind : t) id =
+let make kind id =
   let (name, cost, effect) =
     match kind with
       | `Gold ->
@@ -236,3 +236,4 @@ let make (kind : t) id =
 	  "mine",5,Action mine
   in
     { cost; name; effect; id }
+

@@ -36,7 +36,7 @@ FILES[] =
 
 UseCamlp4(pa_monad)
 OUnitTest(cards,base cc game cards hList)
-OUnitTest(rules,base maybe rules)
+OUnitTest(rules,base game maybe rules)
 
 OCAMLFLAGS=-annot -w
 PROGRAM = dominion
