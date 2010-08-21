@@ -36,11 +36,21 @@ module Make(S : S) = struct
   type state = {
     clients : (S.t * string) list;
     game    : Game.t option;
+    ready   : int
+  }
+
+  let init_state = {
+    clients = [];
+    game    = None;
+    ready   = 0
   }
 
   let send_all { clients; _} x =
     List.map fst clients
     +> List.iter (flip S.send x)
+
+  let no_trans x =
+    (x,None)
 
   module type State = sig
     val request : S.t -> Protocol.game_req -> state -> state * phase option
@@ -51,21 +61,43 @@ module Make(S : S) = struct
       match req with
 	| `Join name ->
 	    S.send client `Ok;
-	    { s with
-		clients = (client, name) :: s.clients; },
-	    None
+	    no_trans { s with
+			 clients = (client, name) :: s.clients; }
 	| `Say msg ->
 	    ignore @@ Maybe.(perform begin
 			       name <-- lookup client s.clients;
 			       return @@ send_all s @@ `Chat (name, msg)
 			     end);
-	    s, None
+	    no_trans s
 	| _ ->
-	    assert false
+	    S.send client (`Error "invalid request");
+	    no_trans s
   end
 
-  module GameInit = struct
-    let request = Common.request
+  module GameInit : State = struct
+    let game_start s =
+      send_all s `GameStart;
+      (s, Some `TurnInit)
+
+    let request client req s =
+      match req with
+	| `Join name ->
+	    let ({ ready; _ } as s', _) =
+	      Common.request client req s in
+	      no_trans { s' with ready = 1 + ready }
+	| `Ready ->
+	    if mem client s.clients then
+	      let s' =
+		{ s with ready = s.ready - 1 } in
+		if s'.ready = 0 then
+		  game_start s'
+		else
+		  no_trans s'
+	    else
+	      (S.send client @@ `Error "not join";
+	       no_trans s)
+	| _ ->
+	    Common.request client req s
   end
 
   module TurnInit = struct
@@ -100,10 +132,7 @@ module Make(S : S) = struct
   type t = state * phase
 
   let initial : t =
-    {
-      clients = [];
-      game    = None
-    }, `GameInit
+    init_state, `GameInit
 
   let request client req (state, phase) =
     let module M =
