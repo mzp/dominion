@@ -56,6 +56,15 @@ module Make(S : S) = struct
     List.map fst clients
     +> List.iter (flip S.send x)
 
+  let find p xs =
+    (option (List.find p)) xs
+
+  let player_of_client client s =
+    Maybe.(perform begin
+	     name <-- lookup client s.clients;
+	     Game.(find (fun p -> p.name = name) s.game.players)
+	   end)
+
   let no_trans x =
     (x,None)
 
@@ -76,6 +85,21 @@ module Make(S : S) = struct
 			       return @@ send_all s @@ `Chat (name, msg)
 			     end);
 	    no_trans s
+	| `Query `Supply ->
+	    let xs =
+	      Game.(List.map to_string s.game.board.supply) in
+	    let _ =
+	      S.send client @@ `Cards xs in
+	      no_trans s
+	| `Query `Mine ->
+	    let open Game in
+	      (S.send client @@
+		 match player_of_client client s with
+		     Some { hands; _ } ->
+		       `Cards (List.map to_string hands)
+		   | None ->
+		       `Error "not join");
+	      no_trans s
 	| _ ->
 	    S.send client (`Error "invalid request");
 	    no_trans s

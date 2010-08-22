@@ -20,6 +20,8 @@ module Make(T : Protocol.S) = struct
 	      p "error: %s" s ()
 	  | `GameStart ->
 	      p "game start" ()
+	  | `Cards xs ->
+	      List.iter (fun x -> p "%s" x ()) xs
       end in
     let game =
 	ref "" in
@@ -39,6 +41,10 @@ module Make(T : Protocol.S) = struct
 						 `Say (String.concat " " msgs)))
 	| ["/ready"] ->
 	    Event.sync @@ Event.send req (`Game (!game,`Ready))
+	| ["/query"; "supply"] ->
+	    Event.sync @@ Event.send req (`Game (!game,`Query `Supply))
+	| ["/query"; "mine"] ->
+	    Event.sync @@ Event.send req (`Game (!game,`Query `Mine))
 	| _ ->
 	    ()
     end in

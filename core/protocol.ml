@@ -7,12 +7,12 @@ type response = [
 | `Games of string list
 | `Chat  of player_name * string
 | `GameStart
+| `Cards of string list
 ]
 
 type card_id = string
 type player_req = [
 | `Join of player_name
-| `Query
 | `Put of card_id
 | `Buy of card_id
 | `Part
@@ -22,7 +22,7 @@ type player_req = [
 
 type game_req = [
 | `Create
-| `Query
+| `Query of [`Supply | `Mine ]
 | `Delete
 | player_req
 ]
