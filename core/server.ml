@@ -20,7 +20,7 @@ module Make(T : Protocol.S) = struct
 				     Thread.create (Event.sync $ Event.send ch) e
 			       end)
 
-  let make_game name =
+  let make_game _ =
     let ch =
       Event.new_channel () in
       ret ch begin
@@ -40,7 +40,7 @@ module Make(T : Protocol.S) = struct
 	  Event.sync @@ Event.send client (`Games (List.map fst state.games));
 	  state
       | `Game (name,`Create) ->
-	  { state with games = (name, make_game name) :: state.games }
+	  { games = (name, make_game name) :: state.games }
       | `Game (name, req) ->
 	  begin match lookup name state.games with
 	    | Some game ->

@@ -20,8 +20,7 @@ type response = [
 type card_id = string
 type player_req = [
 | `Join of player_name
-| `Put of card_id
-| `Buy of card_id
+| `Select of Game.card
 | `Part
 | `Say of string
 | `Ready
@@ -29,7 +28,7 @@ type player_req = [
 
 type game_req = [
 | `Create
-| `Query of [`Supply | `Mine ]
+| `Query of [`Supply | `Mine | `Players ]
 | `Delete
 | player_req
 ]

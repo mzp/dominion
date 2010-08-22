@@ -66,7 +66,7 @@ module M : Protocol.S = struct
       Unix.socket PF_INET SOCK_STREAM 0 in
     let _ =
       at_exit (fun () -> shutdown s SHUTDOWN_ALL; close s) in
-    let { ai_addr } =
+    let { ai_addr; _ } =
       List.hd @@ getaddrinfo host (string_of_int port) [] in
       f s ai_addr
 

@@ -110,13 +110,13 @@ module Make(S : S) = struct
 	    S.send client (`Error "invalid request");
 	    s
 
-    let transition s = None
+    let transition _ = None
   end
 
   module GameInit : State = struct
     let init = Common.init
 
-    let game { clients } =
+    let game { clients; _ } =
       let players =
 	ListLabels.map clients ~f:begin fun (_,name)->
 	  let init =
@@ -159,7 +159,7 @@ module Make(S : S) = struct
 
     let request client req s =
       match req with
-	| `Join name ->
+	| `Join _ ->
 	    let ({ ready; _ } as s') =
 	      Common.request client req s in
 	      { s' with ready = 1 + ready }
@@ -174,7 +174,7 @@ module Make(S : S) = struct
 	| _ ->
 	    Common.request client req s
 
-    let transition ({ ready } as s) =
+    let transition ({ ready; _ } as s) =
       if ready <> 0 then
 	None
       else

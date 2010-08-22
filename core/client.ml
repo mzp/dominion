@@ -5,7 +5,7 @@ open Protocol
 
 module Make(T : Protocol.S) = struct
   let connect host port =
-    let {req; res} =
+    let {req; res; _ } =
       T.connect host port in
     let _ =
       daemon begin fun () ->
