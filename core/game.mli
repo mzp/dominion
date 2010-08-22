@@ -22,6 +22,9 @@ type player = {
   hands : card list;
   decks : card list;
   discards : card list;
+  action : int;
+  buy    : int;
+  coin   : int;
 }
 
 type board = {

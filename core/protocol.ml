@@ -21,6 +21,7 @@ type card_id = string
 type player_req = [
 | `Join of player_name
 | `Select of Game.card
+| `Skip
 | `Part
 | `Say of string
 | `Ready

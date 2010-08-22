@@ -42,6 +42,9 @@ type player = {
   hands : card list;
   decks : card list;
   discards : card list;
+  action : int;
+  buy    : int;
+  coin   : int;
 }
 
 type board = {
@@ -56,16 +59,12 @@ type t = {
   me      : int
 }
 
-let make_player name = {
-  name;
-  hands = [];
-  decks = [];
-  discards = []
-}
-
 let make_player name ~hands ~decks = {
   name; hands; decks;
-  discards = []
+  discards = [];
+  action = 1;
+  buy = 1;
+  coin = 0
 }
 
 let make players supply =

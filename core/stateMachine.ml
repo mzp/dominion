@@ -193,13 +193,23 @@ module Make(S : S) = struct
     let request = Common.request
 
     let transition s =
-      let { Game.hands; _ }  =
+      let { Game.hands; action; _ }  =
 	current_player s in
-	if List.exists Game.is_action hands then
+	if List.exists Game.is_action hands && action <> 0 then
 	  None
 	else
 	  Some `Buy
   end
+
+  let update_player s f =
+    let open Game in
+      { s with
+	  players = ExtList.List.mapi (fun i player ->
+					 if i = s.me then
+					   f player
+					 else
+					   player)
+	  s.players }
 
   module Buy = struct
     let init s =
@@ -208,8 +218,21 @@ module Make(S : S) = struct
 	send_all s @@ `Phase (`Buy, name);
 	s
 
-    let request = Common.request
-    let transition = Common.transition
+    let request client req s =
+      match req with
+	  `Skip ->
+	    { s with
+		game = update_player s.game (fun p -> { p with Game.action = 0 } ) }
+	| _ ->
+	    Common.request client req s
+
+    (* buyが0になったら遷移する *)
+    let transition s =
+      match current_player s with
+	  { Game.buy = 0; _} ->
+	    Some `Cleanup
+	| _ ->
+	    None
   end
 
   module Cleanup = struct
