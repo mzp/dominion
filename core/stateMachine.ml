@@ -72,30 +72,31 @@ module Make(S : S) = struct
     List.nth s.game.players s.game.me
 
   module type State = sig
-    val init    : state -> state * phase option
-    val request : S.t -> Protocol.game_req -> state -> state * phase option
+    val init       : state -> state
+    val request    : S.t -> Protocol.game_req -> state -> state
+    val transition : state -> phase option
   end
 
   module Common = struct
-    let init s =
-      (s, None)
+    let init =
+      id
 
     let request client req s =
       match req with
 	| `Join name ->
 	    S.send client `Ok;
-	    no_trans { s with
-			 clients = (client, name) :: s.clients; }
+	    { s with
+		clients = (client, name) :: s.clients; }
 	| `Say msg ->
 	    ignore @@ Maybe.(perform begin
 			       name <-- lookup client s.clients;
 			       return @@ send_all s @@ `Chat (name, msg)
 			     end);
-	    no_trans s
+	    s
 	| `Query `Supply ->
 	    let _ =
 	      S.send client @@ `Cards Game.(s.game.board.supply) in
-	      no_trans s
+	      s
 	| `Query `Mine ->
 	    let open Game in
 	      (S.send client @@
@@ -104,18 +105,20 @@ module Make(S : S) = struct
 		       `Cards hands
 		   | None ->
 		       `Error "not join");
-	      no_trans s
+	      s
 	| _ ->
 	    S.send client (`Error "invalid request");
-	    no_trans s
+	    s
+
+    let transition s = None
   end
 
   module GameInit : State = struct
     let init = Common.init
 
-    let game_start s =
+    let game { clients } =
       let players =
-	ListLabels.map s.clients ~f:begin fun (_,name)->
+	ListLabels.map clients ~f:begin fun (_,name)->
 	  let init =
 	    shuffle @@ List.concat [
 	      HList.replicate 7 `Copper;
@@ -152,47 +155,50 @@ module Make(S : S) = struct
 	] in
       let cards =
 	List.concat [ kindgdoms; treasures; victories ] in
-      let game =
-	Game.make (shuffle players) cards in
-      let _ =
-	send_all s `GameStart in
-	({ s with game = game }, Some `Action)
+	Game.make (shuffle players) cards
 
     let request client req s =
       match req with
 	| `Join name ->
-	    let ({ ready; _ } as s', _) =
+	    let ({ ready; _ } as s') =
 	      Common.request client req s in
-	      no_trans { s' with ready = 1 + ready }
+	      { s' with ready = 1 + ready }
 	| `Ready ->
 	    if mem client s.clients then
-	      let s' =
-		{ s with ready = s.ready - 1 } in
-		if s'.ready = 0 then
-		  game_start s'
-		else
-		  no_trans s'
+	      { s with
+		  ready = s.ready - 1;
+		  game  = game s }
 	    else
 	      (S.send client @@ `Error "not join";
-	       no_trans s)
+	       s)
 	| _ ->
 	    Common.request client req s
+
+    let transition ({ ready } as s) =
+      if ready <> 0 then
+	None
+      else
+	(send_all s `GameStart;
+	 Some `Action)
   end
 
   module Action = struct
     let init s =
-      let { Game.name; hands; _ }  =
+      let { Game.name; _ }  =
 	current_player s in
-      let phase =
+	send_all s @@ `Turn name;
+	send_all s @@ `Phase (`Action, name);
+	s
+
+    let request = Common.request
+
+    let transition s =
+      let { Game.hands; _ }  =
+	current_player s in
 	if List.exists Game.is_action hands then
 	  None
 	else
-	  Some `Buy in
-	send_all s @@ `Turn name;
-	send_all s @@ `Phase (`Action, name);
-	(s, phase)
-
-    let request = Common.request
+	  Some `Buy
   end
 
   module Buy = struct
@@ -200,14 +206,16 @@ module Make(S : S) = struct
       let { Game.name; _ }  =
 	current_player s in
 	send_all s @@ `Phase (`Buy, name);
-	(s, None)
+	s
 
     let request = Common.request
+    let transition = Common.transition
   end
 
   module Cleanup = struct
     let init = Common.init
     let request = Common.request
+    let transition = Common.transition
   end
 
   let to_module = function
@@ -220,31 +228,30 @@ module Make(S : S) = struct
     | `Cleanup ->
 	(module Cleanup : State)
 
-
   type t = state * phase
 
   let initial : t =
     init_state, `GameInit
 
-  let rec transition (state, phase) =
+  let rec closure (state, phase) =
     let module M =
       (val to_module phase : State) in
-    let (state', phase') =
+    let state' =
       M.init state in
-      match phase' with
+      match M.transition state' with
 	  Some next_phase ->
-	    transition (state', next_phase)
+	    closure (state', next_phase)
 	| None ->
 	    state', phase
 
   let request client req (state, phase) =
     let module M =
       (val to_module phase : State) in
-    let (state', phase') =
-	M.request client req state in
-      match phase' with
+    let state' =
+      M.request client req state in
+      match M.transition state' with
 	| Some x ->
-	    transition (state', x)
+	    closure (state', x)
 	| None ->
 	    state', phase
 end
