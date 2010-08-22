@@ -1,4 +1,5 @@
 open Base
+
 module type S = sig
   type t
   val equal : t -> t -> bool
@@ -32,16 +33,22 @@ module Make(S : S) = struct
     else
       (key,value) :: xs
 
+  let shuffle xs =
+    Random.self_init ();
+    List.map (fun x -> (Random.int (List.length xs), x)) xs
+    +> List.sort (fun (x,_) (y,_) -> compare x y)
+    +> List.map snd
+
   (* state transition *)
   type state = {
     clients : (S.t * string) list;
-    game    : Game.t option;
+    game    : Game.t;
     ready   : int
   }
 
   let init_state = {
     clients = [];
-    game    = None;
+    game    = Game.make [] [];
     ready   = 0
   }
 
@@ -76,8 +83,49 @@ module Make(S : S) = struct
 
   module GameInit : State = struct
     let game_start s =
-      send_all s `GameStart;
-      (s, Some `TurnInit)
+      let players =
+	ListLabels.map s.clients ~f:begin fun (_,name)->
+	  let init =
+	    shuffle @@ List.concat [
+	      HList.replicate 7 `Copper;
+	      HList.replicate 3 `Estate;
+	    ] in
+	  let (hands, decks) =
+	    HList.splitAt 5 init in
+	    Game.make_player name ~hands ~decks
+	end in
+      let kindgdoms =
+	HList.concat_map (HList.replicate 10) [
+	  `Cellar;
+	  `Market;
+	  `Mine;
+	  `Remodel;
+	  `Smithy;
+	  `Village;
+	  `Woodcutter;
+	  `Workshop;
+	  `Militia;
+	  `Moat;
+	] in
+      let treasures =
+	HList.concat_map (HList.replicate 30) [
+	  `Gold;
+	  `Silver;
+	  `Copper
+	] in
+      let victories =
+	HList.concat_map (HList.replicate (if List.length players <= 2 then 8 else 12)) [
+	  `Estate;
+	  `Duchy;
+	  `Province
+	] in
+      let cards =
+	List.concat [ kindgdoms; treasures; victories ] in
+      let game =
+	Game.make players cards in
+      let _ =
+	send_all s `GameStart in
+	({ s with game = game }, Some `TurnInit)
 
     let request client req s =
       match req with
