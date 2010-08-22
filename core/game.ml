@@ -121,7 +121,22 @@ let is_victory = function
   | _ ->
       false
 
-let cost _ = assert false
+let cost = function
+| `Copper | `Curse ->
+    0
+| `Estate | `Cellar | `Moat ->
+    2
+| `Silver | `Village | `Woodcutter | `Workshop ->
+    3
+| `Smithy | `Remodel | `Militia ->
+    4
+| `Duchy | `Market | `Mine ->
+    5
+| `Gold ->
+    6
+| `Province ->
+    8
+
 let coin = function
   | `Gold ->
       6
