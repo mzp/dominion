@@ -33,7 +33,7 @@ type board = {
 type t = {
   players : player list;
   board   : board;
-  me      : player option
+  me      : int
 }
 
 val make_player : string -> hands:card list -> decks: card list -> player

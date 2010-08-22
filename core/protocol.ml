@@ -1,13 +1,17 @@
 type 'a ch = 'a Ccell.Event.channel
 
 type player_name = string
+type notify = [
+| `GameStart
+| `Turn of player_name
+]
 type response = [
 | `Ok
 | `Error of string
 | `Games of string list
 | `Chat  of player_name * string
-| `GameStart
 | `Cards of string list
+| notify
 ]
 
 type card_id = string

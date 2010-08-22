@@ -9,7 +9,6 @@ end
 module Make(S : S) = struct
   type phase = [
     `GameInit
-  | `TurnInit
   | `Action
   | `Buy
   | `Cleanup
@@ -69,10 +68,14 @@ module Make(S : S) = struct
     (x,None)
 
   module type State = sig
+    val init    : state -> state * phase option
     val request : S.t -> Protocol.game_req -> state -> state * phase option
   end
 
   module Common = struct
+    let init s =
+      (s, None)
+
     let request client req s =
       match req with
 	| `Join name ->
@@ -106,6 +109,8 @@ module Make(S : S) = struct
   end
 
   module GameInit : State = struct
+    let init = Common.init
+
     let game_start s =
       let players =
 	ListLabels.map s.clients ~f:begin fun (_,name)->
@@ -146,10 +151,10 @@ module Make(S : S) = struct
       let cards =
 	List.concat [ kindgdoms; treasures; victories ] in
       let game =
-	Game.make players cards in
+	Game.make (shuffle players) cards in
       let _ =
 	send_all s `GameStart in
-	({ s with game = game }, Some `TurnInit)
+	({ s with game = game }, Some `Action)
 
     let request client req s =
       match req with
@@ -172,27 +177,28 @@ module Make(S : S) = struct
 	    Common.request client req s
   end
 
-  module TurnInit = struct
-    let request = Common.request
-  end
-
   module Action = struct
+    let init s =
+      let open Game in
+	send_all s @@ `Turn (List.nth s.game.players s.game.me).name;
+	(s,None)
+
     let request = Common.request
   end
 
   module Buy = struct
+    let init = Common.init
     let request = Common.request
   end
 
   module Cleanup = struct
+    let init = Common.init
     let request = Common.request
   end
 
   let to_module = function
       `GameInit ->
 	(module GameInit : State)
-    | `TurnInit ->
-	(module TurnInit : State)
     | `Action ->
 	(module Action : State)
     | `Buy ->
@@ -206,14 +212,25 @@ module Make(S : S) = struct
   let initial : t =
     init_state, `GameInit
 
+  let rec transition (state, phase) =
+    let module M =
+      (val to_module phase : State) in
+    let (state', phase') =
+      M.init state in
+      match phase' with
+	  Some next_phase ->
+	    transition (state', next_phase)
+	| None ->
+	    state', phase
+
   let request client req (state, phase) =
     let module M =
       (val to_module phase : State) in
     let (state', phase') =
 	M.request client req state in
       match phase' with
-	  Some x ->
-	    state', x
+	| Some x ->
+	    transition (state', x)
 	| None ->
 	    state', phase
 end

@@ -53,7 +53,7 @@ type board = {
 type t = {
   players : player list;
   board   : board;
-  me      : player option
+  me      : int
 }
 
 let make_player name = {
@@ -76,7 +76,7 @@ let make players supply =
       trash  = [];
     };
     players;
-    me = None;
+    me = 0;
   }
 
 let to_string = function

@@ -22,6 +22,8 @@ module Make(T : Protocol.S) = struct
 	      p "game start" ()
 	  | `Cards xs ->
 	      List.iter (fun x -> p "%s" x ()) xs
+	  | `Turn name ->
+	      p "turn: %s" name ()
       end in
     let game =
 	ref "" in
