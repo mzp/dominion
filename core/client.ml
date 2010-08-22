@@ -21,9 +21,15 @@ module Make(T : Protocol.S) = struct
 	  | `GameStart ->
 	      p "game start" ()
 	  | `Cards xs ->
-	      List.iter (fun x -> p "%s" x ()) xs
+	      List.iter (fun x -> p "%s" (Game.to_string x) ()) xs
 	  | `Turn name ->
 	      p "turn: %s" name ()
+	  | `Phase (`Action, name) ->
+	      p "action phase %s" name ()
+	  | `Phase (`Buy, name) ->
+	      p "buy phase %s" name ()
+	  | `Phase (`Cleanup, name) ->
+	      p "clienup phase %s" name ()
       end in
     let game =
 	ref "" in

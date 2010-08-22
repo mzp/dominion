@@ -67,6 +67,10 @@ module Make(S : S) = struct
   let no_trans x =
     (x,None)
 
+  let current_player s =
+    let open Game in
+    List.nth s.game.players s.game.me
+
   module type State = sig
     val init    : state -> state * phase option
     val request : S.t -> Protocol.game_req -> state -> state * phase option
@@ -89,17 +93,15 @@ module Make(S : S) = struct
 			     end);
 	    no_trans s
 	| `Query `Supply ->
-	    let xs =
-	      Game.(List.map to_string s.game.board.supply) in
 	    let _ =
-	      S.send client @@ `Cards xs in
+	      S.send client @@ `Cards Game.(s.game.board.supply) in
 	      no_trans s
 	| `Query `Mine ->
 	    let open Game in
 	      (S.send client @@
 		 match player_of_client client s with
 		     Some { hands; _ } ->
-		       `Cards (List.map to_string hands)
+		       `Cards hands
 		   | None ->
 		       `Error "not join");
 	      no_trans s
@@ -179,15 +181,27 @@ module Make(S : S) = struct
 
   module Action = struct
     let init s =
-      let open Game in
-	send_all s @@ `Turn (List.nth s.game.players s.game.me).name;
-	(s,None)
+      let { Game.name; hands; _ }  =
+	current_player s in
+      let phase =
+	if List.exists Game.is_action hands then
+	  None
+	else
+	  Some `Buy in
+	send_all s @@ `Turn name;
+	send_all s @@ `Phase (`Action, name);
+	(s, phase)
 
     let request = Common.request
   end
 
   module Buy = struct
-    let init = Common.init
+    let init s =
+      let { Game.name; _ }  =
+	current_player s in
+	send_all s @@ `Phase (`Buy, name);
+	(s, None)
+
     let request = Common.request
   end
 
