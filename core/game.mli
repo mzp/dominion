@@ -38,3 +38,13 @@ type t = {
 
 val make_player : string -> hands:card list -> decks: card list -> player
 val make : player list -> card list -> t
+val to_string : card -> string
+
+val is_action   : card -> bool
+val is_reaction : card -> bool
+val is_treasure : card -> bool
+val is_victory  : card -> bool
+
+val cost : card -> int
+val coin : card -> int
+

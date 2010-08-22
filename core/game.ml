@@ -1,13 +1,12 @@
 open Base
 
-type card = [
+type treasure = [
 | `Gold
 | `Silver
 | `Copper
-| `Estate
-| `Duchy
-| `Province
-| `Curse
+]
+
+type action = [
 | `Cellar
 | `Market
 | `Mine
@@ -17,7 +16,26 @@ type card = [
 | `Woodcutter
 | `Workshop
 | `Militia
-| `Moat ]
+| `Moat
+]
+
+type reaction = [
+| `Moat
+]
+
+type victory = [
+| `Estate
+| `Duchy
+| `Province
+| `Curse
+]
+
+type card = [
+| treasure
+| action
+| reaction
+| victory
+]
 
 type player = {
   name  : string;
@@ -60,3 +78,56 @@ let make players supply =
     players;
     me = None;
   }
+
+let to_string = function
+  | `Gold -> "gold"
+  | `Silver -> "silver"
+  | `Copper -> "copper"
+  | `Estate -> "estate"
+  | `Duchy -> "duchy"
+  | `Province -> "province"
+  | `Curse -> "curse"
+  | `Cellar -> "cellar"
+  | `Market -> "market"
+  | `Mine -> "mine"
+  | `Remodel -> "remodel"
+  | `Smithy -> "smithy"
+  | `Village -> "village"
+  | `Woodcutter -> "woodcutter"
+  | `Workshop -> "workshop"
+  | `Militia -> "militia"
+  | `Moat -> "moat"
+
+let is_action = function
+  | #action ->
+      true
+  | _ ->
+      false
+
+let is_reaction = function
+  | #reaction ->
+      true
+  | _ ->
+      false
+let is_treasure = function
+  | #treasure ->
+      true
+  | _ ->
+      false
+
+let is_victory = function
+  | #victory ->
+      true
+  | _ ->
+      false
+
+let cost _ = assert false
+let coin = function
+  | `Gold ->
+      6
+  | `Silver ->
+      3
+  | `Copper ->
+      1
+  | _ ->
+      0
