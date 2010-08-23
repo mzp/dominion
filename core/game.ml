@@ -78,6 +78,15 @@ let make players supply =
     me = 0;
   }
 
+let update ~f g =
+  let players =
+    ExtList.List.mapi
+      (fun i p ->
+	 if i = g.me then f p
+	 else p)
+      g.players in
+    { g with players }
+
 let to_string = function
   | `Gold -> "gold"
   | `Silver -> "silver"

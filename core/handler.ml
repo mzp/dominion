@@ -42,17 +42,6 @@ module Make(S : S) = struct
     List.map fst clients
     +> List.iter (flip S.send x)
 
-  let rec lookup x = function
-      [] -> None
-    | (k,v)::ys ->
-	if S.equal x k then
-	  Some v
-	else
-	  lookup x ys
-
-  let rec mem key xs =
-    lookup key xs <> None
-
   let add x xs =
     if List.mem x xs then
       xs
@@ -190,13 +179,39 @@ module Make(S : S) = struct
       k @@ return () in
       shiftP prompt (fun k -> return @@ `Cc(state, p, handle k))
 
+  let cleanup state =
+    let open Game in
+      Game.update state ~f:begin fun player ->
+	let discards' =
+	  player.hands @ player.discards in
+	let n =
+	  List.length player.decks in
+	  if n >= 5 then
+	    { player with
+		discards = discards';
+		hands    = HList.take 5 player.decks;
+		decks    = HList.drop 5 player.decks
+	    }
+	  else
+	    let decks' =
+	      shuffle discards' in
+	      { player with
+		  discards = [];
+		  hands    = player.decks @ HList.take (5-n) decks';
+		  decks    = HList.drop (5-n) decks'
+	      }
+      end
+
   let turn p client state =
     let open Cc in
       perform begin
 	let _ = send_all state @@ `Turn (current_player state).Game.name in
-	() <-- skip p state;
+	_ <-- skip p state;
 	let _ = S.send client @@ `Ok in
-	return @@ `End state
+	_ <-- skip p state;
+	let _ = S.send client @@ `Ok in
+	let game = cleanup state.game in
+	return @@ `End { state with game }
       end
 
   let invoke_turn state =
