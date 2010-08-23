@@ -12,13 +12,13 @@ module Make(T : Protocol.S) = struct
   }
 
 
-  module M = StateMachine.Make(struct
-				 type t = (T.t * response ch)
-				 let equal (x,_) (y,_)= x = y
-				 let send (_,ch) e =
-				   ignore @@
-				     Thread.create (Event.sync $ Event.send ch) e
-			       end)
+  module M = Handler.Make(struct
+			    type t = (T.t * response ch)
+			    let equal (x,_) (y,_)= x = y
+			    let send (_,ch) e =
+			      ignore @@
+				Thread.create (Event.sync $ Event.send ch) e
+			  end)
 
   let make_game _ =
     let ch =
@@ -27,7 +27,7 @@ module Make(T : Protocol.S) = struct
 	state_daemon M.initial  ~f:begin fun state ->
 	  let (req, client, id) =
 	    Event.sync @@ Event.receive ch in
-	    M.request (id, client) req state
+	    M.handle (id, client) req state
 	end
       end
 

@@ -22,15 +22,13 @@ type player_req = [
 | `Join of player_name
 | `Select of Game.card
 | `Skip
-| `Part
 | `Say of string
 | `Ready
 ]
 
 type game_req = [
 | `Create
-| `Query of [`Supply | `Mine | `Players ]
-| `Delete
+| `Query of [`Supply | `Mine ]
 | player_req
 ]
 

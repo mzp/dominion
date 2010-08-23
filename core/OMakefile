@@ -30,7 +30,7 @@ FILES[] =
 	logger
 	protocol
 	maybe
-	stateMachine
+	handler
 	threadUtils
 
 UseCamlp4(pa_monad)
