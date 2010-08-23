@@ -179,26 +179,26 @@ module Make(S : S) = struct
       k @@ return () in
       shiftP prompt (fun k -> return @@ `Cc(state, p, handle k))
 
-  let cleanup state =
+  let cleanup n state =
     let open Game in
       Game.update state ~f:begin fun player ->
 	let discards' =
 	  player.hands @ player.discards in
-	let n =
+	let len =
 	  List.length player.decks in
-	  if n >= 5 then
+	  if len >= n then
 	    { player with
 		discards = discards';
-		hands    = HList.take 5 player.decks;
-		decks    = HList.drop 5 player.decks
+		hands    = HList.take n player.decks;
+		decks    = HList.drop n player.decks
 	    }
 	  else
 	    let decks' =
 	      shuffle discards' in
 	      { player with
 		  discards = [];
-		  hands    = player.decks @ HList.take (5-n) decks';
-		  decks    = HList.drop (5-n) decks'
+		  hands    = player.decks @ HList.take (n - len) decks';
+		  decks    = HList.drop (n - len) decks'
 	      }
       end
 
@@ -210,7 +210,7 @@ module Make(S : S) = struct
 	let _ = S.send client @@ `Ok in
 	_ <-- skip p state;
 	let _ = S.send client @@ `Ok in
-	let game = cleanup state.game in
+	let game = cleanup 5 state.game in
 	return @@ `End { state with game }
       end
 
