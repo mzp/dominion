@@ -162,9 +162,13 @@ module Make(S : S) = struct
     Hashtbl.create 0
 
   let save_cc client : 'a -> t = function
-      `End state ->
-	Hashtbl.clear table;
-	state
+      `End ({game; _ } as state) ->
+	let open Game in
+	let me =
+	  (game.me + 1) mod (List.length state.ready) in
+	  Hashtbl.clear table;
+	  { state with
+	      game = { game with me }}
     | `Cc (state, pred, cc) ->
 	Hashtbl.add table client (pred, cc);
 	state
@@ -206,7 +210,7 @@ module Make(S : S) = struct
 	  pushP p @@ turn p client request state
 	end
 
-  let handle client (req : Protocol.game_req) state =
+  let handle client (req : Protocol.game_req) ({ ready; game = { Game.me; _ }; _} as state) =
     match req with
 	#common_request as r ->
 	  handle_common client r state
@@ -216,7 +220,12 @@ module Make(S : S) = struct
 	  S.send client @@ `Error "already started";
 	  state
       | #player_request as r ->
-	  handle_player client r state
+	  if client = List.nth ready me then
+	    handle_player client r state
+	  else begin
+	    S.send client @@ `Error "not your turn";
+	    state
+	  end
       | `Create ->
 	  failwith "must not happen"
 end
