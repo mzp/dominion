@@ -34,6 +34,10 @@ module Make(S : S) = struct
     let open Game in
     List.nth s.game.players s.game.me
 
+  let current_client s =
+    let open Game in
+      fst @@ List.nth s.clients s.game.me
+
   let send_all { clients; _} x =
     List.map fst clients
     +> List.iter (flip S.send x)
@@ -146,6 +150,7 @@ module Make(S : S) = struct
       if List.length state'.ready = List.length state'.clients then begin
 	send_all state' `GameStart;
 	{ state' with
+	    playing = true;
 	    game = game state' }
       end else
 	state'
@@ -161,17 +166,18 @@ module Make(S : S) = struct
 			    Cc.CONT.mc as 'b))) Hashtbl.t =
     Hashtbl.create 0
 
-  let save_cc client : 'a -> t = function
-      `End ({game; _ } as state) ->
-	let open Game in
-	let me =
-	  (game.me + 1) mod (List.length state.ready) in
-	  Hashtbl.clear table;
-	  { state with
-	      game = { game with me }}
-    | `Cc (state, pred, cc) ->
-	Hashtbl.add table client (pred, cc);
-	state
+  let save_cc client cont =
+    match Cc.run cont with
+	`End ({game; _ } as state) ->
+	  let open Game in
+	  let me =
+	    (game.me + 1) mod (List.length state.ready) in
+	    Hashtbl.clear table;
+	    { state with
+		game = { game with me }}
+      | `Cc (state, pred, cc) ->
+	  Hashtbl.add table client (pred, cc);
+	  state
 
   let skip prompt state =
     let open Cc in
@@ -184,13 +190,22 @@ module Make(S : S) = struct
       k @@ return () in
       shiftP prompt (fun k -> return @@ `Cc(state, p, handle k))
 
-  let turn p client _request state =
+  let turn p client state =
     let open Cc in
       perform begin
-	let _ = S.send client @@ `Error "input skip" in
+	let _ = send_all state @@ `Turn (current_player state).Game.name in
 	() <-- skip p state;
-	let _ = S.send client @@ `Error "yahoo" in
+	let _ = S.send client @@ `Ok in
 	return @@ `End state
+      end
+
+  let invoke_turn state =
+    let open Cc in
+    let client =
+      current_client state in
+      save_cc client @@ perform begin
+	p <-- new_prompt ();
+	pushP p @@ turn p client state
       end
 
   let handle_player client request state : t =
@@ -199,33 +214,39 @@ module Make(S : S) = struct
 	let (p, k) =
 	  Hashtbl.find table client in
 	  if p request then
-	    save_cc client @@ Cc.run @@ k client request state
+	    save_cc client @@ k client request state
 	  else begin
+	    Logger.error "unexpected request" ();
 	    S.send client @@ `Error "invalid request";
 	    state
 	  end
-      else
-	save_cc client @@ Cc.run @@ perform begin
-	  p <-- new_prompt ();
-	  pushP p @@ turn p client request state
-	end
+      else begin
+	Logger.error "no cc" ();
+	S.send client @@ `Error "invalid request";
+	state
+      end
 
-  let handle client (req : Protocol.game_req) ({ ready; game = { Game.me; _ }; _} as state) =
-    match req with
-	#common_request as r ->
-	  handle_common client r state
-      | `Ready when not state.playing ->
-	  handle_ready client state
-      | `Ready ->
-	  S.send client @@ `Error "already started";
-	  state
-      | #player_request as r ->
-	  if client = List.nth ready me then
-	    handle_player client r state
-	  else begin
-	    S.send client @@ `Error "not your turn";
+  let handle client (req : Protocol.game_req) state =
+    let state' =
+      match req with
+	  #common_request as r ->
+	    handle_common client r state
+	| `Ready when not state.playing ->
+	    handle_ready client state
+	| `Ready ->
+	    S.send client @@ `Error "already started";
 	    state
-	  end
-      | `Create ->
-	  failwith "must not happen"
+	| #player_request as r ->
+	    if client = current_client state then
+	      handle_player client r state
+	    else begin
+	      S.send client @@ `Error "not your turn";
+	      state
+	    end
+	| `Create ->
+	    failwith "must not happen" in
+      if state'.playing && Hashtbl.length table = 0 then
+	invoke_turn state'
+      else
+	state'
 end
