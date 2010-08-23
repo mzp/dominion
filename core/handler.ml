@@ -131,7 +131,7 @@ module Make(S : S) = struct
 	] in
       let cards =
 	List.concat [ kindgdoms; treasures; victories ] in
-	Game.make (shuffle players) cards
+	Game.make players cards
 
   let handle_ready client ({ clients; ready; _ } as state) =
     let state' =
