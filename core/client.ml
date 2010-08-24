@@ -55,6 +55,8 @@ module Make(T : Protocol.S) = struct
 	    Event.sync @@ Event.send req (`Game (!game,`Query `Mine))
 	| ["/skip"] ->
 	    Event.sync @@ Event.send req (`Game (!game,`Skip))
+	| ["/select"; c] ->
+	    Event.sync @@ Event.send req (`Game (!game,`Select (Game.of_string c)))
 	| _ ->
 	    ()
     end in

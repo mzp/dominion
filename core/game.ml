@@ -87,24 +87,31 @@ let update ~f g =
       g.players in
     { g with players }
 
-let to_string = function
-  | `Gold -> "gold"
-  | `Silver -> "silver"
-  | `Copper -> "copper"
-  | `Estate -> "estate"
-  | `Duchy -> "duchy"
-  | `Province -> "province"
-  | `Curse -> "curse"
-  | `Cellar -> "cellar"
-  | `Market -> "market"
-  | `Mine -> "mine"
-  | `Remodel -> "remodel"
-  | `Smithy -> "smithy"
-  | `Village -> "village"
-  | `Woodcutter -> "woodcutter"
-  | `Workshop -> "workshop"
-  | `Militia -> "militia"
-  | `Moat -> "moat"
+let table = [
+  `Gold , "gold";
+  `Silver , "silver";
+  `Copper , "copper";
+  `Estate , "estate";
+  `Duchy , "duchy";
+  `Province , "province";
+  `Curse , "curse";
+  `Cellar , "cellar";
+  `Market , "market";
+  `Mine , "mine";
+  `Remodel , "remodel";
+  `Smithy , "smithy";
+  `Village , "village";
+  `Woodcutter , "woodcutter";
+  `Workshop , "workshop";
+  `Militia , "militia";
+  `Moat , "moat";
+]
+
+let to_string name =
+  List.assoc name table
+
+let of_string name =
+  fst @@ List.find (fun (_,x) -> name = x) table
 
 let is_action = function
   | #action ->

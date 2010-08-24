@@ -150,7 +150,7 @@ module Make(S : S) = struct
   ]
 
   let table : (S.t, ((player_request -> bool) *
-                       (S.t -> player_request -> t ->
+                       (player_request -> t ->
 			  (unit, [ `Cc of t * (player_request -> bool) * 'b | `End of t ])
 			    Cc.CONT.mc as 'b))) Hashtbl.t =
     Hashtbl.create 0
@@ -168,16 +168,63 @@ module Make(S : S) = struct
 	  Hashtbl.add table client (pred, cc);
 	  state
 
-  let skip prompt state =
+  let user prompt state pred =
     let open Cc in
-    let p =  function
+    let handle k request state =
+      k @@ return (request, state) in
+      shiftP prompt (fun k -> return @@ `Cc(state, pred , handle k))
+
+  let skip =  function
 	`Skip ->
 	  true
       | _ ->
-	  false in
-    let handle k _ _ _ =
-      k @@ return () in
-      shiftP prompt (fun k -> return @@ `Cc(state, p, handle k))
+	  false
+
+  let select = function
+      `Select _ ->
+	true
+    | _ ->
+	false
+
+  let (<>) f g x =
+    f x || g x
+
+  let update_player ~f state =
+    { state with
+	game = Game.update ~f state.game }
+
+  let sum xs =
+    List.fold_left (+) 0 xs
+
+  let rec buy p client state =
+    let open Cc in
+    let open Game in
+    let me =
+      current_player state in
+      if me.buy = 0 then
+	return state
+      else
+	perform begin
+	  (request, state) <-- user p state (skip <> select);
+	  match request with
+	    | `Skip ->
+		return state
+	    | `Select c ->
+		let cap =
+		  me.coin + sum (List.map coin me.hands) in
+		  if List.mem c state.game.board.supply && coin c < cap then begin
+		    S.send client @@ `Ok;
+		    buy p client @@ update_player state ~f:begin fun player ->
+		      { player with
+			  buy  = player.buy - 1;
+			  coin = player.coin - coin c;
+			  discards = c :: player.discards }
+		    end
+		  end else begin
+		    S.send client @@ `Error "not enough coin";
+		    buy p client state
+		  end
+	end
 
   let cleanup n state =
     let open Game in
@@ -187,29 +234,51 @@ module Make(S : S) = struct
 	let len =
 	  List.length player.decks in
 	  if len >= n then
+	    let _ =
+	      Logger.debug "draw from decks" () in
 	    { player with
 		discards = discards';
 		hands    = HList.take n player.decks;
-		decks    = HList.drop n player.decks
+		decks    = HList.drop n player.decks;
+		action   = 1;
+		buy      = 1;
+		coin     = 1;
 	    }
 	  else
+	    let _ =
+	      Logger.debug "shuffle" () in
 	    let decks' =
 	      shuffle discards' in
 	      { player with
 		  discards = [];
 		  hands    = player.decks @ HList.take (n - len) decks';
-		  decks    = HList.drop (n - len) decks'
+		  decks    = HList.drop (n - len) decks';
+		  action   = 1;
+		  buy      = 1;
+		  coin     = 1;
 	      }
       end
 
   let turn p client state =
     let open Cc in
+    let log name cs =
+      Logger.debug "%s: %s" name (Std.dump (List.map Game.to_string cs)) () in
+    let me =
+      current_player state in
+    let name =
+      me.Game.name in
       perform begin
-	let _ = send_all state @@ `Turn (current_player state).Game.name in
-	_ <-- skip p state;
-	let _ = S.send client @@ `Ok in
-	_ <-- skip p state;
-	let _ = S.send client @@ `Ok in
+	let _ =
+	  Logger.debug "player : %s" name ();
+	  log "decks" me.Game.decks;
+	  log "hands" me.Game.hands;
+	  log "discards" me.Game.discards in
+	let _ = send_all state @@ `Turn name in
+	let _ = send_all state @@ `Phase (`Action, name) in
+	(_,state) <-- user p state skip;
+	let _ = send_all state @@ `Phase (`Buy, name) in
+	state <-- buy p client state;
+	let _ = send_all state @@ `Phase (`Cleanup, name) in
 	let game = cleanup 5 state.game in
 	return @@ `End { state with game }
       end
@@ -229,7 +298,7 @@ module Make(S : S) = struct
 	let (p, k) =
 	  Hashtbl.find table client in
 	  if p request then
-	    save_cc client @@ k client request state
+	    save_cc client @@ k request state
 	  else begin
 	    Logger.error "unexpected request" ();
 	    S.send client @@ `Error "invalid request";
