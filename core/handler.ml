@@ -196,35 +196,40 @@ module Make(S : S) = struct
   let sum xs =
     List.fold_left (+) 0 xs
 
-  let rec buy p client state =
+  let phase p state pred ~f =
     let open Cc in
-    let open Game in
-    let me =
-      current_player state in
-      if me.buy = 0 then
-	return state
-      else
-	perform begin
-	  (request, state) <-- user p state (skip <> select);
-	  match request with
+    let rec until state =
+      let me =
+	current_player state in
+	if pred me then
+	  return state
+	else
+	  perform begin
+	    (request, state) <-- user p state (skip <> select);
+	    match request with
 	    | `Skip ->
 		return state
 	    | `Select c ->
-		let cap =
-		  me.coin + sum (List.map coin me.hands) in
-		  if List.mem c state.game.board.supply && coin c < cap then begin
-		    S.send client @@ `Ok;
-		    buy p client @@ update_player state ~f:begin fun player ->
-		      { player with
-			  buy  = player.buy - 1;
-			  coin = player.coin - coin c;
-			  discards = c :: player.discards }
-		    end
-		  end else begin
-		    S.send client @@ `Error "not enough coin";
-		    buy p client state
-		  end
-	end
+		until @@ update_player state ~f:(fun me -> f c me)
+	  end in
+      until state
+
+  let buy p client state =
+    let open Game in
+      phase p state (fun { buy; _ } -> buy = 0) ~f:begin fun c me ->
+	let cap =
+	  me.coin + sum (List.map coin me.hands) in
+	  if List.mem c state.game.board.supply && coin c < cap then begin
+	    S.send client @@ `Ok;
+	    { me with
+		buy  = me.buy - 1;
+		coin = me.coin - coin c;
+		discards = c :: me.discards }
+	  end else begin
+	    S.send client @@ `Error "not enough coin";
+	    me
+	  end
+      end
 
   let cleanup n state =
     let open Game in
@@ -274,10 +279,13 @@ module Make(S : S) = struct
 	  log "hands" me.Game.hands;
 	  log "discards" me.Game.discards in
 	let _ = send_all state @@ `Turn name in
+	(* action phase *)
 	let _ = send_all state @@ `Phase (`Action, name) in
 	(_,state) <-- user p state skip;
+	(* buy phase *)
 	let _ = send_all state @@ `Phase (`Buy, name) in
 	state <-- buy p client state;
+	(* cleanup phase *)
 	let _ = send_all state @@ `Phase (`Cleanup, name) in
 	let game = cleanup 5 state.game in
 	return @@ `End { state with game }
