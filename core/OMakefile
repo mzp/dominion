@@ -23,19 +23,21 @@ FILES[] =
 	base
 	hList
 	game
-	cards
 	cc
 	server
 	client
 	socket
 	logger
 	protocol
+	maybe
+	handler
 	threadUtils
 
 UseCamlp4(pa_monad)
 OUnitTest(cards,base cc game cards hList)
+OUnitTest(rules,base game maybe rules)
 
-OCAMLFLAGS=-annot -w
+OCAMLFLAGS=-annot -w A -warn-error A
 PROGRAM = dominion
 # OCAML_LIBS +=
 # OCAML_CLIBS +=

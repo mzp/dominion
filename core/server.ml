@@ -3,56 +3,33 @@ open Ccell
 open Protocol
 open ThreadUtils
 
-let ret x f =
-  f ();
-  x
-
 module Make(T : Protocol.S) = struct
-  type game = {
-    players : (T.t * (response ch * string)) list;
-    dummy : int
-  }
-
   type state = {
     games : (string * (game_req * response ch * T.t) ch) list;
-    x : int
   }
-
   let empty = {
-    games = [];
-    x = 0;
+    games = []
   }
 
-  let make_game name =
-    let master =
+
+  module M = Handler.Make(struct
+			    type t = (T.t * response ch)
+			    let equal (x,_) (y,_)= x = y
+			    let send (_,ch) e =
+			      ignore @@
+				Thread.create (Event.sync $ Event.send ch) e
+			  end)
+
+  let make_game _ =
+    let ch =
       Event.new_channel () in
-    let _ =
-      state_daemon {players=[]; dummy=42} ~f:begin fun ({players} as s) ->
-	let (req, client, id) =
-	  Event.sync @@ Event.receive master in
-	  match req with
-	    | `Join player ->
-		Logger.debug "[Game:%s]%s join" name player ();
-		Event.sync @@ Event.send client `Ok;
-		{ s with players = (id, (client, player)) :: players }
-	    | `Say msg ->
-		begin match lookup id players with
-		    Some (ch, player) ->
-		      ret s begin fun () ->
-			Logger.debug "[Game:%s]%s say %s" name player msg ();
-			ListLabels.iter players ~f:begin fun (_,(ch,_)) ->
-			  ignore @@
-			    Thread.create (Event.sync $ Event.send ch)
-			    (`Chat (player, msg))
-			end
-		      end
-		  | None ->
-		      s
-		end
-	    | _ ->
-		s
-      end in
-      master
+      ret ch begin
+	state_daemon M.initial  ~f:begin fun state ->
+	  let (req, client, id) =
+	    Event.sync @@ Event.receive ch in
+	    M.handle (id, client) req state
+	end
+      end
 
   let master ch state =
     let (req, client, id) =
@@ -63,7 +40,8 @@ module Make(T : Protocol.S) = struct
 	  Event.sync @@ Event.send client (`Games (List.map fst state.games));
 	  state
       | `Game (name,`Create) ->
-	  { state with games = (name, make_game name) :: state.games }
+	  Event.sync @@ Event.send client `Ok;
+	  { games = (name, make_game name) :: state.games }
       | `Game (name, req) ->
 	  begin match lookup name state.games with
 	    | Some game ->

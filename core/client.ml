@@ -5,7 +5,7 @@ open Protocol
 
 module Make(T : Protocol.S) = struct
   let connect host port =
-    let {req; res} =
+    let {req; res; _ } =
       T.connect host port in
     let _ =
       daemon begin fun () ->
@@ -16,8 +16,22 @@ module Make(T : Protocol.S) = struct
 	      p "[%s]%s" name msg ()
 	  | `Ok ->
 	      p "ok" ()
-	  | _ ->
-	      p "unknown response" ()
+	  | `Error s ->
+	      p "error: %s" s ()
+	  | `GameStart ->
+	      p "game start" ()
+	  | `Cards xs ->
+	      List.iter (fun x -> p "%s" (Game.to_string x) ()) xs
+	  | `Turn name ->
+	      p "turn: %s" name ()
+	  | `Phase (`Action, name) ->
+	      p "action phase %s" name ()
+	  | `Phase (`Buy, name) ->
+	      p "buy phase %s" name ()
+	  | `Phase (`Cleanup, name) ->
+	      p "clienup phase %s" name ()
+	  | `Notify s ->
+	      p "notify %s" s ()
       end in
     let game =
 	ref "" in
@@ -25,16 +39,26 @@ module Make(T : Protocol.S) = struct
       print_string "$ ";
       flush stdout;
       match Str.split (Str.regexp " ") @@ read_line () with
-	  ["ls"] ->
+	  ["/rooms"] ->
 	    Event.sync @@ Event.send req `List
-	| ["make"; name] ->
+	| ["/room"; name] ->
 	    Event.sync @@ Event.send req (`Game (name,`Create))
-	| ["connect"; x; y] ->
+	| ["/join"; x; y] ->
 	    game := x;
 	    Event.sync @@ Event.send req (`Game (x,`Join y))
-	| "chat"::msgs ->
+	| "/chat"::msgs ->
 	    Event.sync @@ Event.send req (`Game (!game,
-					       `Say (String.concat " " msgs)))
+						 `Say (String.concat " " msgs)))
+	| ["/ready"] ->
+	    Event.sync @@ Event.send req (`Game (!game,`Ready))
+	| ["/query"; "supply"] ->
+	    Event.sync @@ Event.send req (`Game (!game,`Query `Supply))
+	| ["/query"; "mine"] ->
+	    Event.sync @@ Event.send req (`Game (!game,`Query `Mine))
+	| ["/skip"] ->
+	    Event.sync @@ Event.send req (`Game (!game,`Skip))
+	| ["/select"; c] ->
+	    Event.sync @@ Event.send req (`Game (!game,`Select (Game.of_string c)))
 	| _ ->
 	    ()
     end in

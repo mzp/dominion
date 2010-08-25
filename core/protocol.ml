@@ -1,28 +1,35 @@
 type 'a ch = 'a Ccell.Event.channel
 
 type player_name = string
+
+type notify = [
+| `GameStart
+| `Turn of player_name
+| `Phase of [`Action | `Buy | `Cleanup] * player_name
+| `Notify of string
+]
+
 type response = [
 | `Ok
 | `Error of string
 | `Games of string list
 | `Chat  of player_name * string
+| `Cards of Game.card list
+| notify
 ]
 
 type card_id = string
 type player_req = [
 | `Join of player_name
-| `Query
-| `Put of card_id
-| `Buy of card_id
-| `Part
+| `Select of Game.card
+| `Skip
 | `Say of string
+| `Ready
 ]
 
 type game_req = [
 | `Create
-| `Query
-(* | `Update TODO: 利用カードなどを設定できるようにする *)
-| `Delete
+| `Query of [`Supply | `Mine ]
 | player_req
 ]
 

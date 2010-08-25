@@ -176,3 +176,45 @@ let militia p (`Game g) =
     end;
     ret g
   end
+
+
+let make kind id =
+  let (name, cost, effect) =
+    match kind with
+      | `Gold ->
+	  "gold", 6, Treasure 3
+      | `Silver ->
+	  "silver", 3, Treasure 2
+      | `Copper ->
+	  "copper", 0, Treasure 1
+      | `Estate ->
+	  "estate",2, Victory 1
+      | `Duchy ->
+	  "duchy", 5, Victory 3
+      | `Province ->
+	  "province", 8, Victory 6
+      | `Curse ->
+	  "curse", 0, Victory (-1)
+      | `Cellar ->
+	  "cellar", 2, Action cellar
+      | `Moat ->
+	  "moat", 2, Protect
+      | `Village ->
+	  "village", 3, Action village
+      | `Workshop ->
+	  "workshop", 3, Action workshop
+      | `Woodcutter ->
+	  "woodcutter", 3, Action woodcutter
+      | `Smithy ->
+	  "smithy", 4, Action smithy
+      | `Remodel ->
+	  "remodel",4,Action remodel
+      | `Militia ->
+	  "militia",4,Action militia
+      | `Market ->
+	  "market",5,Action market
+      | `Mine ->
+	  "mine",5,Action mine
+  in
+    { cost; name; effect; id }
+
