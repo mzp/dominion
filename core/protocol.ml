@@ -6,6 +6,7 @@ type notify = [
 | `GameStart
 | `Turn of player_name
 | `Phase of [`Action | `Buy | `Cleanup] * player_name
+| `Notify of string
 ]
 
 type response = [

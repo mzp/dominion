@@ -48,6 +48,9 @@ module Make(S : S) = struct
     else
       x :: xs
 
+  let (--) xs ys =
+    List.fold_left (fun xs' y -> ExtList.List.remove xs' y) xs ys
+
   let shuffle xs =
     Random.self_init ();
     List.map (fun x -> (Random.int (List.length xs), x)) xs
@@ -189,14 +192,23 @@ module Make(S : S) = struct
   let (<>) f g x =
     f x || g x
 
-  let update_player ~f state =
+  let update_game ~f state =
     { state with
-	game = Game.update ~f state.game }
+	game = f state.game }
+
+  let update_player ~f state =
+    update_game state ~f:(fun g -> Game.update ~f g)
+
+  let update_board ~f state =
+    update_game
+      state
+      ~f:(fun g ->
+	    { g with Game.board = f g.Game.board })
 
   let sum xs =
     List.fold_left (+) 0 xs
 
-  let phase p state pred ~f =
+  let phase p client state pred ~f =
     let open Cc in
     let rec until state =
       let me =
@@ -210,25 +222,110 @@ module Make(S : S) = struct
 	    | `Skip ->
 		return state
 	    | `Select c ->
-		until @@ update_player state ~f:(fun me -> f c me)
+		until @@ match f c state with
+		    `Val state' ->
+		      S.send client `Ok;
+		      state'
+		  | `Err msg ->
+		      S.send client @@ `Error msg;
+		      state
 	  end in
       until state
 
+  let rec repeat p client state n pred =
+    let open Cc in
+      if n = 0 then
+	return ([],state)
+      else
+	perform begin
+	  (request, state) <-- user p state (skip <> select);
+	  match request with
+	    | `Skip ->
+		return ([], state)
+	    | `Select c ->
+		if pred c then
+		  perform ((xs,state) <-- repeat p client state (n-1) pred;
+			   return ((c :: xs), state))
+		else
+		  return ([], state)
+	end
+
+
+
+  let rec many p client state pred =
+    let open Cc in
+      perform begin
+	(request, state) <-- user p state (skip <> select);
+	match request with
+	  | `Skip ->
+	      return ([], state)
+	  | `Select c ->
+	      if pred c then
+		perform ((xs,state) <-- many p client state pred;
+			 return ((c :: xs), state))
+	      else
+		return ([], state)
+      end
+
+  let card_action =
+    let open Cc in
+    let open Game in
+      function
+	| `Cellar -> begin fun p client state ->
+	    let me =
+	      current_player state in
+	      perform begin
+		let _ = S.send client @@ `Notify "select discard card" in
+		(xs,state) <-- many p client state (fun c -> List.mem c me.hands);
+		let state =
+		  state
+		  +> update_player ~f:(fun me ->
+				      {	me with
+					  hands = me.hands -- xs;
+					  discards = xs @ me.discards
+				      }) in
+		let _ = S.send client @@ `Notify "select obtain card" in
+		(ys, state) <-- repeat p client state (List.length xs) (fun c -> List.mem c state.game.Game.board.supply);
+		Cc.return (update_player state ~f:(fun me ->
+						     {me with hands = ys @ me.hands}))
+	      end
+	  end
+	| _ ->
+	    failwith "not action card"
+
+  let action p client state =
+    let open Game in
+    let open Cc in
+      phase p client state (fun { action; _ } -> action = 0) ~f:begin fun c state ->
+	let me =
+	  current_player state in
+	  if List.mem c me.hands && Game.is_action c then
+	    let state' =
+	      state
+	      +> update_board  ~f:(fun b -> { b with play_area = c :: b.play_area} )
+	      +> update_player ~f:(fun p -> { p with hands     = p.hands -- [ c ] } ) in
+	      run @@ perform (state'' <-- (card_action c) p client state';
+			      return @@ `Val state'')
+	  else
+	    `Err "not have the card"
+      end
+
   let buy p client state =
     let open Game in
-      phase p state (fun { buy; _ } -> buy = 0) ~f:begin fun c me ->
+      phase p client state (fun { buy; _ } -> buy = 0) ~f:begin fun c state ->
+	let me =
+	  current_player state in
 	let cap =
 	  me.coin + sum (List.map coin me.hands) in
-	  if List.mem c state.game.board.supply && coin c < cap then begin
-	    S.send client @@ `Ok;
-	    { me with
-		buy  = me.buy - 1;
-		coin = me.coin - coin c;
-		discards = c :: me.discards }
-	  end else begin
-	    S.send client @@ `Error "not enough coin";
-	    me
-	  end
+	  if List.mem c state.game.board.supply && coin c < cap then
+	    `Val (update_player state
+		    ~f:(fun me ->
+			  { me with
+			      buy  = me.buy - 1;
+			      coin = me.coin - coin c;
+			      discards = c :: me.discards }))
+	  else
+	    `Err "not enough coin"
       end
 
   let cleanup n state =
@@ -281,7 +378,7 @@ module Make(S : S) = struct
 	let _ = send_all state @@ `Turn name in
 	(* action phase *)
 	let _ = send_all state @@ `Phase (`Action, name) in
-	(_,state) <-- user p state skip;
+	state <-- action p client state;
 	(* buy phase *)
 	let _ = send_all state @@ `Phase (`Buy, name) in
 	state <-- buy p client state;
