@@ -222,13 +222,14 @@ module Make(S : S) = struct
 	    | `Skip ->
 		return state
 	    | `Select c ->
-		until @@ match f c state with
-		    `Val state' ->
-		      S.send client `Ok;
-		      state'
-		  | `Err msg ->
-		      S.send client @@ `Error msg;
-		      state
+		perform (r <-- f c state;
+			 until @@ match r with
+			     `Val state' ->
+			       S.send client `Ok;
+			       state'
+			   | `Err msg ->
+			       S.send client @@ `Error msg;
+			       state)
 	  end in
       until state
 
@@ -300,14 +301,17 @@ module Make(S : S) = struct
 	let me =
 	  current_player state in
 	  if List.mem c me.hands && Game.is_action c then
-	    let state' =
+	    let state =
 	      state
 	      +> update_board  ~f:(fun b -> { b with play_area = c :: b.play_area} )
 	      +> update_player ~f:(fun p -> { p with hands     = p.hands -- [ c ] } ) in
-	      run @@ perform (state'' <-- (card_action c) p client state';
-			      return @@ `Val state'')
+	      perform begin
+		state <-- (card_action c) p client state;
+		let state = update_player state ~f:(fun me -> {me with action = me.action -1 }) in
+		return @@ `Val state
+	      end
 	  else
-	    `Err "not have the card"
+	    return (`Err "not have the card")
       end
 
   let buy p client state =
@@ -318,14 +322,14 @@ module Make(S : S) = struct
 	let cap =
 	  me.coin + sum (List.map coin me.hands) in
 	  if List.mem c state.game.board.supply && coin c < cap then
-	    `Val (update_player state
-		    ~f:(fun me ->
-			  { me with
-			      buy  = me.buy - 1;
-			      coin = me.coin - coin c;
-			      discards = c :: me.discards }))
+	    Cc.return (`Val (update_player state
+			       ~f:(fun me ->
+				     { me with
+					 buy  = me.buy - 1;
+					 coin = me.coin - coin c;
+					 discards = c :: me.discards })))
 	  else
-	    `Err "not enough coin"
+	    Cc.return @@ `Err "not enough coin"
       end
 
   let cleanup n state =

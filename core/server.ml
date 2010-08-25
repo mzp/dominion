@@ -40,6 +40,7 @@ module Make(T : Protocol.S) = struct
 	  Event.sync @@ Event.send client (`Games (List.map fst state.games));
 	  state
       | `Game (name,`Create) ->
+	  Event.sync @@ Event.send client `Ok;
 	  { games = (name, make_game name) :: state.games }
       | `Game (name, req) ->
 	  begin match lookup name state.games with
