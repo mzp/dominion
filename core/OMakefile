@@ -34,8 +34,8 @@ FILES[] =
 	threadUtils
 
 UseCamlp4(pa_monad)
-OUnitTest(cards,base cc game cards hList)
-OUnitTest(rules,base game maybe rules)
+OUnitTest(handler, handler base cc logger game hList maybe)
+
 
 OCAMLFLAGS=-annot -w A -warn-error A
 PROGRAM = dominion
