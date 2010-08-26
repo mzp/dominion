@@ -87,6 +87,9 @@ let update ~f g =
       g.players in
     { g with players }
 
+let me { players; me; _ } =
+  List.nth players me
+
 let table = [
   `Gold , "gold";
   `Silver , "silver";
@@ -161,3 +164,4 @@ let coin = function
       1
   | _ ->
       0
+

@@ -43,6 +43,7 @@ val make_player : string -> hands:card list -> decks: card list -> player
 val make : player list -> card list -> t
 val to_string : card -> string
 val of_string : string -> card
+val me : t -> player
 
 val update : f:(player -> player) -> t -> t
 

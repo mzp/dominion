@@ -332,10 +332,6 @@ module Make(S : S) = struct
 	    Cc.return @@ `Err "not enough coin"
       end
 
- (*
-    書いたコードのフィクタリングをします。
-    どうしようか考え中。
- *)
   let cleanup n state =
     let open Game in
       Game.update state ~f:begin fun player ->
@@ -344,8 +340,6 @@ module Make(S : S) = struct
 	let len =
 	  List.length player.decks in
 	  if len >= n then
-	    let _ =
-	      Logger.debug "draw from decks" () in
 	    { player with
 		discards = discards';
 		hands    = HList.take n player.decks;
@@ -355,8 +349,6 @@ module Make(S : S) = struct
 		coin     = 1;
 	    }
 	  else
-	    let _ =
-	      Logger.debug "shuffle" () in
 	    let decks' =
 	      shuffle discards' in
 	      { player with
