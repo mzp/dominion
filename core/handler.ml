@@ -330,9 +330,10 @@ module Make(S : S) = struct
 	    Cc.return @@ `Err "not enough coin"
       end
 
-  let cleanup n state =
+  let cleanup _p _client state =
     let open Game in
-      Game.update state ~f:begin fun player ->
+    let n = 5 in
+      Cc.return @@ update_player state ~f:begin fun player ->
 	let discards' =
 	  player.hands @ player.discards in
 	let len =
@@ -382,8 +383,8 @@ module Make(S : S) = struct
 	state <-- buy p client state;
 	(* cleanup phase *)
 	let _ = send_all state @@ `Phase (`Cleanup, name) in
-	let game = cleanup 5 state.game in
-	return @@ `End { state with game }
+	state <-- cleanup p client state;
+	return @@ `End state
       end
 
   let invoke_turn state =
@@ -440,3 +441,4 @@ module Make(S : S) = struct
   let game { game; _ } =
     game
 end
+

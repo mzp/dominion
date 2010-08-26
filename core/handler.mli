@@ -23,6 +23,8 @@ module Make : functor(S : S) -> sig
   val buy : ([> `Cc of
         t * ([> `Select of 'b2 | `Skip ] -> bool) *
         ([< `Select of Game.card | `Skip ] -> t -> (unit, 'a2) Cc.CONT.mc) ] as 'a2)  Cc.prompt -> S.t -> t -> (unit, t) Cc.CONT.mc
-  val cleanup : int -> Game.t -> Game.t
+  val cleanup : ([> `Cc of
+        t * ([> `Select of 'b2 | `Skip ] -> bool) *
+        ([< `Select of Game.card | `Skip ] -> t -> (unit, 'a2) Cc.CONT.mc) ] as 'a2)  Cc.prompt -> S.t -> t -> (unit, t) Cc.CONT.mc
   val game : t -> Game.t
 end

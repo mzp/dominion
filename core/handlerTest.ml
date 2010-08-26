@@ -149,7 +149,7 @@ let _ = begin "handler.ml" >::: [
 	  ~hands:[ `Gold; `Gold; ]
 	  ~decks:[ `Gold; `Silver; `Copper; `Estate; `Duchy; `Gold ] in
       let { Game.hands; decks; discards; _ } =
-	Game.me @@ cleanup 5 @@ Game.make [ alice ] [] in
+	Game.me @@ run [] cleanup  @@ Game.make [ alice ] [] in
 	assert_equal [ `Gold; `Silver; `Copper; `Estate; `Duchy ] hands;
 	assert_equal [ `Gold ] decks;
 	assert_equal [ `Gold; `Gold ] discards
@@ -163,7 +163,7 @@ let _ = begin "handler.ml" >::: [
 	{ alice with
 	    Game.discards = [`Silver; `Silver; `Silver; `Silver ] } in
       let { Game.hands; decks; discards; _ } =
-	Game.me @@ cleanup 5 @@ Game.make [ alice ] [] in
+	Game.me @@ run [] cleanup  @@ Game.make [ alice ] [] in
 	assert_equal ~msg:"hands" ~printer:(Std.dump $ List.map Game.to_string)[ `Gold; `Silver; `Silver; `Silver; `Silver] hands;
 	assert_equal [ ] decks;
 	assert_equal [ ] discards
