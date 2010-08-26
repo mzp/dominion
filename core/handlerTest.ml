@@ -12,29 +12,136 @@ module M = Handler.Make(struct
 			end)
 open M
 
+let rec run xs f g =
+  let open Cc in
+  let rec iter xs r =
+    match xs, r with
+	[], `End state ->
+	  game state
+      | (y::ys), `Cc (state, pred, cc) when pred y ->
+	  iter ys (Cc.run (cc y state))
+      | _::_, `Cc _ ->
+	  failwith "unexpected request"
+      | _::_, `End _ ->
+	  failwith "too many request"
+      | [], `Cc _ ->
+	  failwith "require more request"
+  in
+  let state =
+    { game=g;
+      clients=[(1, "alice")];
+      ready=[1;2;3];
+      playing =true } in
+    iter xs @@ Cc.run @@ perform begin
+      p <-- new_prompt ();
+      pushP p @@ perform begin
+	state <-- f p 42 state;
+	return @@ `End state
+      end
+    end
+
 let _ = begin "handler.ml" >::: [
-  "actionフェーズは" >::: [
-    "スキップできる" >:: begin fun () ->
-      ()
-    end;
-    "指定したカードを使える" >:: begin fun () ->
-      ()
-    end;
-    "actionの回数だけカードを使える" >:: begin fun () ->
-      ()
-    end
-  ];
-  "buyフェーズは" >::: [
-    "スキップできる" >:: begin fun () ->
-      ()
-    end;
-    "指定したカードを買える" >:: begin fun () ->
-      ()
-    end;
-    "buyの回数だけカードを買える" >:: begin fun () ->
-      ()
-    end
-  ];
+  (let alice =
+    Game.make_player "alice"
+      ~hands:[ `Cellar; `Silver; `Silver ]
+      ~decks:[ `Cellar; `Province; `Silver ] in
+   let game =
+     Game.make [ alice ] [ ] in
+     "actionフェーズは" >::: [
+       "スキップできる" >:: begin fun () ->
+	 assert_equal game @@ run [`Skip] action game
+       end;
+       "指定したカードを使える" >:: begin fun () ->
+	 let open Game in
+	 let game' =
+	   Game.update game ~f:(fun me -> { me with
+					      action = 0;
+					      hands = [`Cellar;`Province];
+					      decks = [`Silver];
+					      discards = [`Silver; `Silver]
+					  }) in
+	 let game' =
+	   { game' with board = { game'.board with play_area  = [`Cellar] } } in
+	 assert_equal game' @@ run [`Select `Cellar;
+				    (* 捨てるカードの選択 *)
+				    `Select `Silver;
+				    `Select `Silver;
+				    `Skip] action game
+       end;
+       "actionの回数だけカードを使える" >:: begin fun () ->
+	 let open Game in
+	 let game =
+	   Game.update game
+	     ~f:(fun me -> { me with action = 2 }) in
+	 let game' =
+	   Game.update game ~f:(fun me -> { me with
+					      action = 0;
+					      hands = [`Province];
+					      discards = [`Silver; `Silver];
+					      decks = [`Silver] }) in
+	 let game' =
+	   { game' with board = { game'.board with play_area  = [`Cellar; `Cellar] } } in
+
+	 assert_equal ~printer:Std.dump game' @@ run [`Select `Cellar;
+				    `Select `Silver;
+				    `Skip;
+				    `Select `Cellar;
+				    `Select `Silver;
+				    `Skip] action game
+       end
+     ]);
+  (let alice =
+    Game.make_player "alice"
+      ~hands:[ `Gold ]
+      ~decks:[] in
+   let game =
+     Game.make [ alice ] [ `Cellar; `Province; `Cellar ] in
+     "buyフェーズは" >::: [
+       "スキップできる" >:: begin fun () ->
+	 assert_equal game @@ run [`Skip] buy game
+       end;
+       "指定したカードを買える" >:: begin fun () ->
+	 let open Game in
+	 let game' =
+	   Game.update game
+	     ~f:(fun me ->
+		   { me with
+		       discards = `Cellar::me.discards;
+		       buy = 0;
+		       coin = -2;
+		   }) in
+	   assert_equal ~printer:Std.dump game' @@ run [`Select `Cellar] buy game
+       end;
+       "高すぎるカードは買えない" >:: begin fun () ->
+	 let open Game in
+	 let game' =
+	   Game.update game
+	     ~f:(fun me ->
+		   { me with
+		       discards = `Cellar::me.discards;
+		       buy = 0;
+		       coin = -2;
+		   }) in
+	   assert_equal ~printer:Std.dump game' @@
+	     run [`Select `Province; `Select `Cellar] buy game
+       end;
+       "buyの回数だけカードを買える" >:: begin fun () ->
+	 let open Game in
+	 let game =
+	   Game.update game ~f:(fun me ->
+				  { me with buy = 2 }) in
+	 let game' =
+	   Game.update game
+	     ~f:(fun me ->
+		   { me with
+		       discards = `Cellar::`Cellar::me.discards;
+		       buy = 0;
+		       coin = -4;
+		   }) in
+	   assert_equal ~printer:Std.dump game' @@
+	     run [`Select `Cellar; `Select `Cellar] buy game
+       end
+     ]);
   "cleanupフェーズは" >::: [
     "手札を捨て札に積む" >:: begin fun () ->
       let alice =

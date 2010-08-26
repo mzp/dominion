@@ -5,7 +5,12 @@ module type S = sig
 end
 
 module Make : functor(S : S) -> sig
-  type t
+  type t = {
+    clients : (S.t * string) list;
+    ready   : S.t list;
+    playing : bool;
+    game : Game.t
+  }
 
   val initial : t
   val handle : S.t -> Protocol.game_req -> t -> t
@@ -19,4 +24,5 @@ module Make : functor(S : S) -> sig
         t * ([> `Select of 'b2 | `Skip ] -> bool) *
         ([< `Select of Game.card | `Skip ] -> t -> (unit, 'a2) Cc.CONT.mc) ] as 'a2)  Cc.prompt -> S.t -> t -> (unit, t) Cc.CONT.mc
   val cleanup : int -> Game.t -> Game.t
+  val game : t -> Game.t
 end

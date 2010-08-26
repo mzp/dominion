@@ -278,17 +278,15 @@ module Make(S : S) = struct
 	      perform begin
 		let _ = S.send client @@ `Notify "select discard card" in
 		(xs,state) <-- many p client state (fun c -> List.mem c me.hands);
-		let state =
+		let n = List.length xs in
+		return @@
 		  state
 		  +> update_player ~f:(fun me ->
 				      {	me with
-					  hands = me.hands -- xs;
-					  discards = xs @ me.discards
-				      }) in
-		let _ = S.send client @@ `Notify "select obtain card" in
-		(ys, state) <-- repeat p client state (List.length xs) (fun c -> List.mem c state.game.Game.board.supply);
-		Cc.return (update_player state ~f:(fun me ->
-						     {me with hands = ys @ me.hands}))
+					  hands = (HList.take n me.decks) @ (me.hands -- xs);
+					  discards = xs @ me.discards;
+					  decks  = HList.drop n me.decks
+				      })
 	      end
 	  end
 	| _ ->
@@ -321,12 +319,12 @@ module Make(S : S) = struct
 	  current_player state in
 	let cap =
 	  me.coin + sum (List.map coin me.hands) in
-	  if List.mem c state.game.board.supply && coin c < cap then
+	  if List.mem c state.game.board.supply && cost c < cap then
 	    Cc.return (`Val (update_player state
 			       ~f:(fun me ->
 				     { me with
 					 buy  = me.buy - 1;
-					 coin = me.coin - coin c;
+					 coin = me.coin - cost c;
 					 discards = c :: me.discards })))
 	  else
 	    Cc.return @@ `Err "not enough coin"
@@ -438,4 +436,7 @@ module Make(S : S) = struct
 	invoke_turn state'
       else
 	state'
+
+  let game { game; _ } =
+    game
 end
