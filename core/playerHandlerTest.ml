@@ -5,11 +5,22 @@ open OUnit
   ただしクライアントへのデータ送信はstubに置き換えて、
   テスト対象のモジュールを実体化する。
 *)
-module M = Handler.Make(struct
-			  type t = int
-			  let send _ _ = ()
-			  let equal = (=)
-			end)
+module M = PlayerHandler.Make(struct
+				type t = int
+				let send _ _ = ()
+				let equal = (=)
+			      end)(struct
+				     type t = int
+				     type state = {
+				       clients : (t * string) list;
+				       ready   : t list;
+				       playing : bool;
+				       game : Game.t
+				     }
+				     let send_all _ _ = ()
+				     let player_of_client _ _ = None
+				     let  current_client  _ = 0
+				   end)
 open M
 
 let rec run xs f g =

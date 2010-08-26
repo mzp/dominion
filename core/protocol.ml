@@ -54,3 +54,9 @@ module type S = sig
   val connect : string -> int -> t peer
   val server  : string -> int -> f:(t peer -> unit) -> unit
 end
+
+module type Rpc = sig
+  type t
+  val equal : t -> t -> bool
+  val send  : t -> response -> unit
+end

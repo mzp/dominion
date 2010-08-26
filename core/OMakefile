@@ -32,9 +32,13 @@ FILES[] =
 	maybe
 	handler
 	threadUtils
+	commonHandler
+	readyHandler
+	playerHandler
+	listUtil
 
 UseCamlp4(pa_monad)
-OUnitTest(handler, handler base cc logger game hList maybe)
+OUnitTest(playerHandler, playerHandler cc base logger game hList listUtil)
 
 
 OCAMLFLAGS=-annot -w A -warn-error A
