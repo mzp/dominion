@@ -8,21 +8,15 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
   | `Skip
   ]
 
-  type new_state = {
+  type state = B.state
+
+  type client = {
     client : S.t;
     me     : Game.player;
     prompt : ([ `Cc of state * ([ `Select of Game.card | `Skip ] -> bool) *
-		  ([ `Select of Game.card | `Skip ] -> state -> (unit, 'a2) Cc.CONT.mc) ] as 'a2)  Cc.prompt
+		  ([ `Select of Game.card | `Skip ] -> state -> (unit, 'a2) Cc.CONT.mc)
+	      | `End of state ] as 'a2)  Cc.prompt
   }
-
-  type phase = new_state -> (unit, state) Cc.CONT.mc
-
-(*
-'c Cc.prompt ->
-  (((unit, 'f * 'g) Cc.CONT.mc -> (unit, 'c) Cc.CONT.mc) ->
-   (unit, 'c) Cc.CONT.mc) ->
-  (unit, state) Cc.CONT.mc
-*)
 
   let current_player s =
     Game.me s.game
@@ -166,7 +160,7 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	| _ ->
 	    failwith "not action card"
 
-  let action p client state =
+  let action { prompt = p; client; _ }  state =
     let open Game in
     let open Cc in
       phase p client state (fun { action; _ } -> action = 0) ~f:begin fun c state ->
@@ -186,7 +180,7 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	    return (`Err "not have the card")
       end
 
-  let buy p client state =
+  let buy { prompt = p; client; _ }  state =
     let open Game in
       phase p client state (fun { buy; _ } -> buy = 0) ~f:begin fun c state ->
 	let me =
@@ -204,7 +198,7 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	    Cc.return @@ `Err "not enough coin"
       end
 
-  let cleanup _p _client state =
+  let cleanup _ state =
     let open Game in
     let n = 5 in
       Cc.return @@ update_player state ~f:begin fun player ->
@@ -234,7 +228,7 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	      }
       end
 
-  let turn p client state =
+  let turn client state =
     let open Cc in
     let log name cs =
       Logger.debug "%s: %s" name (Std.dump (List.map Game.to_string cs)) () in
@@ -251,13 +245,13 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	let _ = send_all state @@ `Turn name in
 	(* action phase *)
 	let _ = send_all state @@ `Phase (`Action, name) in
-	state <-- action p client state;
+	state <-- action client state;
 	(* buy phase *)
 	let _ = send_all state @@ `Phase (`Buy, name) in
-	state <-- buy p client state;
+	state <-- buy client state;
 	(* cleanup phase *)
 	let _ = send_all state @@ `Phase (`Cleanup, name) in
-	state <-- cleanup p client state;
+	state <-- cleanup client state;
 	return @@ `End state
       end
 
@@ -267,10 +261,9 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
       B.current_client state in
       save_cc client @@ perform begin
 	p <-- new_prompt ();
-	pushP p @@ turn p client state
+	pushP p @@ turn { prompt = p; client; me = current_player state } state
       end
 
-  type state = B.state
   let handle client request state  =
     let open Cc in
       if Hashtbl.mem table client then
