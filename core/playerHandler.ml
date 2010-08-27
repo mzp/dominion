@@ -10,11 +10,10 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 
   let current_player s =
     Game.me s.game
+  type action = ((request -> bool) *
+		 (request -> state -> (unit, [ `Cc of state * (request -> bool) * 'b | `End of state ]) Cc.CONT.mc as 'b))
 
-  let table : (S.t, ((request -> bool) *
-                       (request -> state ->
-			  (unit, [ `Cc of state * (request -> bool) * 'b | `End of state ])
-			    Cc.CONT.mc as 'b))) Hashtbl.t =
+  let table : (S.t, action) Hashtbl.t =
     Hashtbl.create 0
 
   let save_cc client cont =
