@@ -8,6 +8,22 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
   | `Skip
   ]
 
+  type new_state = {
+    client : S.t;
+    me     : Game.player;
+    prompt : ([ `Cc of state * ([ `Select of Game.card | `Skip ] -> bool) *
+		  ([ `Select of Game.card | `Skip ] -> state -> (unit, 'a2) Cc.CONT.mc) ] as 'a2)  Cc.prompt
+  }
+
+  type phase = new_state -> (unit, state) Cc.CONT.mc
+
+(*
+'c Cc.prompt ->
+  (((unit, 'f * 'g) Cc.CONT.mc -> (unit, 'c) Cc.CONT.mc) ->
+   (unit, 'c) Cc.CONT.mc) ->
+  (unit, state) Cc.CONT.mc
+*)
+
   let current_player s =
     Game.me s.game
   type action = ((request -> bool) *
