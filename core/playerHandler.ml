@@ -17,14 +17,60 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 
   type client = {
     client : S.t;
-    me     : Game.player;
     prompt : cc Cc.prompt
   }
+
+
+  type action = ((request -> bool) * (request -> state -> (unit, cc) Cc.CONT.mc))
 
   let current_player s =
     Game.me s.game
 
-  type action = ((request -> bool) * (request -> state -> (unit, cc) Cc.CONT.mc))
+  (*
+    継続サーバフレームワーク
+  *)
+  let table : (S.t, action) Hashtbl.t =
+    Hashtbl.create 0
+
+  let save_cc client cont =
+    match Cc.run cont with
+	`End ({game; _ } as state) ->
+	  let open Game in
+	  let me =
+	    (game.me + 1) mod (List.length state.ready) in
+	    Hashtbl.clear table;
+	    { state with
+		game = { game with me }}
+      | `Cc (state, pred, cc) ->
+	  Hashtbl.add table client (pred, cc);
+	  state
+
+  let run f state =
+    let open Cc in
+    let client =
+      B.current_client state in
+      save_cc client @@ perform begin
+	p <-- new_prompt ();
+	pushP p @@ f { prompt = p; client } state
+      end
+
+  let handle client request state  =
+    let open Cc in
+      if Hashtbl.mem table client then
+	let (p, k) =
+	  Hashtbl.find table client in
+	  if p request then
+	    save_cc client @@ k request state
+	  else begin
+	    Logger.error "unexpected request" ();
+	    S.send client @@ `Error "invalid request";
+	    state
+	  end
+      else begin
+	Logger.error "no cc" ();
+	S.send client @@ `Error "invalid request";
+	state
+      end
 
   let user { prompt; _ } state pred =
     let open Cc in
@@ -225,48 +271,8 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	return @@ `End state
       end
 
-  let table : (S.t, action) Hashtbl.t =
-    Hashtbl.create 0
-
-  let save_cc client cont =
-    match Cc.run cont with
-	`End ({game; _ } as state) ->
-	  let open Game in
-	  let me =
-	    (game.me + 1) mod (List.length state.ready) in
-	    Hashtbl.clear table;
-	    { state with
-		game = { game with me }}
-      | `Cc (state, pred, cc) ->
-	  Hashtbl.add table client (pred, cc);
-	  state
-
-  let invoke state =
-    let open Cc in
-    let client =
-      B.current_client state in
-      save_cc client @@ perform begin
-	p <-- new_prompt ();
-	pushP p @@ turn { prompt = p; client; me = current_player state } state
-      end
-
-  let handle client request state  =
-    let open Cc in
-      if Hashtbl.mem table client then
-	let (p, k) =
-	  Hashtbl.find table client in
-	  if p request then
-	    save_cc client @@ k request state
-	  else begin
-	    Logger.error "unexpected request" ();
-	    S.send client @@ `Error "invalid request";
-	    state
-	  end
-      else begin
-	Logger.error "no cc" ();
-	S.send client @@ `Error "invalid request";
-	state
-      end
+  let invoke =
+    run turn
 
   let game { game; _ } =
     game

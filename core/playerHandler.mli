@@ -8,12 +8,16 @@ module Make : functor(S : Protocol.Rpc) -> functor(B : HandlerBase.S with type t
   val invoke : state -> state
   val handle : S.t -> request -> state -> state
 
+
+  (* for test *)
+  type cc = [
+    `Cc of state * (request -> bool) * (request -> state -> (unit, cc) Cc.CONT.mc)
+  | `End of state
+  ]
+
   type client = {
     client : S.t;
-    me     : Game.player;
-    prompt : ([ `Cc of state * ([ `Select of Game.card | `Skip ] -> bool) *
-		  ([ `Select of Game.card | `Skip ] -> state -> (unit, 'a2) Cc.CONT.mc)
-	      | `End of state ] as 'a2)  Cc.prompt
+    prompt : cc Cc.prompt
   }
 
   val action : client -> state -> (unit, state) Cc.CONT.mc

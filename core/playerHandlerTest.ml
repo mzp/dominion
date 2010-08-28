@@ -43,7 +43,7 @@ let rec run xs f g =
     iter xs @@ Cc.run @@ perform begin
       p <-- new_prompt ();
       pushP p @@ perform begin
-	state <-- f {prompt = p ; client = 42; me = Game.me g } state;
+	state <-- f {prompt = p ; client = 42  } state;
 	return @@ `End state
       end
     end
