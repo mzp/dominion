@@ -47,23 +47,22 @@ module Make(S : Protocol.Rpc) = struct
 	    Common.handle client r state
 	| #Ready.request as r ->
 	    if state.playing then
-	      (S.send client @@ `Error "already started";
-	       state)
+	      Right "already started"
 	    else
 	      Ready.handle client r state
 	| #Player.request as r ->
 	    if client = current_client state then
 	      Player.handle client r state
-	    else begin
-	      S.send client @@ `Error "not your turn";
-	      state
-	    end
+	    else
+	      Right "not your turn"
 	| `Create ->
 	    failwith "must not happen" in
-      if state'.playing then
-	Player.invoke state'
-      else
-	state'
+      match state' with
+	  Left s when s.playing ->
+	    Player.invoke s;
+	    state'
+	| Left _ | Right _ ->
+	    state'
 
   let game { game; _ } =
     game

@@ -12,17 +12,17 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
     match request with
       | `Join name ->
 	  S.send client `Ok;
-	  { state with
+	  Left { state with
 	      clients = (client, name) :: clients }
       | `Say msg ->
 	  ignore @@ Maybe.(perform begin
 			     name <-- lookup client clients;
 			     return @@ send_all state @@ `Chat (name, msg)
 			   end);
-	  state
+	  Left state
       | `Query `Supply ->
 	  S.send client @@ `Cards Game.(game.board.supply);
-	  state
+	  Left state
       | `Query `Mine ->
 	  let open Game in
 	    (S.send client @@
@@ -31,5 +31,5 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 		     `Cards hands
 		 | None ->
 		     `Error "not join");
-	    state
+	    Left state
 end

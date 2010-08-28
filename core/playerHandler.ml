@@ -49,7 +49,7 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
     let open Cc in
     let client =
       B.current_client state in
-      save_cc client @@ perform begin
+      ignore @@ save_cc client @@ perform begin
 	p <-- new_prompt ();
 	pushP p @@ f { prompt = p; client } state
       end
@@ -60,16 +60,12 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	let (p, k) =
 	  Hashtbl.find table client in
 	  if p request then
-	    save_cc client @@ k request state
+	    Left (save_cc client @@ k request state)
 	  else begin
-	    Logger.error "unexpected request" ();
-	    S.send client @@ `Error "invalid request";
-	    state
+	    Right "invalid request";
 	  end
       else begin
-	Logger.error "no cc" ();
-	S.send client @@ `Error "invalid request";
-	state
+	Right "invalid request";
       end
 
   let user { prompt; _ } state pred =

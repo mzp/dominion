@@ -27,7 +27,13 @@ module Make(T : Protocol.S) = struct
 	state_daemon M.initial  ~f:begin fun state ->
 	  let (req, client, id) =
 	    Event.sync @@ Event.receive ch in
-	    M.handle (id, client) req state
+	    match M.handle (id, client) req state with
+	      | Left state ->
+		  Event.sync @@ Event.send client `Ok;
+		  state
+	      | Right err ->
+		  Event.sync @@ Event.send client (`Error err);
+		  state
 	end
       end
 

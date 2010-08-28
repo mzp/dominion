@@ -48,20 +48,16 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
       Game.make players cards
 
   let handle client _ ({ clients; ready; _ } as state) =
-    let state' =
-      if List.exists (fun (c,_) -> c = client) clients then
-	begin
-	  S.send client @@ `Ok;
-	  { state with ready = add client ready }
-	end else begin
-	  S.send client @@ `Error "error";
-	  state
-	end in
-      if List.length state'.ready = List.length state'.clients then begin
-	send_all state' `GameStart;
-	{ state' with
-	    playing = true;
-	    game = game state' }
-      end else
-	state'
+    if List.exists (fun (c,_) -> c = client) clients then
+      let state' =
+	{ state with ready = add client ready } in
+	if List.length state'.ready = List.length state'.clients then begin
+	  send_all state' `GameStart;
+	  Left { state' with
+		   playing = true;
+		   game = game state' }
+	end else
+	  Left state'
+    else
+      Right  "error"
 end
