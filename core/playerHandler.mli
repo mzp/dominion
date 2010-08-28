@@ -11,7 +11,7 @@ module Make : functor(S : Protocol.Rpc) -> functor(B : HandlerBase.S with type t
 
   (* for test *)
   type cc = [
-    `Cc of state * (request -> bool) * (request -> state -> (unit, cc) Cc.CONT.mc)
+    `Cc of state * ((request -> bool) * (request -> state -> (unit, cc) Cc.CONT.mc))
   | `End of state
   ]
 

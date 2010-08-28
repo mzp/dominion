@@ -39,7 +39,7 @@ FILES[] =
 	contHandler
 
 UseCamlp4(pa_monad)
-OUnitTest(playerHandler, playerHandler cc base logger game hList listUtil)
+OUnitTest(playerHandler, playerHandler contHandler cc base logger game hList listUtil)
 
 
 OCAMLFLAGS=-annot -w A -warn-error A

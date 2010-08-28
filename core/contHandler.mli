@@ -14,6 +14,6 @@ module Make : functor(S : S) -> sig
   ]
   and action = (S.request -> bool) * (S.request -> S.state -> (unit, cc) Cc.CONT.mc)
 
-  val run    : (S.state -> (unit, cc) Cc.CONT.mc) -> S.client -> S.state -> unit
+  val run    : (cc prompt -> S.state -> (unit, cc) Cc.CONT.mc) -> S.client -> S.state -> unit
   val handle : S.client -> S.request -> S.state -> (S.state, string) Base.either
 end

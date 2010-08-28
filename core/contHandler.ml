@@ -30,7 +30,7 @@ module Make(S : S) = struct
     if Hashtbl.length table = 0 then
       ignore @@ save_cc client @@ perform begin
 	p <-- new_prompt ();
-	pushP p @@ f state
+	pushP p @@ f p state
       end
 
  let handle client request state  =

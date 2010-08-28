@@ -29,7 +29,7 @@ let rec run xs f g =
     match xs, r with
 	[], `End state ->
 	  game state
-      | (y::ys), `Cc (state, pred, cc) when pred y ->
+      | (y::ys), `Cc (state, (pred, cc)) when pred y ->
 	  iter ys (Cc.run (cc y state))
       | _::_, `Cc _ ->
 	  failwith "unexpected request"

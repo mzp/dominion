@@ -5,76 +5,33 @@ open ListUtil
 module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
   open B
 
-  type request = [
+  type req = [
   | `Select of Game.card
   | `Skip
   ]
+  type request = req
 
-  type state = B.state
+  module Cont = ContHandler.Make(struct
+				   type client  = S.t
+				   type request = req
 
-  type cc = [
-    `Cc of state * (request -> bool) * (request -> state -> (unit, cc) Cc.CONT.mc)
-  | `End of state
-  ]
+				   type state = B.state
+				 end)
+  let handle = Cont.handle
 
   type client = {
     client : S.t;
-    prompt : cc Cc.prompt
+    prompt : Cont.cc Cc.prompt
   }
-
-
-  type action = ((request -> bool) * (request -> state -> (unit, cc) Cc.CONT.mc))
 
   let current_player s =
     Game.me s.game
-
-  (*
-    継続サーバフレームワーク
-  *)
-  let table : (S.t, action) Hashtbl.t =
-    Hashtbl.create 0
-
-  let save_cc client cont =
-    match Cc.run cont with
-	`End ({game; _ } as state) ->
-	  let open Game in
-	  let me =
-	    (game.me + 1) mod (List.length state.ready) in
-	    Hashtbl.clear table;
-	    { state with
-		game = { game with me }}
-      | `Cc (state, pred, cc) ->
-	  Hashtbl.add table client (pred, cc);
-	  state
-
-  let run f state =
-    let open Cc in
-    let client =
-      B.current_client state in
-      ignore @@ save_cc client @@ perform begin
-	p <-- new_prompt ();
-	pushP p @@ f { prompt = p; client } state
-      end
-
-  let handle client request state  =
-    let open Cc in
-      if Hashtbl.mem table client then
-	let (p, k) =
-	  Hashtbl.find table client in
-	  if p request then
-	    Left (save_cc client @@ k request state)
-	  else begin
-	    Right "invalid request";
-	  end
-      else begin
-	Right "invalid request";
-      end
 
   let user { prompt; _ } state pred =
     let open Cc in
     let handle k request state =
       k @@ return (request, state) in
-      shiftP prompt (fun k -> return @@ `Cc(state, pred , handle k))
+      shiftP prompt (fun k -> return @@ `Cc(state, (pred , handle k)))
 
   let skip =  function
 	`Skip ->
@@ -269,9 +226,17 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	return @@ `End state
       end
 
-  let invoke =
-    run turn
+  let invoke state =
+    let client =
+      List.nth state.ready state.game.Game.me in
+      Cont.run
+	(fun p ->  turn { prompt = p; client })
+	client
+	state
 
+  (* for test *)
+  type state = B.state
+  type cc = Cont.cc
   let game { game; _ } =
     game
 
