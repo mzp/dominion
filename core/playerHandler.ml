@@ -1,8 +1,10 @@
 open Base
+open Cc
+open ListUtil
 
 module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
   open B
-  open ListUtil
+
   type request = [
   | `Select of Game.card
   | `Skip

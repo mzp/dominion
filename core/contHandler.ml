@@ -27,10 +27,11 @@ module Make(S : S) = struct
 	  state
 
   let run f client state =
-    ignore @@ save_cc client @@ perform begin
-      p <-- new_prompt ();
-      pushP p @@ f state
-    end
+    if Hashtbl.length table = 0 then
+      ignore @@ save_cc client @@ perform begin
+	p <-- new_prompt ();
+	pushP p @@ f state
+      end
 
  let handle client request state  =
    if Hashtbl.mem table client then
@@ -38,10 +39,8 @@ module Make(S : S) = struct
        Hashtbl.find table client in
        if p request then
 	 Left (save_cc client @@ k request state)
-       else begin
+       else
 	 Right "invalid request";
-       end
-   else begin
+   else
      Right "invalid client"
-   end
 end

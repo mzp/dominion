@@ -36,6 +36,7 @@ FILES[] =
 	readyHandler
 	playerHandler
 	listUtil
+	contHandler
 
 UseCamlp4(pa_monad)
 OUnitTest(playerHandler, playerHandler cc base logger game hList listUtil)

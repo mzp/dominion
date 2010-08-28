@@ -4,9 +4,9 @@ module Make : functor(S : Protocol.Rpc) -> functor(B : HandlerBase.S with type t
   | `Skip
   ]
 
-  type state
-  val invoke : B.state -> unit
-  val handle : S.t -> request -> B.state -> (B.state,string) Base.either
+  type state = B.state
+  val invoke : state -> unit
+  val handle : S.t -> request -> state -> (state,string) Base.either
 
 
   (* for test *)
