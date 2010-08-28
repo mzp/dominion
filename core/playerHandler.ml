@@ -10,36 +10,23 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 
   type state = B.state
 
+  type cc = [
+    `Cc of state * (request -> bool) * (request -> state -> (unit, cc) Cc.CONT.mc)
+  | `End of state
+  ]
+
   type client = {
     client : S.t;
     me     : Game.player;
-    prompt : ([ `Cc of state * ([ `Select of Game.card | `Skip ] -> bool) *
-		  ([ `Select of Game.card | `Skip ] -> state -> (unit, 'a2) Cc.CONT.mc)
-	      | `End of state ] as 'a2)  Cc.prompt
+    prompt : cc Cc.prompt
   }
 
   let current_player s =
     Game.me s.game
-  type action = ((request -> bool) *
-		 (request -> state -> (unit, [ `Cc of state * (request -> bool) * 'b | `End of state ]) Cc.CONT.mc as 'b))
 
-  let table : (S.t, action) Hashtbl.t =
-    Hashtbl.create 0
+  type action = ((request -> bool) * (request -> state -> (unit, cc) Cc.CONT.mc))
 
-  let save_cc client cont =
-    match Cc.run cont with
-	`End ({game; _ } as state) ->
-	  let open Game in
-	  let me =
-	    (game.me + 1) mod (List.length state.ready) in
-	    Hashtbl.clear table;
-	    { state with
-		game = { game with me }}
-      | `Cc (state, pred, cc) ->
-	  Hashtbl.add table client (pred, cc);
-	  state
-
-  let user prompt state pred =
+  let user { prompt; _ } state pred =
     let open Cc in
     let handle k request state =
       k @@ return (request, state) in
@@ -73,10 +60,13 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
       ~f:(fun g ->
 	    { g with Game.board = f g.Game.board })
 
+  let send { client; _ } e =
+    S.send client e
+
   let sum xs =
     List.fold_left (+) 0 xs
 
-  let phase p client state pred ~f =
+  let phase client state pred ~f =
     let open Cc in
     let rec until state =
       let me =
@@ -85,7 +75,7 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	  return state
 	else
 	  perform begin
-	    (request, state) <-- user p state (skip <> select);
+	    (request, state) <-- user client state (skip <> select);
 	    match request with
 	    | `Skip ->
 		return state
@@ -93,44 +83,24 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 		perform (r <-- f c state;
 			 until @@ match r with
 			     `Val state' ->
-			       S.send client `Ok;
+			       send client `Ok;
 			       state'
 			   | `Err msg ->
-			       S.send client @@ `Error msg;
+			       send client @@ `Error msg;
 			       state)
 	  end in
       until state
 
-  let rec repeat p client state n pred =
-    let open Cc in
-      if n = 0 then
-	return ([],state)
-      else
-	perform begin
-	  (request, state) <-- user p state (skip <> select);
-	  match request with
-	    | `Skip ->
-		return ([], state)
-	    | `Select c ->
-		if pred c then
-		  perform ((xs,state) <-- repeat p client state (n-1) pred;
-			   return ((c :: xs), state))
-		else
-		  return ([], state)
-	end
-
-
-
-  let rec many p client state pred =
+  let rec many client state pred =
     let open Cc in
       perform begin
-	(request, state) <-- user p state (skip <> select);
+	(request, state) <-- user client state (skip <> select);
 	match request with
 	  | `Skip ->
 	      return ([], state)
 	  | `Select c ->
 	      if pred c then
-		perform ((xs,state) <-- many p client state pred;
+		perform ((xs,state) <-- many client state pred;
 			 return ((c :: xs), state))
 	      else
 		return ([], state)
@@ -140,12 +110,12 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
     let open Cc in
     let open Game in
       function
-	| `Cellar -> begin fun p client state ->
+	| `Cellar -> begin fun client state ->
 	    let me =
 	      current_player state in
 	      perform begin
-		let _ = S.send client @@ `Notify "select discard card" in
-		(xs,state) <-- many p client state (fun c -> List.mem c me.hands);
+		let _ = send client @@ `Notify "select discard card" in
+		(xs,state) <-- many client state (fun c -> List.mem c me.hands);
 		let n = List.length xs in
 		return @@
 		  state
@@ -160,10 +130,10 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	| _ ->
 	    failwith "not action card"
 
-  let action { prompt = p; client; _ }  state =
+  let action client state =
     let open Game in
     let open Cc in
-      phase p client state (fun { action; _ } -> action = 0) ~f:begin fun c state ->
+      phase client state (fun { action; _ } -> action = 0) ~f:begin fun c state ->
 	let me =
 	  current_player state in
 	  if List.mem c me.hands && Game.is_action c then
@@ -172,7 +142,7 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	      +> update_board  ~f:(fun b -> { b with play_area = c :: b.play_area} )
 	      +> update_player ~f:(fun p -> { p with hands     = p.hands -- [ c ] } ) in
 	      perform begin
-		state <-- (card_action c) p client state;
+		state <-- (card_action c) client state;
 		let state = update_player state ~f:(fun me -> {me with action = me.action -1 }) in
 		return @@ `Val state
 	      end
@@ -180,9 +150,9 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	    return (`Err "not have the card")
       end
 
-  let buy { prompt = p; client; _ }  state =
+  let buy client state =
     let open Game in
-      phase p client state (fun { buy; _ } -> buy = 0) ~f:begin fun c state ->
+      phase client state (fun { buy; _ } -> buy = 0) ~f:begin fun c state ->
 	let me =
 	  current_player state in
 	let cap =
@@ -254,6 +224,22 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	state <-- cleanup client state;
 	return @@ `End state
       end
+
+  let table : (S.t, action) Hashtbl.t =
+    Hashtbl.create 0
+
+  let save_cc client cont =
+    match Cc.run cont with
+	`End ({game; _ } as state) ->
+	  let open Game in
+	  let me =
+	    (game.me + 1) mod (List.length state.ready) in
+	    Hashtbl.clear table;
+	    { state with
+		game = { game with me }}
+      | `Cc (state, pred, cc) ->
+	  Hashtbl.add table client (pred, cc);
+	  state
 
   let invoke state =
     let open Cc in
