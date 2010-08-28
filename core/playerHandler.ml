@@ -4,7 +4,6 @@ open ListUtil
 
 module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
   open B
-
   type req = [
   | `Select of Game.card
   | `Skip
@@ -24,29 +23,51 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
     prompt : Cont.cc Cc.prompt
   }
 
-  let current_player s =
-    Game.me s.game
-
+  (*
+    ユーザとのインタラクション。
+    predを満すリクエストを受け取ると、処理を継続する。
+  *)
   let user { prompt; _ } state pred =
     let open Cc in
     let handle k request state =
       k @@ return (request, state) in
       shiftP prompt (fun k -> return @@ `Cc(state, (pred , handle k)))
 
+  (* skipリクエストならtrueを返す *)
   let skip =  function
-	`Skip ->
-	  true
-      | _ ->
-	  false
+	`Skip -> true
+      | _     -> false
 
+  (* selectリクエストならtrueを返す *)
   let select = function
-      `Select _ ->
-	true
-    | _ ->
-	false
+      `Select _ -> true
+    | _         -> false
 
+  (* 述語の合成 *)
   let (<>) f g x =
     f x || g x
+
+  (* fがNoneを返すまで、fを繰替えす *)
+  let rec many ~f state =
+    perform begin
+      (result, state) <-- f state;
+      match result with
+	| None ->
+	    return ([], state)
+	| Some c ->
+	    perform ((xs,state) <-- many ~f state;
+		     return ((c :: xs), state))
+    end
+
+  (* pがtrueを返すまで、fを繰替えす *)
+  let rec until ~p ~f state =
+    if p state then
+      return state
+    else
+      perform begin
+	state <-- f;
+	until ~p ~f state
+      end
 
   let update_game ~f state =
     { state with
@@ -67,8 +88,10 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
   let sum xs =
     List.fold_left (+) 0 xs
 
+  let current_player s =
+    Game.me s.game
+
   let phase client state pred ~f =
-    let open Cc in
     let rec until state =
       let me =
 	current_player state in
@@ -92,23 +115,9 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	  end in
       until state
 
-  let rec many client state pred =
-    let open Cc in
-      perform begin
-	(request, state) <-- user client state (skip <> select);
-	match request with
-	  | `Skip ->
-	      return ([], state)
-	  | `Select c ->
-	      if pred c then
-		perform ((xs,state) <-- many client state pred;
-			 return ((c :: xs), state))
-	      else
-		return ([], state)
-      end
 
+  (* game definiton *)
   let card_action =
-    let open Cc in
     let open Game in
       function
 	| `Cellar -> begin fun client state ->
@@ -116,7 +125,16 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	      current_player state in
 	      perform begin
 		let _ = send client @@ `Notify "select discard card" in
-		(xs,state) <-- many client state (fun c -> List.mem c me.hands);
+		(xs,state) <-- many state ~f:begin fun state ->
+		  perform begin
+		    (request, state) <-- user client state (skip <> select);
+		    match request with
+		      | `Select c when List.mem c me.hands ->
+			  return (Some c, state)
+		      | `Skip | `Select _ ->
+			  return (None, state)
+		  end
+		end;
 		let n = List.length xs in
 		return @@
 		  state
@@ -133,7 +151,6 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 
   let action client state =
     let open Game in
-    let open Cc in
       phase client state (fun { action; _ } -> action = 0) ~f:begin fun c state ->
 	let me =
 	  current_player state in
@@ -200,7 +217,6 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
       end
 
   let turn client state =
-    let open Cc in
     let log name cs =
       Logger.debug "%s: %s" name (Std.dump (List.map Game.to_string cs)) () in
     let me =
