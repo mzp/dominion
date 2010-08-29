@@ -1,12 +1,15 @@
 open Base
+open HandlerBase
 
-module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
+module Make(S : Protocol.Rpc) = struct
+  module B = HandlerBase.Make(S)
   open B
   type request = [
   | `Join of string
   | `Query of [`Supply | `Mine ]
   | `Say of string
   ]
+  type state = S.t HandlerBase.state
 
   let handle client request ({ clients; game; _ } as state) =
     match request with

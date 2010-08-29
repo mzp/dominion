@@ -1,8 +1,9 @@
-module Make : functor(S : Protocol.Rpc) -> functor(B : HandlerBase.S with type t = S.t) -> sig
+module Make : functor(S : Protocol.Rpc) -> sig
   type request = [
   | `Join of string
   | `Query of [`Supply | `Mine ]
   | `Say of string
   ]
-  val handle : S.t -> request -> B.state -> (B.state,string) Base.either
+  type state = S.t HandlerBase.state
+  val handle : S.t -> request -> state -> (state,string) Base.either
 end

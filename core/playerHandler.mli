@@ -1,13 +1,12 @@
-module Make : functor(S : Protocol.Rpc) -> functor(B : HandlerBase.S with type t = S.t) -> sig
+module Make : functor(S : Protocol.Rpc) -> sig
   type request = [
   | `Select of Game.card
   | `Skip
   ]
 
-  type state = B.state
+  type state = S.t HandlerBase.state
   val invoke : state -> unit
   val handle : S.t -> request -> state -> (state,string) Base.either
-
 
   (* for test *)
   type cc = [

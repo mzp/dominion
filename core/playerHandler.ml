@@ -2,20 +2,23 @@ open Base
 open Cc
 open ListUtil
 open Game
+open HandlerBase
 
-module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
+module Make(S : Protocol.Rpc) = struct
+  module B = HandlerBase.Make(S)
   open B
   type req = [
   | `Select of Game.card
   | `Skip
   ]
   type request = req
+  type state = S.t HandlerBase.state
 
   module Cont = ContHandler.Make(struct
 				   type client  = S.t
 				   type request = req
 
-				   type state = B.state
+				   type state = S.t HandlerBase.state
 				 end)
   let handle = Cont.handle
 
@@ -272,7 +275,6 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	state
 
   (* for test *)
-  type state = B.state
   type cc = Cont.cc
   let game { game; _ } =
     game
