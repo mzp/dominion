@@ -117,7 +117,8 @@ let _ = begin "handler.ml" >::: [
 		       discards = `Cellar::me.discards;
 		       buy = 0;
 		       coin = -2;
-		   }) in
+		   })
+	   +> (fun s -> { s with board = { s.board with supply = [`Province; `Cellar]}}) in
 	   assert_equal ~printer:Std.dump game' @@ run [`Select `Cellar] buy game
        end;
        "高すぎるカードは買えない" >:: begin fun () ->
@@ -129,7 +130,8 @@ let _ = begin "handler.ml" >::: [
 		       discards = `Cellar::me.discards;
 		       buy = 0;
 		       coin = -2;
-		   }) in
+		   })
+	   +> (fun s -> { s with board = { s.board with supply = [`Province; `Cellar]}}) in
 	   assert_equal ~printer:Std.dump game' @@
 	     run [`Select `Province; `Select `Cellar] buy game
        end;
@@ -145,7 +147,8 @@ let _ = begin "handler.ml" >::: [
 		       discards = `Cellar::`Cellar::me.discards;
 		       buy = 0;
 		       coin = -4;
-		   }) in
+		   })
+	   +> (fun s -> { s with board = { s.board with supply = [`Province ]}}) in
 	   assert_equal ~printer:Std.dump game' @@
 	     run [`Select `Cellar; `Select `Cellar] buy game
        end

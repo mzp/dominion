@@ -1,6 +1,7 @@
 open Base
 open Cc
 open ListUtil
+open Game
 
 module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
   open B
@@ -28,15 +29,14 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
     predを満すリクエストを受け取ると、処理を継続する。
   *)
   let user { prompt; _ } state pred =
-    let open Cc in
     let handle k request state =
       k @@ return (request, state) in
       shiftP prompt (fun k -> return @@ `Cc(state, (pred , handle k)))
 
   (* skipリクエストならtrueを返す *)
   let skip =  function
-	`Skip -> true
-      | _     -> false
+      `Skip -> true
+    | _     -> false
 
   (* selectリクエストならtrueを返す *)
   let select = function
@@ -47,7 +47,10 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
   let (<>) f g x =
     f x || g x
 
-  (* fがNoneを返すまで、fを繰替えす *)
+  (*
+    fがNoneを返すまで、fを繰替えす。
+    fの返した値をリストにして返す
+  *)
   let rec many ~f state =
     perform begin
       (result, state) <-- f state;
@@ -59,15 +62,16 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 		     return ((c :: xs), state))
     end
 
-  (* pがtrueを返すまで、fを繰替えす *)
-  let rec until ~p ~f state =
-    if p state then
-      return state
-    else
-      perform begin
-	state <-- f;
-	until ~p ~f state
-      end
+  (* fがNoneを返すまで、fを繰替えす。 *)
+  let rec many_ ~f state =
+    perform begin
+      result <-- f state;
+      match result with
+	| None ->
+	    return state
+	| Some state ->
+	    many_ ~f state
+    end
 
   let update_game ~f state =
     { state with
@@ -82,6 +86,44 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
       ~f:(fun g ->
 	    { g with Game.board = f g.Game.board })
 
+  let update ~f kind state =
+    match kind with
+	`Hands ->
+	  update_player state ~f:(fun me -> { me with hands = f me.hands } )
+      | `Decks ->
+	  update_player state ~f:(fun me -> { me with decks = f me.decks } )
+      | `Discards ->
+	  update_player state ~f:(fun me -> { me with discards = f me.discards } )
+      | `PlayArea ->
+	  update_board state ~f:(fun b -> { b with play_area = f b.play_area })
+      | `Supply ->
+	  update_board state ~f:(fun b -> { b with supply = f b.supply })
+      | `Trash ->
+	  update_board state ~f:(fun b -> { b with trash = f b.trash })
+
+  let move src dest xs state =
+    state
+    +> update src  ~f:(fun ys -> ys -- xs)
+    +> update dest ~f:(fun ys -> xs @  ys)
+
+  let draw n =
+    update_player ~f:begin fun me ->
+      let len =
+	List.length me.decks in
+	if len >= n then
+	  { me with
+	      hands    = HList.take n me.decks @ me.hands;
+	      decks    = HList.drop n me.decks }
+	else
+	  let decks' =
+	    shuffle me.discards in
+	    { me with
+		discards = [];
+		hands    = me.decks @ HList.take (n - len) decks';
+		decks    = HList.drop (n - len) decks';
+	    }
+    end
+
   let send { client; _ } e =
     S.send client e
 
@@ -92,39 +134,35 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
     Game.me s.game
 
   let phase client state pred ~f =
-    let rec until state =
-      let me =
-	current_player state in
-	if pred me then
-	  return state
-	else
-	  perform begin
-	    (request, state) <-- user client state (skip <> select);
-	    match request with
+    many_ state ~f:begin fun state ->
+      if pred @@ current_player state then
+	return None
+      else
+	perform begin
+	  (request, state) <-- user client state (skip <> select);
+	  match request with
 	    | `Skip ->
-		return state
+		return None
 	    | `Select c ->
 		perform (r <-- f c state;
-			 until @@ match r with
-			     `Val state' ->
+			 match r with
+			     `Val state ->
 			       send client `Ok;
-			       state'
+			       return @@ Some state
 			   | `Err msg ->
 			       send client @@ `Error msg;
-			       state)
-	  end in
-      until state
-
+			       return @@ Some state)
+	end
+    end
 
   (* game definiton *)
   let card_action =
-    let open Game in
-      function
-	| `Cellar -> begin fun client state ->
-	    let me =
-	      current_player state in
-	      perform begin
-		let _ = send client @@ `Notify "select discard card" in
+    function
+      | `Cellar -> begin fun client state ->
+	  let me =
+	    current_player state in
+	    perform begin
+	      let _ = send client @@ `Notify "select discard card" in
 		(xs,state) <-- many state ~f:begin fun state ->
 		  perform begin
 		    (request, state) <-- user client state (skip <> select);
@@ -136,85 +174,59 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 		  end
 		end;
 		let n = List.length xs in
-		return @@
-		  state
-		  +> update_player ~f:(fun me ->
-				      {	me with
-					  hands = (HList.take n me.decks) @ (me.hands -- xs);
-					  discards = xs @ me.discards;
-					  decks  = HList.drop n me.decks
-				      })
-	      end
-	  end
-	| _ ->
-	    failwith "not action card"
+		  return @@
+		    state
+		  +> move `Hands `Discards xs
+		  +> draw n
+	    end
+	end
+      | _ ->
+	  failwith "not action card"
 
   let action client state =
-    let open Game in
-      phase client state (fun { action; _ } -> action = 0) ~f:begin fun c state ->
-	let me =
-	  current_player state in
-	  if List.mem c me.hands && Game.is_action c then
-	    let state =
-	      state
-	      +> update_board  ~f:(fun b -> { b with play_area = c :: b.play_area} )
-	      +> update_player ~f:(fun p -> { p with hands     = p.hands -- [ c ] } ) in
-	      perform begin
-		state <-- (card_action c) client state;
-		let state = update_player state ~f:(fun me -> {me with action = me.action -1 }) in
+    phase client state (fun { action; _ } -> action = 0) ~f:begin fun c state ->
+      let me =
+	current_player state in
+	if List.mem c me.hands && Game.is_action c then
+	  let state =
+	    state
+	    +> move `Hands `PlayArea [c] in
+	    perform begin
+	      state <-- (card_action c) client state;
+	      let state = update_player state ~f:(fun me -> {me with action = me.action -1 }) in
 		return @@ `Val state
-	      end
-	  else
-	    return (`Err "not have the card")
-      end
+	    end
+	else
+	  return (`Err "not have the card")
+    end
 
   let buy client state =
-    let open Game in
-      phase client state (fun { buy; _ } -> buy = 0) ~f:begin fun c state ->
-	let me =
-	  current_player state in
-	let cap =
-	  me.coin + sum (List.map coin me.hands) in
-	  if List.mem c state.game.board.supply && cost c < cap then
-	    Cc.return (`Val (update_player state
-			       ~f:(fun me ->
-				     { me with
-					 buy  = me.buy - 1;
-					 coin = me.coin - cost c;
-					 discards = c :: me.discards })))
-	  else
-	    Cc.return @@ `Err "not enough coin"
-      end
+    phase client state (fun { buy; _ } -> buy = 0) ~f:begin fun c state ->
+      let me =
+	current_player state in
+      let cap =
+	me.coin + sum (List.map coin me.hands) in
+	if List.mem c state.game.board.supply && cost c < cap then
+	  let state =
+	    state
+	    +> update_player~f:(fun me ->
+				  { me with
+				      buy  = me.buy - 1;
+				      coin = me.coin - cost c })
+	    +> move `Supply `Discards [c]
+	  in
+	    Cc.return (`Val state)
+	else
+	  Cc.return @@ `Err "not enough coin"
+    end
 
   let cleanup _ state =
-    let open Game in
-    let n = 5 in
-      Cc.return @@ update_player state ~f:begin fun player ->
-	let discards' =
-	  player.hands @ player.discards in
-	let len =
-	  List.length player.decks in
-	  if len >= n then
-	    { player with
-		discards = discards';
-		hands    = HList.take n player.decks;
-		decks    = HList.drop n player.decks;
-		action   = 1;
-		buy      = 1;
-		coin     = 1;
-	    }
-	  else
-	    let decks' =
-	      shuffle discards' in
-	      { player with
-		  discards = [];
-		  hands    = player.decks @ HList.take (n - len) decks';
-		  decks    = HList.drop (n - len) decks';
-		  action   = 1;
-		  buy      = 1;
-		  coin     = 1;
-	      }
-      end
+    let state =
+      state
+      +> move `Hands `Discards (current_player state).hands
+      +> draw 5
+      +> update_player ~f:(fun me -> { me with action=1; buy=1;coin=0}) in
+      Cc.return @@ state
 
   let turn client state =
     let log name cs =
@@ -230,16 +242,16 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	  log "hands" me.Game.hands;
 	  log "discards" me.Game.discards in
 	let _ = send_all state @@ `Turn name in
-	(* action phase *)
+	  (* action phase *)
 	let _ = send_all state @@ `Phase (`Action, name) in
-	state <-- action client state;
-	(* buy phase *)
-	let _ = send_all state @@ `Phase (`Buy, name) in
-	state <-- buy client state;
-	(* cleanup phase *)
-	let _ = send_all state @@ `Phase (`Cleanup, name) in
-	state <-- cleanup client state;
-	return @@ `End state
+	  state <-- action client state;
+	  (* buy phase *)
+	  let _ = send_all state @@ `Phase (`Buy, name) in
+	    state <-- buy client state;
+	    (* cleanup phase *)
+	    let _ = send_all state @@ `Phase (`Cleanup, name) in
+	      state <-- cleanup client state;
+	      return @@ `End state
       end
 
   let invoke state =
