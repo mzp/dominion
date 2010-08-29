@@ -33,6 +33,20 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
       k @@ return (request, state) in
       shiftP prompt (fun k -> return @@ `Cc(state, (pred , handle k)))
 
+
+  (* ユーザに情報を送る *)
+  let send { client; _ } e =
+    S.send client e
+
+  let notify { client; _ } s =
+    S.send client @@ `Notify s
+
+  let ok { client; _ } =
+    S.send client `Ok
+
+  let error { client; _ } s =
+    S.send client @@  `Error s
+
   (* skipリクエストならtrueを返す *)
   let skip =  function
       `Skip -> true
@@ -124,9 +138,6 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 	    }
     end
 
-  let send { client; _ } e =
-    S.send client e
-
   let sum xs =
     List.fold_left (+) 0 xs
 
@@ -147,41 +158,39 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 		perform (r <-- f c state;
 			 match r with
 			     `Val state ->
-			       send client `Ok;
+			       ok client;
 			       return @@ Some state
 			   | `Err msg ->
-			       send client @@ `Error msg;
+			       error client msg;
 			       return @@ Some state)
 	end
     end
 
   (* game definiton *)
-  let card_action =
-    function
-      | `Cellar -> begin fun client state ->
-	  let me =
-	    current_player state in
+  let card_action kind client state=
+    let me =
+      current_player state in
+      match kind with
+	| `Cellar ->
 	    perform begin
-	      let _ = send client @@ `Notify "select discard card" in
-		(xs,state) <-- many state ~f:begin fun state ->
-		  perform begin
+	      (xs,state) <-- many state ~f:begin fun state ->
+		perform begin
+		  let _ = notify client "select discard card" in
 		    (request, state) <-- user client state (skip <> select);
 		    match request with
 		      | `Select c when List.mem c me.hands ->
 			  return (Some c, state)
 		      | `Skip | `Select _ ->
 			  return (None, state)
-		  end
-		end;
-		let n = List.length xs in
-		  return @@
-		    state
-		  +> move `Hands `Discards xs
-		  +> draw n
+		end
+	      end;
+	      let n = List.length xs in
+	      return @@ state
+		+> move `Hands `Discards xs
+		+> draw n
 	    end
-	end
-      | _ ->
-	  failwith "not action card"
+	| _ ->
+	    failwith "not action card"
 
   let action client state =
     phase client state (fun { action; _ } -> action = 0) ~f:begin fun c state ->
@@ -215,9 +224,9 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
 				      coin = me.coin - cost c })
 	    +> move `Supply `Discards [c]
 	  in
-	    Cc.return (`Val state)
+	    return (`Val state)
 	else
-	  Cc.return @@ `Err "not enough coin"
+	  return @@ `Err "not enough coin"
     end
 
   let cleanup _ state =
@@ -226,7 +235,7 @@ module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
       +> move `Hands `Discards (current_player state).hands
       +> draw 5
       +> update_player ~f:(fun me -> { me with action=1; buy=1;coin=0}) in
-      Cc.return @@ state
+      return @@ state
 
   let turn client state =
     let log name cs =
