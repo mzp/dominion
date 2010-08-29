@@ -1,0 +1,60 @@
+html,body,h1,h2,h3,h4,h5,
+div,p,img,ul,li {
+    margin:0;
+    padding:0;
+    border:0;
+    line-height: 1.5;
+}
+
+div.page {
+    width:1024px;
+    margin: auto;
+    font-size:15px;
+}
+
+div.speach, div.speaker{
+    display: inline-block;
+    vertical-align:top;
+}
+
+div.speach{
+    margin-top:100px;
+    width:500px;
+}
+
+div.speach ul {
+    margin-left:10px;
+}
+
+.disable li {
+    text-decoration:line-through;
+    color: silver;
+}
+
+.bubble {
+    position: relative;
+    margin-bottom:50px;
+}
+
+.bubble .body {
+    color: black;
+    background-color: #efefef;
+    border-radius: 10px;
+    padding:20px;
+}
+
+.bubble .body:after {
+    content: "";
+    border-top: 18px solid #efefef;
+    border-right: 24px solid transparent;
+    position: absolute;
+    top : 36px;
+    right: -18px;
+    width: 0;
+    height: 0;
+}
+
+
+div.speaker {
+    width: 300px;
+}
