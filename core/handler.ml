@@ -1,37 +1,15 @@
 open Base
+open HandlerBase
+open ListUtil
 
 module Make(S : Protocol.Rpc) = struct
-  module Base   = struct
-    type t = S.t
-    type state = {
-      clients : (t * string) list;
-      ready   : t list;
-      playing : bool;
-      game : Game.t
-    }
+  module B = HandlerBase.Make(S)
+  module Common = CommonHandler.Make(S)
+  module Ready  = ReadyHandler.Make(S)
+  module Player = PlayerHandler.Make(S)
 
-    let player_of_client client s =
-      Maybe.(perform begin
-	       name <-- lookup client s.clients;
-	       Game.(ListUtil.find (fun p -> p.name = name) s.game.players)
-	     end)
-
-    let current_client s =
-      let open Game in
-	fst @@ List.nth s.clients s.game.me
-
-    let send_all { clients; _} x =
-      List.map fst clients
-      +> List.iter (flip S.send x)
-  end
-
-  module Common = CommonHandler.Make(S)(Base)
-  module Ready  = ReadyHandler.Make(S)(Base)
-  module Player = PlayerHandler.Make(S)(Base)
-
-  open Base
-  open ListUtil
-  type t = Base.state
+  open B
+  type t = Common.state
 
   let initial = {
     clients = [];

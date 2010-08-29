@@ -32,6 +32,7 @@ FILES[] =
 	maybe
 	handler
 	threadUtils
+	handlerBase
 	commonHandler
 	readyHandler
 	playerHandler
