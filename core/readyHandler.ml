@@ -1,10 +1,13 @@
 open Base
+open HandlerBase
+open ListUtil
 
-module Make(S : Protocol.Rpc)(B : HandlerBase.S with type t = S.t)  = struct
+module Make(S : Protocol.Rpc)  = struct
+  module B = HandlerBase.Make(S)
   open B
-  open ListUtil
-  type request = [
-  | `Ready ]
+
+  type state = S.t HandlerBase.state
+  type request = [ `Ready ]
 
   let game { clients; _ } =
     let players =
