@@ -61,11 +61,11 @@ module Make(S : Protocol.Rpc) = struct
     | _         -> false
 
   (* 述語の合成 *)
-  let (<||>) f g x =
-    f x || g x
+  let bin_op op f g x =
+    op (f x) (g x)
 
-  let (<&&>) f g x =
-    f x && g x
+  let (<||>) = bin_op (||)
+  let (<&&>) = bin_op (&&)
 
   (*
     fがNoneを返すまで、fを繰替えす。
@@ -133,11 +133,13 @@ module Make(S : Protocol.Rpc) = struct
       | `Trash ->
 	  update_board state ~f:(fun b -> { b with trash = f b.trash })
 
+  (* カードの移動 *)
   let move src dest xs state =
     state
     +> update src  ~f:(fun ys -> ys -- xs)
     +> update dest ~f:(fun ys -> xs @  ys)
 
+  (* +n action/buy/coin/draw *)
   let action n state =
     update_player state ~f:(fun me -> { me with action = me.action + n })
 
@@ -165,6 +167,17 @@ module Make(S : Protocol.Rpc) = struct
 	    }
     end
 
+  (* カード選択の述語 *)
+  let current_player s =
+    Game.me s.game
+
+  let is_hands state c =
+    List.mem c (current_player state).hands
+
+  let is_supply state c =
+    List.mem c state.game.board.supply
+
+  (* カードの選択 *)
   let select_card client state ~p =
     until state ~f:begin fun state ->
       perform begin
@@ -179,19 +192,6 @@ module Make(S : Protocol.Rpc) = struct
 		return (None, state)
       end
     end
-
-
-  let sum xs =
-    List.fold_left (+) 0 xs
-
-  let current_player s =
-    Game.me s.game
-
-  let is_hands state c =
-    List.mem c (current_player state).hands
-
-  let is_supply state c =
-    List.mem c state.game.board.supply
 
   let phase client state pred ~p ~f =
     many_ state ~f:begin fun state ->
@@ -289,6 +289,8 @@ module Make(S : Protocol.Rpc) = struct
       ~p:(fun state c ->
 	    let me =
 	      current_player state in
+	    let sum xs =
+	      List.fold_left (+) 0 xs in
 	    let cap =
 	      me.coin + sum (List.map Game.coin me.hands) in
 	      is_supply state c && cost c < cap)
