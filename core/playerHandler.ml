@@ -90,6 +90,18 @@ module Make(S : Protocol.Rpc) = struct
 	    many_ ~f state
     end
 
+
+  (* fがSomeを返すまで、fを繰替えす。*)
+  let rec until ~f state =
+    perform begin
+      (result,state) <-- f state;
+      match result with
+	| None ->
+	    until ~f state
+	| Some c ->
+	    return (c,state)
+    end
+
   let update_game ~f state =
     { state with
 	game = f state.game }
@@ -123,6 +135,15 @@ module Make(S : Protocol.Rpc) = struct
     +> update src  ~f:(fun ys -> ys -- xs)
     +> update dest ~f:(fun ys -> xs @  ys)
 
+  let action n state =
+    update_player state ~f:(fun me -> { me with action = me.action + n })
+
+  let buy n state =
+    update_player state ~f:(fun me -> { me with buy = me.buy + n })
+
+  let coin n state =
+    update_player state ~f:(fun me -> { me with coin = me.coin + n })
+
   let draw n =
     update_player ~f:begin fun me ->
       let len =
@@ -141,23 +162,39 @@ module Make(S : Protocol.Rpc) = struct
 	    }
     end
 
+  let select_card client state ~p =
+    until state ~f:begin fun state ->
+      perform begin
+	(request, state) <-- user client state (skip <> select);
+	match request with
+	  | `Skip ->
+	      return (Some `Skip, state)
+	  | `Select c ->
+	      if p c then
+		return (Some (`Card c), state)
+	      else
+		return (None, state)
+      end
+    end
+
+
   let sum xs =
     List.fold_left (+) 0 xs
 
   let current_player s =
     Game.me s.game
 
-  let phase client state pred ~f =
+  let phase client state pred ~p ~f =
     many_ state ~f:begin fun state ->
       if pred @@ current_player state then
 	return None
       else
 	perform begin
-	  (request, state) <-- user client state (skip <> select);
+	  (request, state) <-- select_card client state ~p:(flip p state);
 	  match request with
 	    | `Skip ->
 		return None
-	    | `Select c ->
+	    | `Card c ->
 		perform (r <-- f c state;
 			 match r with
 			     `Val state ->
@@ -192,47 +229,70 @@ module Make(S : Protocol.Rpc) = struct
 		+> move `Hands `Discards xs
 		+> draw n
 	    end
+	| `Market ->
+	    return @@ state
+	      +> action 1
+	      +> buy    1
+	      +> coin   1
+	      +> draw 1
+	| `Mine ->
+	    perform begin
+	      (r,state) <--
+		select_card client state ~p:(fun c -> is_treasure c && List.mem c (current_player state).hands);
+	      match r with
+		  `Card c1 ->
+		    perform begin
+		      (r,state) <-- select_card client state ~p:(fun c -> is_treasure c &&
+								   Game.cost c <= Game.cost c1 + 3 &&
+								   List.mem c state.game.board.supply);
+		      begin match r with
+			  `Card c2 ->
+			    return @@ state
+			    +> move `Hands  `Trash  [c1]
+			    +> move `Supply `Hands [c2]
+			| `Skip ->
+			    return state
+		      end
+		    end
+		| `Skip ->
+		    return state
+	    end
 	| _ ->
 	    failwith "not action card"
 
-  let action client state =
-    phase client state (fun { action; _ } -> action = 0) ~f:begin fun c state ->
-      let me =
-	current_player state in
-	if List.mem c me.hands && Game.is_action c then
-	  let state =
-	    state
-	    +> move `Hands `PlayArea [c] in
-	    perform begin
-	      state <-- (card_action c) client state;
-	      let state = update_player state ~f:(fun me -> {me with action = me.action -1 }) in
-		return @@ `Val state
-	    end
-	else
-	  return (`Err "not have the card")
-    end
+  let action_phase client state =
+    phase client state (fun { action; _ } -> action = 0)
+      ~p:(fun c state ->
+	    let me =
+	      current_player state in
+	      List.mem c me.hands && Game.is_action c)
+      ~f:begin fun c state ->
+	let state =
+	  state
+	  +> move `Hands `PlayArea [c] in
+	  perform begin
+	    state <-- (card_action c) client state;
+	    let state = update_player state ~f:(fun me -> {me with action = me.action -1 }) in
+	      return @@ `Val state
+	  end
+      end
 
-  let buy client state =
-    phase client state (fun { buy; _ } -> buy = 0) ~f:begin fun c state ->
-      let me =
-	current_player state in
-      let cap =
-	me.coin + sum (List.map coin me.hands) in
-	if List.mem c state.game.board.supply && cost c < cap then
-	  let state =
-	    state
-	    +> update_player~f:(fun me ->
-				  { me with
-				      buy  = me.buy - 1;
-				      coin = me.coin - cost c })
-	    +> move `Supply `Discards [c]
-	  in
-	    return (`Val state)
-	else
-	  return @@ `Err "not enough coin"
-    end
+  let buy_phase client state =
+    phase client state (fun { buy; _ } -> buy = 0)
+      ~p:(fun c state ->
+	    let me =
+	      current_player state in
+	    let cap =
+	      me.coin + sum (List.map Game.coin me.hands) in
+	      List.mem c state.game.board.supply && cost c < cap)
+      ~f:begin fun c state ->
+	return @@ `Val (state
+			+> buy  (- 1)
+			+> coin (- (cost c))
+			+> move `Supply `Discards [c])
+      end
 
-  let cleanup _ state =
+  let cleanup_phase _ state =
     let state =
       state
       +> move `Hands `Discards (current_player state).hands
@@ -256,13 +316,13 @@ module Make(S : Protocol.Rpc) = struct
 	let _ = send_all state @@ `Turn name in
 	  (* action phase *)
 	let _ = send_all state @@ `Phase (`Action, name) in
-	  state <-- action client state;
+	  state <-- action_phase client state;
 	  (* buy phase *)
 	  let _ = send_all state @@ `Phase (`Buy, name) in
-	    state <-- buy client state;
+	    state <-- buy_phase client state;
 	    (* cleanup phase *)
 	    let _ = send_all state @@ `Phase (`Cleanup, name) in
-	      state <-- cleanup client state;
+	      state <-- cleanup_phase client state;
 	      return @@ `End state
       end
 

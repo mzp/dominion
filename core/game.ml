@@ -87,6 +87,10 @@ let update ~f g =
       g.players in
     { g with players }
 
+let update_board ~f g =
+  { g with board = f g.board }
+
+
 let me { players; me; _ } =
   List.nth players me
 

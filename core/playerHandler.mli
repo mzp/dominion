@@ -19,9 +19,10 @@ module Make : functor(S : Protocol.Rpc) -> sig
     prompt : cc Cc.prompt
   }
 
-  val action : client -> state -> (unit, state) Cc.CONT.mc
-  val buy : client -> state -> (unit, state) Cc.CONT.mc
-  val cleanup : client -> state -> (unit, state) Cc.CONT.mc
+  val card_action   : Game.card -> client -> state -> (unit, state) Cc.CONT.mc
+  val action_phase  : client -> state -> (unit, state) Cc.CONT.mc
+  val buy_phase     : client -> state -> (unit, state) Cc.CONT.mc
+  val cleanup_phase : client -> state -> (unit, state) Cc.CONT.mc
 
   val game : state -> Game.t
   val make_dummy : S.t list -> Game.t -> state
