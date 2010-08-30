@@ -89,7 +89,65 @@ let card_action_test  =
 	    assert_run game (card_action `Mine) [`Select `Cellar; `Select `Silver; `Select `Gold] game';
 	    assert_run game (card_action `Mine) [`Select `Mine; `Select `Silver; `Select `Gold] game';
 	    assert_run game (card_action `Mine) [`Select `Silver; `Select `Cellar; `Select `Gold] game';
-	end
+	end;
+	"remodel" >:: begin fun () ->
+	  let me =
+	    alice [ `Copper ] [] in
+	  let game =
+	    update_board (make me)
+	      ~f:(fun b -> { b with supply = [ `Gold; `Cellar ] }) in
+	  let game' =
+	    update_board (make { me with hands=[ `Cellar ]})
+	      ~f:(fun b -> { b with supply = [`Gold ]; trash = [ `Copper ] }) in
+	    assert_run game (card_action `Remodel) [`Select `Copper; `Select `Cellar] game';
+	    assert_run game (card_action `Remodel) [`Select `Copper; `Select `Gold; `Select `Cellar] game'
+	end;
+	"smithy" >:: begin fun () ->
+	  let me =
+	    alice [ ] [`Silver;`Silver;`Silver] in
+	  let game =
+	    make me in
+	  let game' =
+	    make { me with hands=[ `Silver;`Silver;`Silver ]; decks=[]} in
+	    assert_run game (card_action `Smithy) [] game'
+	end;
+	"village" >:: begin fun () ->
+	  let me =
+	    alice [ ] [`Silver] in
+	  let game =
+	    make me in
+	  let game' =
+	    make { me with hands=[ `Silver]; decks=[]; action = 3 } in
+	    assert_run game (card_action `Village) [] game'
+	end;
+	"woodcutter" >:: begin fun () ->
+	  let me =
+	    alice [] [] in
+	  let game =
+	    make me in
+	  let game' =
+	    make { me with coin = 2; buy = 2 } in
+	    assert_run game (card_action `Woodcutter) [] game'
+	end;
+	"workshop" >:: begin fun () ->
+	  let me =
+	    alice [] [] in
+	  let game =
+	    update_board (make me)
+	      ~f:(fun b -> { b with supply = [ `Gold; `Cellar ] }) in
+	  let game' =
+	    update_board (make { me with hands=[`Cellar]})
+	      ~f:(fun b -> { b with supply = [`Gold] }) in
+	    assert_run game (card_action `Woodcutter) [`Select `Cellar] game';
+	    assert_run game (card_action `Woodcutter) [`Select `Gold; `Select `Cellar] game'
+	end;
+	"moat" >:: begin fun () ->
+	  let game =
+	    make @@ alice [ ] [`Silver; `Silver] in
+	  let game' =
+	    make @@ alice [ `Silver; `Silver ] [] in
+	    assert_run game (card_action `Moat) [] game'
+	end;
   ]
 
 let _ = begin "handler.ml" >::: [
