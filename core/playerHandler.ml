@@ -171,10 +171,10 @@ module Make(S : Protocol.Rpc) = struct
   let current_player s =
     Game.me s.game
 
-  let is_hands state c =
+  let in_hands state c =
     List.mem c (current_player state).hands
 
-  let is_supply state c =
+  let in_supply state c =
     List.mem c state.game.board.supply
 
   (* カードの選択 *)
@@ -246,12 +246,12 @@ module Make(S : Protocol.Rpc) = struct
 	      +> draw 1
 	| `Mine ->
 	    perform begin
-	      (r,state) <-- select_card client state ~p:(is_treasure <&&> is_hands state);
+	      (r,state) <-- select_card client state ~p:(is_treasure <&&> in_hands state);
 	      match r with
 		  `Card c1 ->
 		    perform begin
 		      (r,state) <-- select_card client state ~p:(is_treasure <&&>
-								   is_supply state <&&>
+								   in_supply state <&&>
 								   (fun c -> Game.cost c <= Game.cost c1 + 3));
 		      begin match r with
 			  `Card c2 ->
@@ -265,13 +265,61 @@ module Make(S : Protocol.Rpc) = struct
 		| `Skip ->
 		    return state
 	    end
+	| `Remodel ->
+	    perform begin
+	      (r,state) <-- select_card client state ~p:(in_hands state);
+	      match r with
+		  `Card c1 ->
+		    perform begin
+		      (r,state) <-- select_card client state ~p:(in_supply state <&&>
+								   (fun c -> Game.cost c <= Game.cost c1 + 2));
+		      begin match r with
+			  `Card c2 ->
+			    return @@ state
+			    +> move `Hands  `Trash  [c1]
+			    +> move `Supply `Hands [c2]
+			| `Skip ->
+			    return state
+		      end
+		    end
+		| `Skip ->
+		    return state
+	    end
+	| `Smithy ->
+	    state
+	    +> draw 3
+	    +> return
+	| `Village ->
+	    state
+	    +> action 2
+	    +> draw 1
+	    +> return
+	| `Woodcutter ->
+	    state
+	    +> buy 1
+	    +> coin 2
+	    +> return
+	| `Workshop ->
+	    perform begin
+	      (r, state) <-- select_card client state
+		~p:(in_supply state <&&> (fun c -> Game.cost c <= 4));
+	      match r with
+		  `Card c ->
+		    state
+		    +> move `Supply `Hands [ c ]
+		    +> return
+		| `Skip ->
+		    return state
+	    end
+	| `Moat ->
+	    return @@ draw 2 state
 	| _ ->
 	    failwith "not action card"
 
   (* actionフェーズ *)
   let action_phase client state =
     phase client state (fun { action; _ } -> action = 0)
-      ~p:(fun state -> is_hands state <&&> is_action)
+      ~p:(fun state -> in_hands state <&&> is_action)
       ~f:begin fun state c ->
 	let state =
 	  state
@@ -293,7 +341,7 @@ module Make(S : Protocol.Rpc) = struct
 	      List.fold_left (+) 0 xs in
 	    let cap =
 	      me.coin + sum (List.map Game.coin me.hands) in
-	      is_supply state c && cost c < cap)
+	      in_supply state c && cost c < cap)
       ~f:begin fun state c ->
 	return @@ `Val (state
 			+> buy  (- 1)

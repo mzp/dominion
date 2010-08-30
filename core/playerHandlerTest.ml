@@ -138,8 +138,8 @@ let card_action_test  =
 	  let game' =
 	    update_board (make { me with hands=[`Cellar]})
 	      ~f:(fun b -> { b with supply = [`Gold] }) in
-	    assert_run game (card_action `Woodcutter) [`Select `Cellar] game';
-	    assert_run game (card_action `Woodcutter) [`Select `Gold; `Select `Cellar] game'
+	    assert_run game (card_action `Workshop) [`Select `Cellar] game';
+	    assert_run game (card_action `Workshop) [`Select `Gold; `Select `Cellar] game'
 	end;
 	"moat" >:: begin fun () ->
 	  let game =
