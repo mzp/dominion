@@ -61,8 +61,11 @@ module Make(S : Protocol.Rpc) = struct
     | _         -> false
 
   (* 述語の合成 *)
-  let (<>) f g x =
+  let (<||>) f g x =
     f x || g x
+
+  let (<&&>) f g x =
+    f x && g x
 
   (*
     fがNoneを返すまで、fを繰替えす。
@@ -165,7 +168,7 @@ module Make(S : Protocol.Rpc) = struct
   let select_card client state ~p =
     until state ~f:begin fun state ->
       perform begin
-	(request, state) <-- user client state (skip <> select);
+	(request, state) <-- user client state (skip <||> select);
 	match request with
 	  | `Skip ->
 	      return (Some `Skip, state)
@@ -184,18 +187,24 @@ module Make(S : Protocol.Rpc) = struct
   let current_player s =
     Game.me s.game
 
+  let is_hands state c =
+    List.mem c (current_player state).hands
+
+  let is_supply state c =
+    List.mem c state.game.board.supply
+
   let phase client state pred ~p ~f =
     many_ state ~f:begin fun state ->
       if pred @@ current_player state then
 	return None
       else
 	perform begin
-	  (request, state) <-- select_card client state ~p:(flip p state);
+	  (request, state) <-- select_card client state ~p:(p state);
 	  match request with
 	    | `Skip ->
 		return None
 	    | `Card c ->
-		perform (r <-- f c state;
+		perform (r <-- f state c;
 			 match r with
 			     `Val state ->
 			       ok client;
@@ -206,7 +215,7 @@ module Make(S : Protocol.Rpc) = struct
 	end
     end
 
-  (* game definiton *)
+  (* Actionカードの定義 *)
   let card_action kind client state=
     let me =
       current_player state in
@@ -216,7 +225,7 @@ module Make(S : Protocol.Rpc) = struct
 	      (xs,state) <-- many state ~f:begin fun state ->
 		perform begin
 		  let _ = notify client "select discard card" in
-		    (request, state) <-- user client state (skip <> select);
+		    (request, state) <-- user client state (skip <||> select);
 		    match request with
 		      | `Select c when List.mem c me.hands ->
 			  return (Some c, state)
@@ -237,14 +246,13 @@ module Make(S : Protocol.Rpc) = struct
 	      +> draw 1
 	| `Mine ->
 	    perform begin
-	      (r,state) <--
-		select_card client state ~p:(fun c -> is_treasure c && List.mem c (current_player state).hands);
+	      (r,state) <-- select_card client state ~p:(is_treasure <&&> is_hands state);
 	      match r with
 		  `Card c1 ->
 		    perform begin
-		      (r,state) <-- select_card client state ~p:(fun c -> is_treasure c &&
-								   Game.cost c <= Game.cost c1 + 3 &&
-								   List.mem c state.game.board.supply);
+		      (r,state) <-- select_card client state ~p:(is_treasure <&&>
+								   is_supply state <&&>
+								   (fun c -> Game.cost c <= Game.cost c1 + 3));
 		      begin match r with
 			  `Card c2 ->
 			    return @@ state
@@ -260,13 +268,11 @@ module Make(S : Protocol.Rpc) = struct
 	| _ ->
 	    failwith "not action card"
 
+  (* actionフェーズ *)
   let action_phase client state =
     phase client state (fun { action; _ } -> action = 0)
-      ~p:(fun c state ->
-	    let me =
-	      current_player state in
-	      List.mem c me.hands && Game.is_action c)
-      ~f:begin fun c state ->
+      ~p:(fun state -> is_hands state <&&> is_action)
+      ~f:begin fun state c ->
 	let state =
 	  state
 	  +> move `Hands `PlayArea [c] in
@@ -277,21 +283,23 @@ module Make(S : Protocol.Rpc) = struct
 	  end
       end
 
+  (* buyフェーズ *)
   let buy_phase client state =
     phase client state (fun { buy; _ } -> buy = 0)
-      ~p:(fun c state ->
+      ~p:(fun state c ->
 	    let me =
 	      current_player state in
 	    let cap =
 	      me.coin + sum (List.map Game.coin me.hands) in
-	      List.mem c state.game.board.supply && cost c < cap)
-      ~f:begin fun c state ->
+	      is_supply state c && cost c < cap)
+      ~f:begin fun state c ->
 	return @@ `Val (state
 			+> buy  (- 1)
 			+> coin (- (cost c))
 			+> move `Supply `Discards [c])
       end
 
+  (* cleanupフェーズ *)
   let cleanup_phase _ state =
     let state =
       state
