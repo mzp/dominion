@@ -20,22 +20,19 @@ module Make(S : Protocol.Rpc) = struct
 
 				   type state = S.t HandlerBase.state
 				 end)
-  let handle = Cont.handle
+  let handle = Cont.resume
 
   type client = {
     client : S.t;
-    prompt : Cont.cc Cc.prompt
+    suspend: Cont.suspend
   }
 
   (*
     ユーザとのインタラクション。
     predを満すリクエストを受け取ると、処理を継続する。
   *)
-  let user { prompt; _ } state pred =
-    let handle k request state =
-      k @@ return (request, state) in
-      shiftP prompt (fun k -> return @@ `Cc(state, (pred , handle k)))
-
+  let user { suspend; _ } state pred =
+    suspend pred state
 
   (* ユーザに情報を送る *)
   let send { client; _ } e =
@@ -381,19 +378,18 @@ module Make(S : Protocol.Rpc) = struct
 	let state = update_game state
 	  ~f:(fun g ->
 		{ g with me = (g.me + 1) mod List.length g.players}) in
-	return @@ `End state
+	Cont.end_ state
       end
 
   let invoke state =
     let client =
       current_client state in
-      Cont.run
-	(fun p ->  turn { prompt = p; client })
+      ignore @@ Cont.start
+	(fun suspend ->  turn { suspend; client })
 	client
 	state
 
   (* for test *)
-  type cc = Cont.cc
   let game { game; _ } =
     game
 

@@ -9,16 +9,7 @@ module Make : functor(S : Protocol.Rpc) -> sig
   val handle : S.t -> request -> state -> (state,string) Base.either
 
   (* for test *)
-  type cc = [
-    `Cc of state * ((request -> bool) * (request -> state -> (unit, cc) Cc.CONT.mc))
-  | `End of state
-  ]
-
-  type client = {
-    client : S.t;
-    prompt : cc Cc.prompt
-  }
-
+  type client
   val card_action   : Game.card -> client -> state -> (unit, state) Cc.CONT.mc
   val action_phase  : client -> state -> (unit, state) Cc.CONT.mc
   val buy_phase     : client -> state -> (unit, state) Cc.CONT.mc
