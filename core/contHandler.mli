@@ -8,12 +8,17 @@ module type S = sig
 end
 
 module Make : functor(S : S) -> sig
-  type cc = [
-  | `Cc  of S.state * action
-  | `End of S.state
-  ]
-  and action = (S.request -> bool) * (S.request -> S.state -> (unit, cc) Cc.CONT.mc)
+  type t
 
-  val run    : (cc prompt -> S.state -> (unit, cc) Cc.CONT.mc) -> S.client -> S.state -> unit
-  val handle : S.client -> S.request -> S.state -> (S.state, string) Base.either
+  (* 処理を中断してrequestを待つ *)
+  type suspend = (S.request -> bool) -> S.state -> (unit, S.request * S.state) Cc.CONT.mc
+  (* 処理を完了する *)
+  val end_ : S.state -> (unit, t) Cc.CONT.mc
+
+  (* 処理を開始する *)
+  val start : (suspend -> S.state -> (unit, t) Cc.CONT.mc) -> S.client -> S.state -> (S.state,string) Base.either
+
+  (* 処理を再開する *)
+  val resume : S.client -> S.request -> S.state -> (S.state, string) Base.either
 end
+

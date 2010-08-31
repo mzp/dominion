@@ -8,11 +8,11 @@ module type S = sig
 end
 
 module Make(S : S) = struct
-  type cc = [
+  type t = [
   | `Cc  of S.state * action
   | `End of S.state
   ]
-  and action = (S.request -> bool) * (S.request -> S.state -> (unit, cc) Cc.CONT.mc)
+  and action = (S.request -> bool) * (S.request -> S.state -> (unit, t) Cc.CONT.mc)
 
   let table : (S.client, action) Hashtbl.t =
     Hashtbl.create 0
@@ -26,14 +26,26 @@ module Make(S : S) = struct
 	  Hashtbl.add table client (pred, cc);
 	  state
 
-  let run f client state =
-    if Hashtbl.length table = 0 then
-      ignore @@ save_cc client @@ perform begin
-	p <-- new_prompt ();
-	pushP p @@ f p state
-      end
+  let end_ state = return @@ `End state
 
- let handle client request state  =
+  type suspend =
+      (S.request -> bool) -> S.state -> (unit, S.request * S.state) Cc.CONT.mc
+
+  let cc prompt pred state =
+    let handle k request state =
+      k @@ return (request, state) in
+      shiftP prompt (fun k -> return @@ `Cc(state, (pred , handle k)))
+
+  let start f client state =
+    if Hashtbl.length table = 0 then
+      Left (save_cc client @@ perform begin
+	      p <-- new_prompt ();
+	      pushP p @@ f (cc p) state
+	    end)
+    else
+      Right "already start"
+
+ let resume client request state  =
    if Hashtbl.mem table client then
      let (p, k) =
        Hashtbl.find table client in
