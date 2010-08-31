@@ -168,9 +168,6 @@ module Make(S : Protocol.Rpc) = struct
     end
 
   (* カード選択の述語 *)
-  let current_player s =
-    Game.me s.game
-
   let in_hands state c =
     List.mem c (current_player state).hands
 
@@ -351,12 +348,12 @@ module Make(S : Protocol.Rpc) = struct
 
   (* cleanupフェーズ *)
   let cleanup_phase _ state =
-    let state =
-      state
-      +> move `Hands `Discards (current_player state).hands
-      +> draw 5
-      +> update_player ~f:(fun me -> { me with action=1; buy=1;coin=0}) in
-      return @@ state
+    state
+    +> move `Hands `Discards (current_player state).hands
+    +> draw 5
+    +> update_player ~f:(fun me -> { me with action=1; buy=1;coin=0})
+    +> return
+
 
   let turn client state =
     let log name cs =
@@ -372,21 +369,24 @@ module Make(S : Protocol.Rpc) = struct
 	  log "hands" me.Game.hands;
 	  log "discards" me.Game.discards in
 	let _ = send_all state @@ `Turn name in
-	  (* action phase *)
+	(* action phase *)
 	let _ = send_all state @@ `Phase (`Action, name) in
-	  state <-- action_phase client state;
-	  (* buy phase *)
-	  let _ = send_all state @@ `Phase (`Buy, name) in
-	    state <-- buy_phase client state;
-	    (* cleanup phase *)
-	    let _ = send_all state @@ `Phase (`Cleanup, name) in
-	      state <-- cleanup_phase client state;
-	      return @@ `End state
+	state <-- action_phase client state;
+	(* buy phase *)
+	let _ = send_all state @@ `Phase (`Buy, name) in
+	state <-- buy_phase client state;
+	(* cleanup phase *)
+	let _ = send_all state @@ `Phase (`Cleanup, name) in
+	state <-- cleanup_phase client state;
+	let state = update_game state
+	  ~f:(fun g ->
+		{ g with me = (g.me + 1) mod List.length g.players}) in
+	return @@ `End state
       end
 
   let invoke state =
     let client =
-      List.nth state.ready state.game.Game.me in
+      current_client state in
       Cont.run
 	(fun p ->  turn { prompt = p; client })
 	client

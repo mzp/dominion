@@ -12,6 +12,8 @@ module type S = sig
   val send_all : t state -> Protocol.response -> unit
   val player_of_client : t -> t state  -> Game.player option
   val current_client   : t state -> t
+  val current_player   : t state -> Game.player
+  val next_turn        : t state -> t state
 end
 
 module Make(S : Protocol.Rpc) = struct
@@ -23,9 +25,19 @@ module Make(S : Protocol.Rpc) = struct
 	     Game.(ListUtil.find (fun p -> p.name = name) s.game.players)
 	   end)
 
+  open Game
+
+  let current_player s =
+    Game.me s.game
+
   let current_client s =
-    let open Game in
-      fst @@ List.nth s.clients s.game.me
+    let {name; _ } =
+      current_player s in
+      fst @@ List.find (fun (_,y)-> y = name) s.clients
+
+  let next_turn s =
+    { s with game = { s.game with me = s.game.me + 1 mod (List.length s.ready) }}
+
 
   let send_all { clients; _} x =
     List.map fst clients
