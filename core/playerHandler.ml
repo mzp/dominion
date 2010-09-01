@@ -7,24 +7,22 @@ open HandlerBase
 module Make(S : Protocol.Rpc) = struct
   module B = HandlerBase.Make(S)
   open B
-  type req = [
+  type request = [
   | `Select of Game.card
   | `Skip
   ]
-  type request = req
   type state = S.t HandlerBase.state
 
-  module Cont = ContHandler.Make(struct
-				   type client  = S.t
-				   type request = req
 
-				   type state = S.t HandlerBase.state
-				 end)
-  let handle = Cont.resume
+  let table : (S.t, request, state) ContHandler.t =
+    ContHandler.make ()
+
+  let handle =
+    ContHandler.resume table
 
   type client = {
     client : S.t;
-    suspend: Cont.suspend
+    suspend: (S.t, request, state) ContHandler.suspend
   }
 
   (*
@@ -378,14 +376,14 @@ module Make(S : Protocol.Rpc) = struct
 	let state = update_game state
 	  ~f:(fun g ->
 		{ g with me = (g.me + 1) mod List.length g.players}) in
-	Cont.end_ state
+	ContHandler.end_ state
       end
 
   let invoke state =
     let client =
       current_client state in
-      ignore @@ Cont.start
-	(fun suspend ->  turn { suspend; client })
+      ignore @@ ContHandler.start table
+	~f:(fun suspend ->  turn { suspend; client })
 	client
 	state
 

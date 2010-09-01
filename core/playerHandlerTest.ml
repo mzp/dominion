@@ -12,30 +12,34 @@ module M = PlayerHandler.Make(struct
 			      end)
 open M
 
-let rec run xs f g =
+
+let run xs f g =
   let open Cc in
-  let rec iter xs r =
-    match xs, r with
-	[], `End state ->
-	  game state
-      | (y::ys), `Cc (state, (pred, cc)) when pred y ->
-	  iter ys (Cc.run (cc y state))
-      | _::_, `Cc _ ->
-	  failwith "unexpected request"
-      | _::_, `End _ ->
-	  failwith "too many request"
-      | [], `Cc _ ->
-	  failwith "require more request"
+  let table =
+    ContHandler.make () in
+  let rec iter state = function
+      [] ->
+	game state
+    | x::xs ->
+	match ContHandler.resume table 42 x state with
+	    Left state ->
+	      iter state xs
+	  | Right msg ->
+	      failwith msg
   in
   let state =
-    make_dummy [1;2;3] g in
-    iter xs @@ Cc.run @@ perform begin
-      p <-- new_prompt ();
-      pushP p @@ perform begin
-	state <-- f {prompt = p ; client = 42  } state;
-	return @@ `End state
-      end
-    end
+    make_dummy [1;2;3] g
+  in
+    match ContHandler.start table 42 state
+      ~f:(fun suspend state ->
+	    perform begin
+	      state <-- f {suspend; client=42} state;
+	      ContHandler.end_ state
+	    end) with
+	Left state ->
+	  iter state xs
+      | Right x ->
+	  failwith x
 
 let assert_run init f request expect =
   assert_equal ~printer:Std.dump expect @@ run request f init
