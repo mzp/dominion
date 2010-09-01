@@ -11,10 +11,10 @@ type ('a,'b,'c) cc = [
 | `Cc  of 'c * ('a,'b,'c) action
 | `End of 'c
 ]
-and ('a,'b,'c) action = ('b -> bool) * ('b -> 'c -> (unit, ('a,'b,'c) cc) Cc.CONT.mc)
+and ('a,'b,'c) action = 'a * ('b -> bool) * ('b -> 'c -> (unit, ('a,'b,'c) cc) Cc.CONT.mc)
 
-type ('a,'b,'c) t = ('a * ('a,'b,'c) action) option ref
-type ('a,'b,'c) suspend = ('b -> bool) -> 'c -> (unit, 'b * 'c ) Cc.CONT.mc
+type ('a,'b,'c) t = ('a,'b,'c) action option ref
+type ('a,'b,'c) suspend = 'a -> ('b -> bool) -> 'c -> (unit, 'b * 'c ) Cc.CONT.mc
 
 let make () =
   ref None
@@ -22,35 +22,35 @@ let make () =
 let end_ state =
   return @@ `End state
 
-let save_cc t client cont =
+let save_cc t cont =
   match Cc.run cont with
       `End state ->
 	t := None;
 	state
     | `Cc (state, action) ->
-	t := Some (client, action);
+	t := Some action;
 	state
 
-let cc prompt pred state =
+let suspend prompt client pred state =
   let handle k request state =
     k @@ return (request, state) in
-    shiftP prompt (fun k -> return @@ `Cc(state, (pred , handle k)))
+    shiftP prompt (fun k -> return @@ `Cc(state, (client, pred , handle k)))
 
-let start t client state ~f =
+let start t state ~f =
   if !t = None then
-    Left (save_cc t client @@ perform begin
+    Left (save_cc t @@ perform begin
 	    p <-- new_prompt ();
-	    pushP p @@ f (cc p) state
+	    pushP p @@ f (suspend p) state
 	  end)
   else
     Right "already start"
 
 let resume t client request state =
   match !t with
-      Some (client', (p, k)) ->
+      Some (client', p, k) ->
 	if client' = client then
 	  if p request then
-	    Left (save_cc t client @@ k request state)
+	    Left (save_cc t @@ k request state)
 	  else
 	    Right "invalid request"
 	else

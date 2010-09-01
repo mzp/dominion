@@ -30,7 +30,7 @@ let run xs f g =
   let state =
     make_dummy [1;2;3] g
   in
-    match ContHandler.start table 42 state
+    match ContHandler.start table state
       ~f:(fun suspend state ->
 	    perform begin
 	      state <-- f {suspend; client=42} state;

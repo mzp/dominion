@@ -29,8 +29,8 @@ module Make(S : Protocol.Rpc) = struct
     ユーザとのインタラクション。
     predを満すリクエストを受け取ると、処理を継続する。
   *)
-  let user { suspend; _ } state pred =
-    suspend pred state
+  let user { suspend; client } state pred =
+    suspend client pred state
 
   (* ユーザに情報を送る *)
   let send { client; _ } e =
@@ -384,7 +384,6 @@ module Make(S : Protocol.Rpc) = struct
       current_client state in
       ignore @@ ContHandler.start table
 	~f:(fun suspend ->  turn { suspend; client })
-	client
 	state
 
   (* for test *)
