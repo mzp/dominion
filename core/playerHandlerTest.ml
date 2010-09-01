@@ -20,8 +20,8 @@ let run xs f g =
   let rec iter state = function
       [] ->
 	game state
-    | x::xs ->
-	match ContHandler.resume table 42 x state with
+    | (client,x)::xs ->
+	match ContHandler.resume table client x state with
 	    Left state ->
 	      iter state xs
 	  | Right msg ->
@@ -33,7 +33,7 @@ let run xs f g =
     match ContHandler.start table state
       ~f:(fun suspend state ->
 	    perform begin
-	      state <-- f {suspend; client=42} state;
+	      state <-- f {suspend; client=1} state;
 	      ContHandler.end_ state
 	    end) with
 	Left state ->
@@ -41,15 +41,19 @@ let run xs f g =
       | Right x ->
 	  failwith x
 
+let assert_run' init f request expect =
+  assert_equal ~printer:Std.dump expect @@
+    run request f init
+
 let assert_run init f request expect =
-  assert_equal ~printer:Std.dump expect @@ run request f init
+  assert_run' init f (List.map (fun x -> (1,x)) request) expect
 
 open Game
-
 let supply xs g =
   Game.update_board g ~f:(fun b -> { b with supply = xs })
 let trash xs g =
   Game.update_board g ~f:(fun b -> { b with trash = xs })
+
 
 let card_action_test  =
     let alice hands decks =
@@ -152,7 +156,30 @@ let card_action_test  =
 	    make @@ alice [ `Silver; `Silver ] [] in
 	    assert_run game (card_action `Moat) [] game'
 	end;
-  ]
+	"militia" >:: begin fun () ->
+	  let player name hands =
+	    Game.make_player name ~hands ~decks:[] in
+	  let p1 =
+	    player "A" [] in
+	  let p2 =
+	    player "B" [`Gold; `Gold; `Gold; `Gold] in
+	  let p3 =
+	    player "C" [`Moat; `Gold; `Gold; `Gold; `Gold] in
+	  let game =
+	    Game.make [p1;p2;p3] [] in
+	  let game' =
+	    Game.make [p1;
+		       { p2 with hands = [`Gold;`Gold;`Gold]};
+		       p3] [] in
+	    assert_run' game (card_action `Militia) [
+	      (* Bが捨てるカードを選ぶ *)
+	      (2,`Select `Gold);
+	      (2,`Select `Gold);
+	      (* Aがreactionを出す *)
+	      (3,`Select `Moat)
+	    ] game'
+	end
+      ]
 
 let _ = begin "handler.ml" >::: [
   card_action_test;
@@ -164,7 +191,7 @@ let _ = begin "handler.ml" >::: [
      Game.make [ alice ] [ ] in
      "actionフェーズは" >::: [
        "スキップできる" >:: begin fun () ->
-	 assert_equal game @@ run [`Skip] action_phase game
+	 assert_run game action_phase [`Skip]  game
        end;
        "指定したカードを使える" >:: begin fun () ->
 	 let open Game in
@@ -177,11 +204,11 @@ let _ = begin "handler.ml" >::: [
 					  }) in
 	 let game' =
 	   { game' with board = { game'.board with play_area  = [`Cellar] } } in
-	 assert_equal game' @@ run [`Select `Cellar;
-				    (* 捨てるカードの選択 *)
-				    `Select `Silver;
-				    `Select `Silver;
-				    `Skip] action_phase game
+	   assert_run game action_phase  [`Select `Cellar;
+					  (* 捨てるカードの選択 *)
+					  `Select `Silver;
+					  `Select `Silver;
+					  `Skip] game'
        end;
        "actionの回数だけカードを使える" >:: begin fun () ->
 	 let open Game in
@@ -197,12 +224,14 @@ let _ = begin "handler.ml" >::: [
 	 let game' =
 	   { game' with board = { game'.board with play_area  = [`Cellar; `Cellar] } } in
 
-	 assert_equal ~printer:Std.dump game' @@ run [`Select `Cellar;
-				    `Select `Silver;
-				    `Skip;
-				    `Select `Cellar;
-				    `Select `Silver;
-				    `Skip] action_phase game
+	   assert_run game action_phase [
+	     `Select `Cellar;
+	     `Select `Silver;
+	     `Skip;
+	     `Select `Cellar;
+	     `Select `Silver;
+	     `Skip]
+	     game'
        end
      ]);
   (let alice =
@@ -213,7 +242,7 @@ let _ = begin "handler.ml" >::: [
      Game.make [ alice ] [ `Cellar; `Province; `Cellar ] in
      "buyフェーズは" >::: [
        "スキップできる" >:: begin fun () ->
-	 assert_equal game @@ run [`Skip] buy_phase game
+	 assert_run game buy_phase [`Skip] game
        end;
        "指定したカードを買える" >:: begin fun () ->
 	 let open Game in
@@ -226,7 +255,7 @@ let _ = begin "handler.ml" >::: [
 		       coin = -2;
 		   })
 	   +> (fun s -> { s with board = { s.board with supply = [`Province; `Cellar]}}) in
-	   assert_equal ~printer:Std.dump game' @@ run [`Select `Cellar] buy_phase game
+	   assert_run game buy_phase [`Select `Cellar] game'
        end;
        "高すぎるカードは買えない" >:: begin fun () ->
 	 let open Game in
@@ -239,8 +268,7 @@ let _ = begin "handler.ml" >::: [
 		       coin = -2;
 		   })
 	   +> (fun s -> { s with board = { s.board with supply = [`Province; `Cellar]}}) in
-	   assert_equal ~printer:Std.dump game' @@
-	     run [`Select `Province; `Select `Cellar] buy_phase game
+	   assert_run game buy_phase [`Select `Province; `Select `Cellar] game'
        end;
        "buyの回数だけカードを買える" >:: begin fun () ->
 	 let open Game in
@@ -256,8 +284,7 @@ let _ = begin "handler.ml" >::: [
 		       coin = -4;
 		   })
 	   +> (fun s -> { s with board = { s.board with supply = [`Province ]}}) in
-	   assert_equal ~printer:Std.dump game' @@
-	     run [`Select `Cellar; `Select `Cellar] buy_phase game
+	   assert_run game buy_phase [`Select `Cellar; `Select `Cellar] game'
        end
      ]);
   "cleanupフェーズは" >::: [
