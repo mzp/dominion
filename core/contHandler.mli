@@ -1,24 +1,25 @@
 open Base
 open Cc
 
-module type S = sig
-  type client
-  type request
-  type state
-end
+(*
+  'a : client
+  'b : request
+  'c : state
+*)
+type ('a,'b,'c) t
+type ('a,'b,'c) cc
 
-module Make : functor(S : S) -> sig
-  type t
+(** 処理を中断してrequestを待つ *)
+type ('a,'b,'c) suspend = ('b -> bool) -> 'c -> (unit, 'b * 'c) Cc.CONT.mc
 
-  (* 処理を中断してrequestを待つ *)
-  type suspend = (S.request -> bool) -> S.state -> (unit, S.request * S.state) Cc.CONT.mc
-  (* 処理を完了する *)
-  val end_ : S.state -> (unit, t) Cc.CONT.mc
+(** 継続サーバの生成 *)
+val make : unit -> ('a,'b,'c) t
 
-  (* 処理を開始する *)
-  val start : (suspend -> S.state -> (unit, t) Cc.CONT.mc) -> S.client -> S.state -> (S.state,string) Base.either
+(** 処理を完了する *)
+val end_ : 'c -> (unit, ('a, 'b, 'c) cc) Cc.CONT.mc
 
-  (* 処理を再開する *)
-  val resume : S.client -> S.request -> S.state -> (S.state, string) Base.either
-end
+(** 処理を開始する *)
+val start : ('a,'b,'c) t -> 'a -> 'c -> f:(('a,'b,'c) suspend -> 'c -> (unit, ('a,'b,'c) cc) Cc.CONT.mc) -> ('c,string) Base.either
 
+(** 処理を再開する *)
+val resume : ('a,'b,'c) t -> 'a -> 'b -> 'c -> ('c, string) Base.either
