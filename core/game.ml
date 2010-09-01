@@ -90,6 +90,9 @@ let update ~f g =
 let update_board ~f g =
   { g with board = f g.board }
 
+let update_player name ~f game =
+  { game with
+      players = List.map (fun p -> if p.name = name then f p else p) game.players }
 
 let me { players; me; _ } =
   List.nth players me

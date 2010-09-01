@@ -46,7 +46,8 @@ val of_string : string -> card
 val me : t -> player
 
 val update : f:(player -> player) -> t -> t
-val update_board : f:(board -> board) -> t -> t
+val update_board  : f:(board -> board) -> t -> t
+val update_player : string -> f:(player->player) -> t -> t
 
 val is_action   : card -> bool
 val is_reaction : card -> bool

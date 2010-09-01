@@ -29,7 +29,7 @@ module Make(S : Protocol.Rpc) = struct
     ユーザとのインタラクション。
     predを満すリクエストを受け取ると、処理を継続する。
   *)
-  let user { suspend; client } state pred =
+  let user { suspend; _ } client state pred =
     suspend client pred state
 
   (* ユーザに情報を送る *)
@@ -100,27 +100,26 @@ module Make(S : Protocol.Rpc) = struct
 	    return (c,state)
     end
 
-  let update_game ~f state =
-    { state with
-	game = f state.game }
+  let me state =
+    (current_player state).name
 
-  let update_player ~f state =
-    update_game state ~f:(fun g -> Game.update ~f g)
+  let update_game ~f state =
+    { state with game = f state.game }
+
+  let update_player name ~f state =
+    update_game state ~f:(Game.update_player name ~f)
 
   let update_board ~f state =
-    update_game
-      state
-      ~f:(fun g ->
-	    { g with Game.board = f g.Game.board })
+    update_game state ~f:(Game.update_board ~f)
 
   let update ~f kind state =
     match kind with
-	`Hands ->
-	  update_player state ~f:(fun me -> { me with hands = f me.hands } )
-      | `Decks ->
-	  update_player state ~f:(fun me -> { me with decks = f me.decks } )
-      | `Discards ->
-	  update_player state ~f:(fun me -> { me with discards = f me.discards } )
+	`Hands name ->
+	  update_player name state ~f:(fun me -> { me with hands = f me.hands } )
+      | `Decks name ->
+	  update_player name state ~f:(fun me -> { me with decks = f me.decks } )
+      | `Discards name ->
+	  update_player name state ~f:(fun me -> { me with discards = f me.discards } )
       | `PlayArea ->
 	  update_board state ~f:(fun b -> { b with play_area = f b.play_area })
       | `Supply ->
@@ -135,17 +134,17 @@ module Make(S : Protocol.Rpc) = struct
     +> update dest ~f:(fun ys -> xs @  ys)
 
   (* +n action/buy/coin/draw *)
-  let action n state =
-    update_player state ~f:(fun me -> { me with action = me.action + n })
+  let action n name state =
+    update_player name state ~f:(fun me -> { me with action = me.action + n })
 
-  let buy n state =
-    update_player state ~f:(fun me -> { me with buy = me.buy + n })
+  let buy n name state =
+    update_player name state ~f:(fun me -> { me with buy = me.buy + n })
 
-  let coin n state =
-    update_player state ~f:(fun me -> { me with coin = me.coin + n })
+  let coin n name state =
+    update_player name state ~f:(fun me -> { me with coin = me.coin + n })
 
-  let draw n =
-    update_player ~f:begin fun me ->
+  let draw n name =
+    update_player name ~f:begin fun me ->
       let len =
 	List.length me.decks in
 	if len >= n then
@@ -173,7 +172,7 @@ module Make(S : Protocol.Rpc) = struct
   let select_card client state ~p =
     until state ~f:begin fun state ->
       perform begin
-	(request, state) <-- user client state (skip <||> select);
+	(request, state) <-- user client client.client state (skip <||> select);
 	match request with
 	  | `Skip ->
 	      return (Some `Skip, state)
@@ -210,118 +209,119 @@ module Make(S : Protocol.Rpc) = struct
   (* Actionカードの定義 *)
   let card_action kind client state=
     let me =
-      current_player state in
-      match kind with
-	| `Cellar ->
-	    perform begin
-	      (xs,state) <-- many state ~f:begin fun state ->
-		perform begin
-		  let _ = notify client "select discard card" in
-		    (request, state) <-- user client state (skip <||> select);
-		    match request with
-		      | `Select c when List.mem c me.hands ->
-			  return (Some c, state)
-		      | `Skip | `Select _ ->
-			  return (None, state)
-		end
-	      end;
-	      let n = List.length xs in
+      me state in
+    match kind with
+      | `Cellar ->
+	  perform begin
+	    (xs,state) <-- many state ~f:begin fun state ->
+	      perform begin
+		let _ = notify client "select discard card" in
+		  (request, state) <-- select_card client state ~p:(in_hands state);
+		  match request with
+		    | `Card c ->
+			return (Some c, state)
+		    | `Skip ->
+			return (None, state)
+	      end
+	    end;
+	    let n = List.length xs in
 	      return @@ state
-		+> move `Hands `Discards xs
-		+> draw n
-	    end
-	| `Market ->
-	    return @@ state
-	      +> action 1
-	      +> buy    1
-	      +> coin   1
-	      +> draw 1
-	| `Mine ->
-	    perform begin
-	      (r,state) <-- select_card client state ~p:(is_treasure <&&> in_hands state);
-	      match r with
-		  `Card c1 ->
-		    perform begin
-		      (r,state) <-- select_card client state ~p:(is_treasure <&&>
-								   in_supply state <&&>
-								   (fun c -> Game.cost c <= Game.cost c1 + 3));
-		      begin match r with
-			  `Card c2 ->
-			    return @@ state
-			    +> move `Hands  `Trash  [c1]
-			    +> move `Supply `Hands [c2]
-			| `Skip ->
-			    return state
-		      end
+	      +> move (`Hands me) (`Discards me) xs
+	      +> draw n me
+	  end
+      | `Market ->
+	  return @@ state
+	  +> action 1 me
+	  +> buy    1 me
+	  +> coin   1 me
+	  +> draw 1 me
+      | `Mine ->
+	  perform begin
+	    (r,state) <-- select_card client state ~p:(is_treasure <&&> in_hands state);
+	    match r with
+		`Card c1 ->
+		  perform begin
+		    (r,state) <-- select_card client state ~p:(is_treasure <&&>
+								 in_supply state <&&>
+								 (fun c -> Game.cost c <= Game.cost c1 + 3));
+		    begin match r with
+			`Card c2 ->
+			  return @@ state
+			  +> move (`Hands me)  `Trash  [c1]
+			  +> move `Supply (`Hands me) [c2]
+		      | `Skip ->
+			  return state
 		    end
-		| `Skip ->
-		    return state
-	    end
-	| `Remodel ->
-	    perform begin
-	      (r,state) <-- select_card client state ~p:(in_hands state);
-	      match r with
-		  `Card c1 ->
-		    perform begin
-		      (r,state) <-- select_card client state ~p:(in_supply state <&&>
-								   (fun c -> Game.cost c <= Game.cost c1 + 2));
-		      begin match r with
-			  `Card c2 ->
-			    return @@ state
-			    +> move `Hands  `Trash  [c1]
-			    +> move `Supply `Hands [c2]
-			| `Skip ->
-			    return state
-		      end
+		  end
+	      | `Skip ->
+		  return state
+	  end
+      | `Remodel ->
+	  perform begin
+	    (r,state) <-- select_card client state ~p:(in_hands state);
+	    match r with
+		`Card c1 ->
+		  perform begin
+		    (r,state) <-- select_card client state ~p:(in_supply state <&&>
+								 (fun c -> Game.cost c <= Game.cost c1 + 2));
+		    begin match r with
+			`Card c2 ->
+			  return @@ state
+			  +> move (`Hands  me) `Trash  [c1]
+			  +> move `Supply (`Hands me) [c2]
+		      | `Skip ->
+			  return state
 		    end
-		| `Skip ->
-		    return state
-	    end
-	| `Smithy ->
-	    state
-	    +> draw 3
-	    +> return
-	| `Village ->
-	    state
-	    +> action 2
-	    +> draw 1
-	    +> return
-	| `Woodcutter ->
-	    state
-	    +> buy 1
-	    +> coin 2
-	    +> return
-	| `Workshop ->
-	    perform begin
-	      (r, state) <-- select_card client state
-		~p:(in_supply state <&&> (fun c -> Game.cost c <= 4));
-	      match r with
-		  `Card c ->
-		    state
-		    +> move `Supply `Hands [ c ]
-		    +> return
-		| `Skip ->
-		    return state
-	    end
-	| `Moat ->
-	    return @@ draw 2 state
-	| _ ->
-	    failwith "not action card"
+		  end
+	      | `Skip ->
+		  return state
+	  end
+      | `Smithy ->
+	  state
+	  +> draw 3 me
+	  +> return
+      | `Village ->
+	  state
+	  +> action 2 me
+	  +> draw 1 me
+	  +> return
+      | `Woodcutter ->
+	  state
+	  +> buy 1 me
+	  +> coin 2 me
+	  +> return
+      | `Workshop ->
+	  perform begin
+	    (r, state) <-- select_card client state
+	      ~p:(in_supply state <&&> (fun c -> Game.cost c <= 4));
+	    match r with
+		`Card c ->
+		  state
+		  +> move `Supply (`Hands me) [ c ]
+		  +> return
+	      | `Skip ->
+		  return state
+	  end
+      | `Moat ->
+	  return @@ draw 2 me state
+      | _ ->
+	  failwith "not action card"
 
   (* actionフェーズ *)
   let action_phase client state =
-    phase client state (fun { action; _ } -> action = 0)
-      ~p:(fun state -> in_hands state <&&> is_action)
-      ~f:begin fun state c ->
-	let state =
-	  state
-	  +> move `Hands `PlayArea [c] in
-	  perform begin
-	    state <-- (card_action c) client state;
-	    let state = update_player state ~f:(fun me -> {me with action = me.action -1 }) in
-	      return @@ `Val state
-	  end
-      end
+    let me = me state in
+      phase client state (fun { action; _ } -> action = 0)
+	~p:(fun state -> in_hands state <&&> is_action)
+	~f:begin fun state c ->
+	  let state =
+	    state
+	    +> move (`Hands me) `PlayArea [c] in
+	    perform begin
+	      state <-- (card_action c) client state;
+	      let state = update_player me state ~f:(fun me -> {me with action = me.action -1 }) in
+		return @@ `Val state
+	    end
+	end
 
   (* buyフェーズ *)
   let buy_phase client state =
@@ -335,18 +335,20 @@ module Make(S : Protocol.Rpc) = struct
 	      me.coin + sum (List.map Game.coin me.hands) in
 	      in_supply state c && cost c < cap)
       ~f:begin fun state c ->
+	let me = me state in
 	return @@ `Val (state
-			+> buy  (- 1)
-			+> coin (- (cost c))
-			+> move `Supply `Discards [c])
+			+> buy  (- 1) me
+			+> coin (- (cost c)) me
+			+> move `Supply (`Discards me) [c])
       end
 
   (* cleanupフェーズ *)
   let cleanup_phase _ state =
+    let me = me state in
     state
-    +> move `Hands `Discards (current_player state).hands
-    +> draw 5
-    +> update_player ~f:(fun me -> { me with action=1; buy=1;coin=0})
+    +> move (`Hands me) (`Discards me) (current_player state).hands
+    +> draw 5 me
+    +> update_player me ~f:(fun me -> { me with action=1; buy=1;coin=0})
     +> return
 
 
@@ -364,19 +366,19 @@ module Make(S : Protocol.Rpc) = struct
 	  log "hands" me.Game.hands;
 	  log "discards" me.Game.discards in
 	let _ = send_all state @@ `Turn name in
-	(* action phase *)
+	  (* action phase *)
 	let _ = send_all state @@ `Phase (`Action, name) in
-	state <-- action_phase client state;
-	(* buy phase *)
-	let _ = send_all state @@ `Phase (`Buy, name) in
-	state <-- buy_phase client state;
-	(* cleanup phase *)
-	let _ = send_all state @@ `Phase (`Cleanup, name) in
-	state <-- cleanup_phase client state;
-	let state = update_game state
-	  ~f:(fun g ->
-		{ g with me = (g.me + 1) mod List.length g.players}) in
-	ContHandler.end_ state
+	  state <-- action_phase client state;
+	  (* buy phase *)
+	  let _ = send_all state @@ `Phase (`Buy, name) in
+	    state <-- buy_phase client state;
+	    (* cleanup phase *)
+	    let _ = send_all state @@ `Phase (`Cleanup, name) in
+	      state <-- cleanup_phase client state;
+	      let state = update_game state
+		~f:(fun g ->
+		      { g with me = (g.me + 1) mod List.length g.players}) in
+		ContHandler.end_ state
       end
 
   let invoke state =
