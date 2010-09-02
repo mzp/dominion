@@ -44,6 +44,7 @@ OUnitTest(playerHandler, playerHandler contHandler cc base logger game hList lis
 OUnitTest(commonHandler, commonHandler base maybe game handlerBase listUtil)
 OUnitTest(readyHandler , readyHandler base maybe game handlerBase listUtil hList)
 OUnitTest(contHandler  , contHandler base cc)
+OUnitTest(game, game base)
 
 
 OCAMLFLAGS=-annot -w A -warn-error A
