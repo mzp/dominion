@@ -162,14 +162,14 @@ let card_action_test  =
 	  let p1 =
 	    player "A" [] in
 	  let p2 =
-	    player "B" [`Gold; `Gold; `Gold; `Gold] in
+	    player "B" [`Gold; `Gold; `Gold; `Gold; `Gold] in
 	  let p3 =
 	    player "C" [`Moat; `Gold; `Gold; `Gold; `Gold] in
 	  let game =
 	    Game.make [p1;p2;p3] [] in
 	  let game' =
 	    Game.make [p1;
-		       { p2 with hands = [`Gold;`Gold;`Gold]};
+		       { p2 with hands = [`Gold;`Gold;`Gold]; discards=[`Gold;`Gold]};
 		       p3] [] in
 	    assert_run' game (card_action `Militia) [
 	      (* Bが捨てるカードを選ぶ *)
