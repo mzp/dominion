@@ -5,7 +5,7 @@ FILES[] =
 
 GCC=gcc
 
-.DEFAULT: pan.c
+.DEFAULT:
 
 pan.c: $(FILES)
 	spin -a $(FILES)
