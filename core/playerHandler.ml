@@ -246,7 +246,7 @@ module Make(S : Protocol.Rpc) = struct
 	      failwith ""
       end
 
-  let rec card_source p name client state =
+  let rec card_source name client state =
     let open Rule in
       perform begin
 	r <-- request name ~p:(skip <||> select) client state;
@@ -254,22 +254,37 @@ module Make(S : Protocol.Rpc) = struct
 	    `Skip ->
 	      error ""
 	  | `Select c ->
-	      perform (g <-- game;
-		       if p c g then
-			 return c
-		       else
-			 card_source p name client state)
+	      return c
       end
 
-  let hands =
+  let rec filter p cs =
     let open Rule in
-    card_source @@ fun c g ->
-      List.mem c (Game.me g).hands
+      perform begin
+	c <-- cs;
+	b <-- p c;
+	if b then
+	  return c
+	else
+	  filter p cs
+      end
 
-  let supply =
+  let hands name client state =
     let open Rule in
-    card_source @@ fun c { board = { supply; _ }; _ } ->
-      List.mem c supply
+      filter (fun c ->
+		perform begin
+		  g <-- game;
+		  return @@ List.mem c (Game.me g).hands
+		end) @@
+	card_source name client state
+
+  let supply name client state =
+    let open Rule in
+      filter (fun c ->
+		perform begin
+		  g <-- game;
+		  return @@ List.mem c g.board.supply
+		end) @@
+	card_source name client state
 
   let guard f =
     let open Rule in
@@ -458,17 +473,13 @@ module Make(S : Protocol.Rpc) = struct
       wrap state @@ Rule.run state.game ~f:begin
 	many @@ perform begin
 	  guard @@ (fun g -> (Game.me g).buy <> 0);
-	  c <-- supply name client state;
 	  n <-- store;
-	  if Game.cost c <= n then
-	    perform begin
-	      move `Supply (`Discards name) [ c ];
-	      Rule.coin name (fun m -> m - Game.cost c);
-	      Rule.buy  name (fun m -> m - 1);
-	      return ()
-	    end
-	  else
-	    return ()
+	  c <-- filter (fun c -> return (Game.cost c <= n)) @@
+	    supply name client state;
+	  move `Supply (`Discards name) [ c ];
+	  Rule.coin name (fun m -> m - Game.cost c);
+	  Rule.buy  name (fun m -> m - 1);
+	  return ()
 	end
       end
 
