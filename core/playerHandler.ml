@@ -401,14 +401,29 @@ module Make(S : Protocol.Rpc) = struct
 			+> move `Supply (`Discards me) [c])
       end
 
+  let wrap state cc =
+    let open Cc in
+      perform begin
+	r <-- cc;
+	match r with
+	    Left (_, game) ->
+	      Cc.return { state with game }
+	  | Right _ ->
+	      failwith ""
+      end
+
   (* cleanupフェーズ *)
-  let cleanup_phase _ state =
-    let me = me state in
-    state
-    +> move (`Hands me) (`Discards me) (current_player state).hands
-    +> draw 5 me
-    +> update_player me ~f:(fun me -> { me with action=1; buy=1;coin=0})
-    +> return
+  let cleanup_phase _ ({ game; _ } as state) =
+    let open Rule in
+    let me =
+      me state in
+      wrap state @@ Rule.run game ~f:perform begin
+	move (`Hands me) (`Discards me) (current_player state).hands;
+	draw me 5;
+	action me @@ const 1;
+	buy    me @@ const 1;
+	coin   me @@ const 0
+      end
 
   let turn client state =
     let log name cs =
