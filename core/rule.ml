@@ -1,4 +1,5 @@
 open Base
+open Game
 
 type 'a result = (unit, (('a * Game.t),string) Base.either) Cc.CONT.mc
 
@@ -55,10 +56,18 @@ let run game ~f =
   f game
 
 type name = string
-let action _ = assert false
-let buy _ = assert false
-let coin _ = assert false
-let draw _ = assert false
+let player name f : unit t = lift @@
+  fun game ->
+    Cc.return @@ Left ((),Game.update_player name ~f game)
+
+let action name f =
+  player name (fun p -> { p with action = f p.action })
+
+let buy name f =
+  player name (fun p -> { p with buy = f p.buy })
+
+let coin name f =
+  player name (fun p -> { p with coin = f p.coin })
 
 type place = [
   `Hands of name
@@ -68,6 +77,34 @@ type place = [
 | `Supply
 | `Trash
 ]
-let move _ = assert false
-let player _ = assert false
+let update ~f kind game =
+  let game' =
+    match kind with
+	`Hands name ->
+	  update_player name game ~f:(fun me -> { me with hands = f me.hands } )
+      | `Decks name ->
+	  update_player name game ~f:(fun me -> { me with decks = f me.decks } )
+      | `Discards name ->
+	  update_player name game ~f:(fun me -> { me with discards = f me.discards } )
+      | `PlayArea ->
+	  update_board game ~f:(fun b -> { b with play_area = f b.play_area })
+      | `Supply ->
+	  update_board game ~f:(fun b -> { b with supply = f b.supply })
+      | `Trash ->
+	  update_board game ~f:(fun b -> { b with trash = f b.trash }) in
+    Cc.return (Left ((),game'))
 
+open ListUtil
+let move src dest cs =
+  perform begin
+    update src   ~f:(fun xs -> xs -- cs);
+    update dest  ~f:(fun xs -> cs @ xs)
+  end
+
+let draw name n =
+  player name (fun p ->
+       let (xs,ys) =
+	 HList.splitAt n p.decks in
+	 { p with
+	     hands = xs @ p.hands;
+	     decks = ys })
