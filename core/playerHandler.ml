@@ -225,6 +225,16 @@ module Make(S : Protocol.Rpc) = struct
 	perform (y <-- f a x;
 		 fold_m ~f y xs)
 
+  let request name ~p { suspend; _ } state : request Rule.t =
+    let open Cc in
+    let client =
+      fst @@ List.find (fun (_,y)-> y = name) state.clients in
+      Rule.lift (fun game ->
+		   perform begin
+		     (request, _) <-- suspend client p state;
+		     return (Left (request, game))
+		   end)
+
   let wrap state cc =
     let open Cc in
       perform begin
@@ -377,44 +387,46 @@ module Make(S : Protocol.Rpc) = struct
       | _ ->
 	  failwith "not action card"
 
+  let effect c client state : 'a Rule.t =
+    Rule.lift (fun game ->
+	    let open Cc in
+	      perform (state <-- card_action c client { state with game };
+		       return @@ Left ((),state.game)))
+
   (* actionフェーズ *)
   let action_phase client state =
-    let me = me state in
-      phase client state (fun { action; _ } -> action = 0)
-	~p:(fun state -> in_hands state <&&> is_action)
-	~f:begin fun state c ->
-	  let state =
-	    state
-	    +> move (`Hands me) `PlayArea [c] in
-	    perform begin
-	      state <-- (card_action c) client state;
-	      let state = update_player me state ~f:(fun me -> {me with action = me.action -1 }) in
-		return @@ `Val state
-	    end
-	end
-
-  let until p f =
     let open Rule in
-      many @@ perform begin
-	x <-- f;
-	g <-- game;
-	if p g then
-	  error ""
-	else
-	  return x
+    let name =
+      me state in
+    let in_hands c =
+      perform (g <-- game;
+	       let { hands; _ } = Game.me g in
+		 return (List.mem c hands)) in
+      wrap state @@ Rule.run state.game ~f:begin
+	Rule.many @@ perform begin
+	  g <-- game;
+	  (if (Game.me g).action = 0 then error "" else return ());
+	  r <-- request name ~p:(skip <||> select) client state;
+	  match r with
+	      `Skip ->
+		error ""
+	    | `Select c ->
+		perform begin
+		  b <-- in_hands c;
+		  if b then
+		    perform begin
+		      move (`Hands name) `PlayArea [ c ];
+		      Rule.action name (fun n -> n - 1);
+		      effect c client state;
+		      return ()
+		    end
+		  else
+		    return ()
+		end
+	end
       end
 
   (* buyフェーズ *)
-  let request name ~p { suspend; _ } state : request Rule.t =
-    let open Cc in
-    let client =
-      fst @@ List.find (fun (_,y)-> y = name) state.clients in
-      Rule.lift (fun game ->
-		   perform begin
-		     (request, _) <-- suspend client p state;
-		     return (Left (request, game))
-		   end)
-
   let buy_phase client state =
     let open Rule in
     let name =
@@ -424,27 +436,28 @@ module Make(S : Protocol.Rpc) = struct
 	       let { coin; hands; _ } =
 		 Game.me g in
 		 return @@ coin + List.fold_left (+) 0 (List.map Game.coin hands)) in
-      wrap state @@ Rule.run state.game ~f:begin many @@ perform begin
-	g <-- game;
-	(if (Game.me g).buy = 0 then error "" else return ());
-	r <-- request name ~p:(skip <||> select) client state;
-	match r with
-	    `Skip ->
-	      error ""
-	  | `Select c ->
-	      perform begin
-		n <-- store;
-		if Game.cost c <= n then
-		  perform begin
-		    move `Supply (`Discards name) [ c ];
-		    Rule.coin name (fun m -> m - Game.cost c);
-		    Rule.buy  name (fun m -> m - 1);
+      wrap state @@ Rule.run state.game ~f:begin
+	many @@ perform begin
+	  g <-- game;
+	  (if (Game.me g).buy = 0 then error "" else return ());
+	  r <-- request name ~p:(skip <||> select) client state;
+	  match r with
+	      `Skip ->
+		error ""
+	    | `Select c ->
+		perform begin
+		  n <-- store;
+		  if Game.cost c <= n then
+		    perform begin
+		      move `Supply (`Discards name) [ c ];
+		      Rule.coin name (fun m -> m - Game.cost c);
+		      Rule.buy  name (fun m -> m - 1);
+		      return ()
+		    end
+		  else
 		    return ()
-		  end
-		else
-		  return ()
-	      end
-      end
+		end
+	end
       end
 
   (* cleanupフェーズ *)
