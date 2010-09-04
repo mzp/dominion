@@ -225,6 +225,17 @@ module Make(S : Protocol.Rpc) = struct
 	perform (y <-- f a x;
 		 fold_m ~f y xs)
 
+  let wrap state cc =
+    let open Cc in
+      perform begin
+	r <-- cc;
+	match r with
+	    Left (_, game) ->
+	      Cc.return { state with game }
+	  | Right _ ->
+	      failwith ""
+      end
+
   (* Actionカードの定義 *)
   let card_action kind client state=
     let me =
@@ -382,42 +393,66 @@ module Make(S : Protocol.Rpc) = struct
 	    end
 	end
 
-  (* buyフェーズ *)
-  let buy_phase client state =
-    phase client state (fun { buy; _ } -> buy = 0)
-      ~p:(fun state c ->
-	    let me =
-	      current_player state in
-	    let sum xs =
-	      List.fold_left (+) 0 xs in
-	    let cap =
-	      me.coin + sum (List.map Game.coin me.hands) in
-	      in_supply state c && cost c < cap)
-      ~f:begin fun state c ->
-	let me = me state in
-	return @@ `Val (state
-			+> buy  (- 1) me
-			+> coin (- (cost c)) me
-			+> move `Supply (`Discards me) [c])
+  let until p f =
+    let open Rule in
+      many @@ perform begin
+	x <-- f;
+	g <-- game;
+	if p g then
+	  error ""
+	else
+	  return x
       end
 
-  let wrap state cc =
+  (* buyフェーズ *)
+  let request name ~p { suspend; _ } state : request Rule.t =
     let open Cc in
-      perform begin
-	r <-- cc;
+    let client =
+      fst @@ List.find (fun (_,y)-> y = name) state.clients in
+      Rule.lift (fun game ->
+		   perform begin
+		     (request, _) <-- suspend client p state;
+		     return (Left (request, game))
+		   end)
+
+  let buy_phase client state =
+    let open Rule in
+    let name =
+      me state in
+    let store =
+      perform (g <-- game;
+	       let { coin; hands; _ } =
+		 Game.me g in
+		 return @@ coin + List.fold_left (+) 0 (List.map Game.coin hands)) in
+      wrap state @@ Rule.run state.game ~f:begin many @@ perform begin
+	g <-- game;
+	(if (Game.me g).buy = 0 then error "" else return ());
+	r <-- request name ~p:(skip <||> select) client state;
 	match r with
-	    Left (_, game) ->
-	      Cc.return { state with game }
-	  | Right _ ->
-	      failwith ""
+	    `Skip ->
+	      error ""
+	  | `Select c ->
+	      perform begin
+		n <-- store;
+		if Game.cost c <= n then
+		  perform begin
+		    move `Supply (`Discards name) [ c ];
+		    Rule.coin name (fun m -> m - Game.cost c);
+		    Rule.buy  name (fun m -> m - 1);
+		    return ()
+		  end
+		else
+		  return ()
+	      end
+      end
       end
 
   (* cleanupフェーズ *)
-  let cleanup_phase _ ({ game; _ } as state) =
+  let cleanup_phase _ state =
     let open Rule in
     let me =
       me state in
-      wrap state @@ Rule.run game ~f:perform begin
+      wrap state @@ Rule.run state.game ~f:perform begin
 	move (`Hands me) (`Discards me) (current_player state).hands;
 	draw me 5;
 	action me @@ const 1;

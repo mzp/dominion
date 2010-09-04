@@ -13,6 +13,7 @@ val many  : 'a t -> 'a list t
 val (<|>) : 'a t -> 'a t -> 'a t
 
 (* 基本ルール *)
+val game : Game.t t
 val lift : (Game.t -> 'a result) -> 'a t
 
 type name = string

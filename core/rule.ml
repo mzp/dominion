@@ -118,3 +118,5 @@ let draw name n =
 	      decks    = HList.drop (n - len) decks';
 	  }
   end
+
+let game = lift (fun game -> Cc.return (Left (game,game)))
