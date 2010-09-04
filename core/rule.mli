@@ -2,6 +2,8 @@
 type 'a t
 type 'a result = (unit, (('a * Game.t),string) Base.either) Cc.CONT.mc
 val bind  : 'a t -> ('a -> 'b t) -> 'b t
+val (>>=) : 'a t -> ('a -> 'b t) -> 'b t
+val (>>) : 'a t -> 'b t -> 'b t
 val return : 'a -> 'a t
 val error  : string -> 'a t
 

@@ -246,6 +246,42 @@ module Make(S : Protocol.Rpc) = struct
 	      failwith ""
       end
 
+  let rec card_source p name client state =
+    let open Rule in
+      perform begin
+	r <-- request name ~p:(skip <||> select) client state;
+	match r with
+	    `Skip ->
+	      error ""
+	  | `Select c ->
+	      perform (g <-- game;
+		       if p c g then
+			 return c
+		       else
+			 card_source p name client state)
+      end
+
+  let hands =
+    let open Rule in
+    card_source @@ fun c g ->
+      List.mem c (Game.me g).hands
+
+  let supply =
+    let open Rule in
+    card_source @@ fun c { board = { supply; _ }; _ } ->
+      List.mem c supply
+
+  let guard f =
+    let open Rule in
+      perform begin
+	g <-- game;
+	if f g then
+	  return ()
+	else
+	  error ""
+      end
+
+
   (* Actionカードの定義 *)
   let card_action kind client state=
     let me =
@@ -398,31 +434,14 @@ module Make(S : Protocol.Rpc) = struct
     let open Rule in
     let name =
       me state in
-    let in_hands c =
-      perform (g <-- game;
-	       let { hands; _ } = Game.me g in
-		 return (List.mem c hands)) in
       wrap state @@ Rule.run state.game ~f:begin
 	Rule.many @@ perform begin
-	  g <-- game;
-	  (if (Game.me g).action = 0 then error "" else return ());
-	  r <-- request name ~p:(skip <||> select) client state;
-	  match r with
-	      `Skip ->
-		error ""
-	    | `Select c ->
-		perform begin
-		  b <-- in_hands c;
-		  if b then
-		    perform begin
-		      move (`Hands name) `PlayArea [ c ];
-		      Rule.action name (fun n -> n - 1);
-		      effect c client state;
-		      return ()
-		    end
-		  else
-		    return ()
-		end
+	  guard @@ (fun g -> (Game.me g).action <> 0);
+	  c <-- hands name client state;
+	  move (`Hands name) `PlayArea [ c ];
+	  Rule.action name (fun n -> n - 1);
+	  effect c client state;
+	  return ()
 	end
       end
 
@@ -438,25 +457,18 @@ module Make(S : Protocol.Rpc) = struct
 		 return @@ coin + List.fold_left (+) 0 (List.map Game.coin hands)) in
       wrap state @@ Rule.run state.game ~f:begin
 	many @@ perform begin
-	  g <-- game;
-	  (if (Game.me g).buy = 0 then error "" else return ());
-	  r <-- request name ~p:(skip <||> select) client state;
-	  match r with
-	      `Skip ->
-		error ""
-	    | `Select c ->
-		perform begin
-		  n <-- store;
-		  if Game.cost c <= n then
-		    perform begin
-		      move `Supply (`Discards name) [ c ];
-		      Rule.coin name (fun m -> m - Game.cost c);
-		      Rule.buy  name (fun m -> m - 1);
-		      return ()
-		    end
-		  else
-		    return ()
-		end
+	  guard @@ (fun g -> (Game.me g).buy <> 0);
+	  c <-- supply name client state;
+	  n <-- store;
+	  if Game.cost c <= n then
+	    perform begin
+	      move `Supply (`Discards name) [ c ];
+	      Rule.coin name (fun m -> m - Game.cost c);
+	      Rule.buy  name (fun m -> m - 1);
+	      return ()
+	    end
+	  else
+	    return ()
 	end
       end
 

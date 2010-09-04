@@ -120,3 +120,5 @@ let draw name n =
   end
 
 let game = lift (fun game -> Cc.return (Left (game,game)))
+let (>>=) = bind
+let (>>) f g  = perform (f; g)
