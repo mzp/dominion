@@ -40,7 +40,7 @@ FILES[] =
 	contHandler
 
 UseCamlp4(pa_monad)
-OUnitTest(playerHandler, playerHandler contHandler cc base logger game hList listUtil handlerBase maybe)
+OUnitTest(playerHandler, playerHandler contHandler cc base logger game hList listUtil handlerBase maybe rule)
 OUnitTest(commonHandler, commonHandler base maybe game handlerBase listUtil)
 OUnitTest(readyHandler , readyHandler base maybe game handlerBase listUtil hList)
 OUnitTest(contHandler  , contHandler base cc)

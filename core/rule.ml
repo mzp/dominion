@@ -102,9 +102,19 @@ let move src dest cs =
   end
 
 let draw name n =
-  player name (fun p ->
-       let (xs,ys) =
-	 HList.splitAt n p.decks in
-	 { p with
-	     hands = xs @ p.hands;
-	     decks = ys })
+  player name begin fun p ->
+    let len =
+      List.length p.decks in
+      if len >= n then
+	{ p with
+	    hands    = HList.take n p.decks @ p.hands;
+	    decks    = HList.drop n p.decks }
+      else
+	let decks' =
+	  shuffle p.discards in
+	  { p with
+	      discards = [];
+	      hands    = p.decks @ HList.take (n - len) decks';
+	      decks    = HList.drop (n - len) decks';
+	  }
+  end
