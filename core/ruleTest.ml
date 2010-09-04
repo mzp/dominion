@@ -80,6 +80,77 @@ let _ = begin "rule.ml" >::: [
     let result =
       Cc.run @@ Rule.run game ~f:(f <|> g) in
       assert_equal (Left (42, game)) result
-  end
+  end;
+  "actionの変更" >:: begin fun () ->
+    let f =
+      action "alice" ((+) 3) in
+    let alice =
+      Game.make_player "alice" ~hands:[] ~decks:[] in
+    let game =
+      Game.make [ alice ] [] in
+    let game' =
+      Game.make [ { alice with action = 4 } ] [] in
+    let result =
+      Cc.run @@ Rule.run game ~f  in
+      assert_equal (Left ((),game')) result
+  end;
+  "buyの変更" >:: begin fun () ->
+    let f =
+      buy "alice" ((+) 3) in
+    let alice =
+      Game.make_player "alice" ~hands:[] ~decks:[] in
+    let game =
+      Game.make [ alice ] [] in
+    let game' =
+      Game.make [ { alice with buy = 4 } ] [] in
+    let result =
+      Cc.run @@ Rule.run game ~f  in
+      assert_equal (Left ((),game')) result
+  end;
+  "coinの変更" >:: begin fun () ->
+    let f =
+      Rule.coin "alice" ((+) 3) in
+    let alice =
+      Game.make_player "alice" ~hands:[] ~decks:[] in
+    let game =
+      Game.make [ alice ] [] in
+    let game' =
+      Game.make [ { alice with coin = 3 } ] [] in
+    let result =
+      Cc.run @@ Rule.run game ~f  in
+      assert_equal (Left ((),game')) result
+  end;
+  "drawの変更" >:: begin fun () ->
+    let f =
+      Rule.draw "alice" 2 in
+    let alice =
+      Game.make_player "alice" ~hands:[] ~decks:[`Gold; `Silver; `Copper] in
+    let alice' =
+      Game.make_player "alice" ~hands:[`Gold; `Silver] ~decks:[`Copper] in
+    let game =
+      Game.make [ alice ] [] in
+    let game' =
+      Game.make [ alice' ] [] in
+    let result =
+      Cc.run @@ Rule.run game ~f  in
+      assert_equal (Left ((),game')) result
+  end;
+  "moveによるカードの移動" >:: begin fun () ->
+    let f =
+      perform begin
+	Rule.move `Supply (`Hands "alice") [`Gold];
+	Rule.move `Supply (`Decks "alice") [`Copper]
+      end in
+    let alice =
+      Game.make_player "alice" ~hands:[] ~decks:[] in
+    let alice' =
+      Game.make_player "alice" ~hands:[`Gold] ~decks:[`Copper] in
+    let game =
+      Game.make [ alice ] [ `Gold; `Copper] in
+    let game' =
+      Game.make [ alice' ] [] in
+    let result =
+      Cc.run @@ Rule.run game ~f  in
+      assert_equal (Left ((),game')) result
+  end;
 ] end +> run_test_tt_main
-

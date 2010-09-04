@@ -53,3 +53,21 @@ let (<|>) f g game =
 
 let run game ~f =
   f game
+
+type name = string
+let action _ = assert false
+let buy _ = assert false
+let coin _ = assert false
+let draw _ = assert false
+
+type place = [
+  `Hands of name
+| `Decks of name
+| `Discards of name
+| `PlayArea
+| `Supply
+| `Trash
+]
+let move _ = assert false
+let player _ = assert false
+
