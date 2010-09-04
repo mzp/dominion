@@ -38,6 +38,7 @@ FILES[] =
 	playerHandler
 	listUtil
 	contHandler
+	rule
 
 UseCamlp4(pa_monad)
 OUnitTest(playerHandler, playerHandler contHandler cc base logger game hList listUtil handlerBase maybe rule)
