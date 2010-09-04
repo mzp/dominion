@@ -120,7 +120,7 @@ let _ = begin "rule.ml" >::: [
       Cc.run @@ Rule.run game ~f  in
       assert_equal (Left ((),game')) result
   end;
-  "drawの変更" >:: begin fun () ->
+  "drawはdeckをhandに移動させる" >:: begin fun () ->
     let f =
       Rule.draw "alice" 2 in
     let alice =
@@ -129,6 +129,21 @@ let _ = begin "rule.ml" >::: [
       Game.make_player "alice" ~hands:[`Gold; `Silver] ~decks:[`Copper] in
     let game =
       Game.make [ alice ] [] in
+    let game' =
+      Game.make [ alice' ] [] in
+    let result =
+      Cc.run @@ Rule.run game ~f  in
+      assert_equal (Left ((),game')) result
+  end;
+  "drawはdeckが足りない場合はdiscardsを再利用する" >:: begin fun () ->
+    let f =
+      Rule.draw "alice" 1 in
+    let alice =
+      Game.make_player "alice" ~hands:[] ~decks:[] in
+    let alice' =
+      Game.make_player "alice" ~hands:[`Gold] ~decks:[] in
+    let game =
+      Game.make [ { alice with discards=[`Gold] } ] [] in
     let game' =
       Game.make [ alice' ] [] in
     let result =
