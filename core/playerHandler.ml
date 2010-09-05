@@ -361,9 +361,9 @@ module Make(S : Protocol.Rpc) = struct
 	      end
 	    end
       | `Smithy ->
-	  state
-	  +> draw 3 me
-	  +> return
+	  (* +3 ドロー *)
+	  let open Rule in
+	    wrap state @@ Rule.run state.game ~f:(draw name 3)
       | `Village ->
 	  state
 	  +> action 2 me
