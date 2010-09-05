@@ -182,7 +182,7 @@ let card_action_test  =
 	end
       ]
 
-let _ = begin "handler.ml" >::: [
+let _ = begin "playerHandler.ml" >::: [
   card_action_test;
   (let alice =
     Game.make_player "alice"
