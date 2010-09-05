@@ -169,7 +169,7 @@ let card_action_test  =
 	  let game =
 	    Game.make [p1;p2;p3] [] in
 	  let game' =
-	    Game.make [p1;
+	    Game.make [{ p1 with coin = 2};
 		       { p2 with hands = [`Gold;`Gold;`Gold]; discards=[`Gold;`Gold]};
 		       p3] [] in
 	    assert_run' game (card_action `Militia) [

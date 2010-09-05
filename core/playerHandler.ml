@@ -218,12 +218,14 @@ module Make(S : Protocol.Rpc) = struct
 	end
     end
 
-  let rec fold_m ~f a = function
-    | [] ->
-	return a
-    | x::xs ->
-	perform (y <-- f a x;
-		 fold_m ~f y xs)
+  let rec fold_m ~f a =
+    let open Rule in
+    function
+      | [] ->
+	  return a
+      | x::xs ->
+	  perform (y <-- f a x;
+		   fold_m ~f y xs)
 
   let request name ~p { suspend; _ } state : request Rule.t =
     let open Cc in
@@ -257,6 +259,17 @@ module Make(S : Protocol.Rpc) = struct
 	      return c
       end
 
+  let rec strict_card_source name client state =
+    let open Rule in
+      perform begin
+	r <-- request name ~p:(skip <||> select) client state;
+	match r with
+	    `Skip ->
+	      strict_card_source name client state
+	  | `Select c ->
+	      return c
+      end
+
   let rec filter p cs =
     let open Rule in
       perform begin
@@ -272,20 +285,28 @@ module Make(S : Protocol.Rpc) = struct
     let open Rule in
       filter (fun c -> game >>= (fun g -> return @@ p c g)) cs
 
-  let hands name client state =
+  let treasures =
+    simple_filter (fun c _ -> is_treasure c)
+
+  let hands_only name =
     let open Rule in
       simple_filter (fun c g ->
-		       List.mem c (Game.me g).hands) @@
-	card_source name client state
+		       match Game.find g name with
+			   Some { hands; _ } ->
+			     List.mem c hands
+			 | None ->
+			     false)
+
+  let hands name client state =
+    let open Rule in
+      card_source name client state
+      +> hands_only name
 
   let supply name client state =
     let open Rule in
       simple_filter (fun c g ->
 		       List.mem c g.board.supply) @@
 	card_source name client state
-
-  let treasures =
-    simple_filter (fun c _ -> is_treasure c)
 
   let guard f =
     let open Rule in
@@ -296,7 +317,6 @@ module Make(S : Protocol.Rpc) = struct
 	else
 	  error ""
       end
-
 
   (* Actionカードの定義 *)
   let card_action kind client state=
@@ -395,44 +415,45 @@ module Make(S : Protocol.Rpc) = struct
 	  let open Rule in
 	    wrap state @@ Rule.run state.game ~f:(draw name 2)
       | `Militia ->
-	  let attack name state =
-	    perform ((_,state) <-- until state ~f:begin fun state ->
-		       let { hands; _ } =
-			 find_player name state in
-			 if List.length hands <= 3 then
-			   return (Some (),state)
-			 else
-			   perform begin
-			     (r, state) <-- select_card name client state
-			       ~p:(fun c -> List.mem c hands);
-			     match r with
-			       | `Skip -> return (None,state)
-			       | `Card c ->
-				   let state =
-				     move (`Hands name) (`Discards name)
-				       [ c ] state in
-				     return (None,state)
-			   end
-		     end;
-		     return state)
-	  in
-	    fold_m state (others state) ~f:begin fun state name ->
-	      let { hands; _ } =
-		find_player name state in
-		if List.exists is_reaction hands then
+	  (*- + 2 コイン
+	    - 自分以外の全てのプレイヤーは手札が３枚になるまでカードを捨てる。 *)
+	  let open Rule in
+	  let player name =
+	    lift (fun g -> match Game.find g name with
+		      Some p ->
+			Cc.return @@ Left (p,g)
+		    | None ->
+			Cc.return @@ Right "not found player") in
+	  let reaction name =
+	    perform begin
+	      p <-- player name;
+	      let { hands = cs; _ } = p in
+	      guard (fun _ -> List.exists Game.is_reaction cs);
+	      simple_filter (fun c _ -> c = `Moat) @@ hands name client state
+	    end in
+	  let attack_to name =
+	    perform begin
+	      p <-- player name;
+	      let { hands = cs; _ } = p in
+	      guard (fun _ -> List.length cs > 3);
+	      c <-- hands_only name @@
+	      strict_card_source name client state;
+	      move (`Hands name) (`Discards name) [ c ]
+	    end in
+	    wrap state @@ Rule.run state.game ~f:begin
+	      perform begin
+		coin name ((+) 2);
+		fold_m () (others state) ~f:begin fun _ name ->
 		  perform begin
-		    (r, state) <-- select_card name client state
-		      ~p:(fun c -> List.mem c hands && c = `Moat);
-		    match r with
-		      | `Card `Moat ->
-			  return state
-		      | `Skip ->
-			  attack name state
-		      | `Card _ ->
-			  failwith "must not happen"
+		    c <-- option (reaction name);
+		    match c with
+			Some `Moat ->
+			  return ()
+		      | Some _ | None ->
+			  (many @@ attack_to name) >> (return ())
 		  end
-		else
-		  attack name state
+		end
+	      end
 	    end
       | _ ->
 	  failwith "not action card"

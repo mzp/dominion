@@ -44,6 +44,7 @@ val make : player list -> card list -> t
 val to_string : card -> string
 val of_string : string -> card
 val me : t -> player
+val find : t -> string -> player option
 
 val update : f:(player -> player) -> t -> t
 val update_board  : f:(board -> board) -> t -> t

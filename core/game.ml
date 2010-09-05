@@ -172,3 +172,8 @@ let coin = function
   | _ ->
       0
 
+let find { players; _ } name =
+  try
+    Some (List.find (fun {name = x; _ } -> x = name) players)
+  with Not_found ->
+    None
