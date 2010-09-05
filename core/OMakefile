@@ -47,7 +47,7 @@ OUnitTest(readyHandler , readyHandler base maybe game handlerBase listUtil hList
 OUnitTest(contHandler  , contHandler base cc hList)
 OUnitTest(game, game base hList)
 OUnitTest(rule, rule game base cc hList listUtil)
-
+OUnitTest(observer, observer base)
 
 OCAMLFLAGS=-annot -w A -warn-error A
 PROGRAM = dominion
