@@ -196,5 +196,24 @@ let _ = begin "rule.ml" >::: [
       Game.make [] [] in
       assert_equal (Cc.run @@ Rule.run ~f game)
 	(Left ((),{ game with me = 1}))
+  end;
+  "適当な関数をはさみこめる" >:: begin fun () ->
+    let count =
+      ref 0 in
+    let tap _ =
+      incr count in
+    let f n =
+      lift (fun game -> ret (n, inc n game))
+    in
+    let game =
+      Game.make [] [] in
+    let result =
+      Cc.run @@ Rule.run_with_tap tap game ~f:perform begin
+	x <-- f 1;
+	y <-- f 2;
+	Rule.return (x+y)
+      end in
+      assert_equal (Left (3,game)) result;
+      assert_equal 2 !count
   end
 ] end +> run_test_tt_main

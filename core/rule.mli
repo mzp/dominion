@@ -9,6 +9,7 @@ val error  : string -> 'a t
 
 (* 実行 *)
 val run : Game.t -> f:'a t -> 'a result
+val run_with_tap : (Game.t -> unit) -> Game.t -> f:'a t -> 'a result
 
 (* 高階ルール*)
 val many  : 'a t -> 'a list t

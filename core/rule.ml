@@ -66,6 +66,9 @@ let (<|>) f g game =
 let run game ~f =
   f game
 
+let run_with_tap _ =
+  assert false
+
 type name = string
 let player name f : unit t = lift @@
   fun game ->
