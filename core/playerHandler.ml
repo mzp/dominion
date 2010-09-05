@@ -12,8 +12,9 @@ module Make(S : Protocol.Rpc) = struct
   ]
   type state = S.t HandlerBase.state
 
-  let table : (S.t, request, state) ContHandler.t =
+  let table : (S.t, request, Game.t) ContHandler.t =
     ContHandler.make ()
+
   type t = {
     me      : string;
     others  : string list;
@@ -22,7 +23,7 @@ module Make(S : Protocol.Rpc) = struct
 
   type client = {
     client : S.t;
-    suspend: (S.t, request, state) ContHandler.suspend
+    suspend: (S.t, request,  Game.t) ContHandler.suspend
   }
   let make_dummy _ = assert false
   let game _ = assert false
@@ -51,7 +52,7 @@ module Make(S : Protocol.Rpc) = struct
       fst @@ List.find (fun (_,y)-> y = name) state.clients in
       Rule.lift (fun game ->
 		   perform begin
-		     (request, _) <-- suspend client (skip <||> select) state;
+		     request <-- suspend client (skip <||> select) game;
 		     return (Left (request, game))
 		   end)
 
@@ -293,11 +294,15 @@ module Make(S : Protocol.Rpc) = struct
       set_game Game.({ g with me = (g.me + 1) mod List.length g.players})
     end
 
-  let handle =
-    ContHandler.resume table
+  let handle client request state =
+    match  ContHandler.resume table client request with
+	Left game ->
+	  Left { state with game  }
+      | Right msg ->
+	  Right msg
 
   let invoke state =
-    ignore @@ ContHandler.start table state ~f:begin fun suspend state ->
+    ignore @@ ContHandler.start table ~f:begin fun suspend ->
       let open Cc in
       let cc =
 	Rule.run state.game ~f:(turn state @@ make suspend state) in
@@ -305,9 +310,9 @@ module Make(S : Protocol.Rpc) = struct
 	  r <-- cc;
 	  match r with
 	      Left ((), game) ->
-		ContHandler.end_ { state with game }
-	    | Right _ ->
-		ContHandler.end_ state
+		ContHandler.end_ game
+	    | Right msg ->
+		failwith msg
 	end
     end
 end
