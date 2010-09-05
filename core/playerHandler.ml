@@ -268,22 +268,20 @@ module Make(S : Protocol.Rpc) = struct
 	  filter p cs
       end
 
+  let simple_filter p cs =
+    let open Rule in
+      filter (fun c -> game >>= (fun g -> return @@ p c g)) cs
+
   let hands name client state =
     let open Rule in
-      filter (fun c ->
-		perform begin
-		  g <-- game;
-		  return @@ List.mem c (Game.me g).hands
-		end) @@
+      simple_filter (fun c g ->
+		       List.mem c (Game.me g).hands) @@
 	card_source name client state
 
   let supply name client state =
     let open Rule in
-      filter (fun c ->
-		perform begin
-		  g <-- game;
-		  return @@ List.mem c g.board.supply
-		end) @@
+      simple_filter (fun c g ->
+		       List.mem c g.board.supply) @@
 	card_source name client state
 
   let guard f =
@@ -301,51 +299,55 @@ module Make(S : Protocol.Rpc) = struct
   let card_action kind client state=
     let me =
       me state in
+    let name =
+      me in
     match kind with
       | `Cellar ->
-	  perform begin
-	    (xs,state) <-- many state ~f:begin fun state ->
-	      perform begin
-		let _ = notify client "select discard card" in
-		  (request, state) <-- select_card me client state ~p:(in_hands state);
-		  match request with
-		    | `Card c ->
-			return (Some c, state)
-		    | `Skip ->
-			return (None, state)
-	      end
-	    end;
-	    let n = List.length xs in
-	      return @@ state
-	      +> move (`Hands me) (`Discards me) xs
-	      +> draw n me
+	  (*
+	    - +１アクション
+	    - 手札を好きな枚数捨て、同じ数だけ引く。
+	  *)
+	  let open Rule in
+	  wrap state @@ Rule.run state.game ~f:begin
+	    perform begin
+	      action name ((+)1);
+	      cs <-- many @@ hands name client state;
+	      move (`Hands name) (`Discards name) cs;
+	      draw name @@ List.length cs
+	    end
 	  end
       | `Market ->
-	  return @@ state
-	  +> action 1 me
-	  +> buy    1 me
-	  +> coin   1 me
-	  +> draw 1 me
+	  (*
+	    - +1 アクション
+	    - +1 購入
+	    - +1 コイン
+	    - +1 ドロー
+	  *)
+	  let open Rule in
+	  wrap state @@ Rule.run state.game ~f:begin
+	    perform begin
+	      action name ((+) 1);
+	      buy    name ((+) 1);
+	      coin   name ((+) 1);
+	      draw   name 1
+	    end
+	  end
       | `Mine ->
-	  perform begin
-	    (r,state) <-- select_card me client state ~p:(is_treasure <&&> in_hands state);
-	    match r with
-		`Card c1 ->
-		  perform begin
-		    (r,state) <-- select_card me client state ~p:(is_treasure <&&>
-								 in_supply state <&&>
-								 (fun c -> Game.cost c <= Game.cost c1 + 3));
-		    begin match r with
-			`Card c2 ->
-			  return @@ state
-			  +> move (`Hands me)  `Trash  [c1]
-			  +> move `Supply (`Hands me) [c2]
-		      | `Skip ->
-			  return state
-		    end
-		  end
-	      | `Skip ->
-		  return state
+	  (*
+	    手札のコイン1枚を処分し、そのコインのコスト+3以下のコイン1
+	    枚を手札に加える。捨て山にではなく、手札に入る。
+	  *)
+	  let open Rule in
+	    wrap state @@ Rule.run state.game ~f:begin
+	      perform begin
+		c1 <-- simple_filter (fun c _ -> is_treasure c) @@
+		  hands name client state;
+		c2 <-- simple_filter
+		  (fun c _ -> Game.cost c <= Game.cost c1 + 3) @@
+		  supply name client state;
+		move (`Hands name) `Trash        [ c1 ];
+		move `Supply       (`Hands name) [ c2 ]
+	      end
 	  end
       | `Remodel ->
 	  perform begin
