@@ -177,3 +177,38 @@ let find { players; _ } name =
     Some (List.find (fun {name = x; _ } -> x = name) players)
   with Not_found ->
     None
+
+let rec uniq = function
+    [] ->
+      []
+  | [ x ] ->
+      [(x,1)]
+  | x::xs ->
+      match uniq xs with
+	  [] -> []
+	| (y,n)::ys when x = y ->
+	    (x,n+1)::ys
+	| ys ->
+	    (x,1)::ys
+
+let show { board; players; _ } =
+  let open Printf in
+  let cards xs =
+    Std.dump @@ uniq @@ List.map to_string xs in
+  String.concat "\n" [
+    "Board";
+    "------------------------------";
+    sprintf "Play area: %s" @@ cards board.play_area;
+    sprintf "Supply: %s"    @@ cards board.supply;
+    sprintf "Trash: %s"     @@ cards board.trash;
+    "";
+    "Players";
+    "------------------------------";
+    String.concat "\n" @@ HList.concat_map begin fun player ->
+      [
+	player.name;
+	sprintf "Hands   : %s" @@ cards player.hands;
+	sprintf "Decks   : %s" @@ cards player.decks;
+	sprintf "Discards: %s" @@ cards player.discards
+      ] end players
+    ]

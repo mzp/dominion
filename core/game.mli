@@ -57,3 +57,5 @@ val is_victory  : card -> bool
 
 val cost : card -> int
 val coin : card -> int
+
+val show : t -> string
