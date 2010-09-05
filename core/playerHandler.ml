@@ -391,7 +391,9 @@ module Make(S : Protocol.Rpc) = struct
 	      end
 	    end
       | `Moat ->
-	  return @@ draw 2 me state
+	  (* +2 ドロー *)
+	  let open Rule in
+	    wrap state @@ Rule.run state.game ~f:(draw name 2)
       | `Militia ->
 	  let attack name state =
 	    perform ((_,state) <-- until state ~f:begin fun state ->
