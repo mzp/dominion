@@ -373,10 +373,13 @@ module Make(S : Protocol.Rpc) = struct
 		       draw   name 1)
 	    end
       | `Woodcutter ->
-	  state
-	  +> buy 1 me
-	  +> coin 2 me
-	  +> return
+	  (* - +2金
+	     - +1購入 *)
+	  let open Rule in
+	    wrap state @@ Rule.run state.game ~f:begin
+	      perform (buy  name @@ ((+) 1);
+		       coin name @@ ((+) 2))
+	    end
       | `Workshop ->
 	  perform begin
 	    (r, state) <-- select_card me client state
