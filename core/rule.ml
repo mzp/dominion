@@ -152,3 +152,6 @@ let guard f =
     else
       error ""
   end
+
+let many_ f =
+  (many f) >> (return ())

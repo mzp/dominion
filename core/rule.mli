@@ -12,6 +12,7 @@ val run : Game.t -> f:'a t -> 'a result
 
 (* 高階ルール*)
 val many  : 'a t -> 'a list t
+val many_ : 'a t -> unit t
 val (<|>) : 'a t -> 'a t -> 'a t
 val option : 'a t -> 'a option t
 

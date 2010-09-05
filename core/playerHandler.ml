@@ -232,9 +232,6 @@ module Make(S : Protocol.Rpc) = struct
       | _ ->
 	  failwith "not action card"
 
-  let many_ f =
-    (many f) >> (return ())
-
   let action_phase ({ me; _ } as t) =
     many_ @@ perform begin
       guard @@ (fun g -> Game.((me g).action) <> 0);
