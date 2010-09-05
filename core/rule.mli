@@ -17,6 +17,7 @@ val option : 'a t -> 'a option t
 
 (* 基本ルール *)
 val game : Game.t t
+val set_game : Game.t -> unit t
 val lift : (Game.t -> 'a result) -> 'a t
 
 type name = string
@@ -36,3 +37,7 @@ type place = [
 ]
 val move   : place -> place -> Game.card list -> unit t
 val player : name -> (Game.player -> Game.player) -> unit t
+
+
+val fold_m : f:('a -> 'b -> 'a t) -> 'a -> 'b list -> 'a t
+val guard  : (Game.t -> bool) -> unit t

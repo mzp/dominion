@@ -131,5 +131,24 @@ let draw name n =
   end
 
 let game = lift (fun game -> Cc.return (Left (game,game)))
+let set_game game = lift (fun _ -> Cc.return (Left ((),game)))
+
 let (>>=) = bind
 let (>>) f g  = perform (f; g)
+
+let rec fold_m ~f a =
+  function
+    | [] ->
+	return a
+    | x::xs ->
+	perform (y <-- f a x;
+		 fold_m ~f y xs)
+
+let guard f =
+  perform begin
+    g <-- game;
+    if f g then
+      return ()
+    else
+      error ""
+  end

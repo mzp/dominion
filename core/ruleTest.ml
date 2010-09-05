@@ -186,4 +186,15 @@ let _ = begin "rule.ml" >::: [
       Cc.run @@ Rule.run game ~f  in
       assert_equal (Left ((),game')) result
   end;
+  "gameの差し替え">:: begin fun () ->
+    let f =
+      perform begin
+	g <-- game;
+	set_game ({g with me = 1})
+      end in
+    let game =
+      Game.make [] [] in
+      assert_equal (Cc.run @@ Rule.run ~f game)
+	(Left ((),{ game with me = 1}))
+  end
 ] end +> run_test_tt_main
