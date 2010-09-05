@@ -284,6 +284,9 @@ module Make(S : Protocol.Rpc) = struct
 		       List.mem c g.board.supply) @@
 	card_source name client state
 
+  let treasures =
+    simple_filter (fun c _ -> is_treasure c)
+
   let guard f =
     let open Rule in
       perform begin
@@ -303,10 +306,8 @@ module Make(S : Protocol.Rpc) = struct
       me in
     match kind with
       | `Cellar ->
-	  (*
-	    - +１アクション
-	    - 手札を好きな枚数捨て、同じ数だけ引く。
-	  *)
+	  (* - +１アクション
+	     - 手札を好きな枚数捨て、同じ数だけ引く。 *)
 	  let open Rule in
 	  wrap state @@ Rule.run state.game ~f:begin
 	    perform begin
@@ -317,12 +318,10 @@ module Make(S : Protocol.Rpc) = struct
 	    end
 	  end
       | `Market ->
-	  (*
-	    - +1 アクション
-	    - +1 購入
-	    - +1 コイン
-	    - +1 ドロー
-	  *)
+	  (* - +1 アクション
+	     - +1 購入
+	     - +1 コイン
+	     - +1 ドロー *)
 	  let open Rule in
 	  wrap state @@ Rule.run state.game ~f:begin
 	    perform begin
@@ -333,42 +332,34 @@ module Make(S : Protocol.Rpc) = struct
 	    end
 	  end
       | `Mine ->
-	  (*
-	    手札のコイン1枚を処分し、そのコインのコスト+3以下のコイン1
-	    枚を手札に加える。捨て山にではなく、手札に入る。
-	  *)
+	  (* 手札のコイン1枚を処分し、そのコインのコスト+3以下のコイン
+	     1枚を手札に加える。捨て山にではなく、手札に入る。*)
 	  let open Rule in
 	    wrap state @@ Rule.run state.game ~f:begin
 	      perform begin
-		c1 <-- simple_filter (fun c _ -> is_treasure c) @@
-		  hands name client state;
-		c2 <-- simple_filter
-		  (fun c _ -> Game.cost c <= Game.cost c1 + 3) @@
+		c1 <-- treasures @@ hands name client state;
+		c2 <--
+		  simple_filter (fun c _ -> Game.cost c <= Game.cost c1 + 3) @@
+		  treasures @@
 		  supply name client state;
 		move (`Hands name) `Trash        [ c1 ];
 		move `Supply       (`Hands name) [ c2 ]
 	      end
-	  end
+	    end
       | `Remodel ->
-	  perform begin
-	    (r,state) <-- select_card me client state ~p:(in_hands state);
-	    match r with
-		`Card c1 ->
-		  perform begin
-		    (r,state) <-- select_card me client state ~p:(in_supply state <&&>
-								 (fun c -> Game.cost c <= Game.cost c1 + 2));
-		    begin match r with
-			`Card c2 ->
-			  return @@ state
-			  +> move (`Hands  me) `Trash  [c1]
-			  +> move `Supply (`Hands me) [c2]
-		      | `Skip ->
-			  return state
-		    end
-		  end
-	      | `Skip ->
-		  return state
-	  end
+	  (* 手札のカードを1枚処分し、そのカードのコスト+2以下のコ
+	     ストのカードを1枚取る。 *)
+	  let open Rule in
+	    wrap state @@ Rule.run state.game ~f:begin
+	      perform begin
+		c1 <-- hands name client state;
+		c2 <--
+		  simple_filter (fun c _ -> Game.cost c <= Game.cost c1 + 2) @@
+		  supply name client state;
+		move (`Hands name) `Trash [ c1 ];
+		move `Supply       (`Hands name) [ c2 ]
+	      end
+	    end
       | `Smithy ->
 	  state
 	  +> draw 3 me
@@ -442,9 +433,9 @@ module Make(S : Protocol.Rpc) = struct
 
   let effect c client state : 'a Rule.t =
     Rule.lift (fun game ->
-	    let open Cc in
-	      perform (state <-- card_action c client { state with game };
-		       return @@ Left ((),state.game)))
+		 let open Cc in
+		   perform (state <-- card_action c client { state with game };
+			    return @@ Left ((),state.game)))
 
   (* actionフェーズ *)
   let action_phase client state =
