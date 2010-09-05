@@ -13,40 +13,36 @@ module M = PlayerHandler.Make(struct
 open M
 
 
-let run xs f g =
-  let open Cc in
-  let table =
-    ContHandler.make () in
-  let rec iter state = function
-      [] ->
-	game state
-    | (client,x)::xs ->
-	match ContHandler.resume table client x state with
-	    Left state ->
-	      iter state xs
-	  | Right msg ->
-	      failwith msg
-  in
-  let state =
-    make_dummy [1;2;3] g
-  in
-    match ContHandler.start table state
-      ~f:(fun suspend state ->
-	    perform begin
-	      state <-- f {suspend; client=1} state;
-	      ContHandler.end_ state
-	    end) with
-	Left state ->
-	  iter state xs
-      | Right x ->
-	  failwith x
+let run xs f game =
+  let ys =
+    ref (xs :> (string*M.request) list) in
+  let players =
+    Game.(List.map (fun x -> x.name) game.players) in
+  let t = {
+    me = List.hd players;
+    others  = List.tl players;
+    request = fun name ->
+      Rule.lift (fun game ->
+	      match !ys with
+		  (name',x)::xs ->
+		    assert_equal name' name;
+		    ys := xs;
+		    Cc.return (Left (x,game))
+		| [] ->
+		    failwith "eof")
+  } in
+    match Cc.run @@ Rule.run ~f:(f t) game with
+	Left ((),game) ->
+	  game
+      | Right msg ->
+	  failwith msg
 
 let assert_run' init f request expect =
   assert_equal ~printer:Std.dump expect @@
     run request f init
 
 let assert_run init f request expect =
-  assert_run' init f (List.map (fun x -> (1,x)) request) expect
+  assert_run' init f (List.map (fun x -> ("alice",x)) request) expect
 
 open Game
 let supply xs g =
@@ -54,6 +50,8 @@ let supply xs g =
 let trash xs g =
   Game.update_board g ~f:(fun b -> { b with trash = xs })
 
+let card_action =
+  flip M.card_action
 
 let card_action_test  =
     let alice hands decks =
@@ -174,10 +172,10 @@ let card_action_test  =
 		       p3] [] in
 	    assert_run' game (card_action `Militia) [
 	      (* Bが捨てるカードを選ぶ *)
-	      (2,`Select `Gold);
-	      (2,`Select `Gold);
+	      ("B",`Select `Gold);
+	      ("B",`Select `Gold);
 	      (* Aがreactionを出す *)
-	      (3,`Select `Moat)
+	      ("C",`Select `Moat)
 	    ] game'
 	end
       ]
@@ -271,7 +269,7 @@ let _ = begin "playerHandler.ml" >::: [
 		       coin = -2;
 		   })
 	   +> (fun s -> { s with board = { s.board with supply = [`Province; `Cellar]}}) in
-	   assert_run game buy_phase [`Select `Province; `Select `Cellar] game'
+	   assert_run game buy_phase [`Select `Province; `Select `Cellar; `Skip] game'
        end;
        "buyの回数だけカードを買える" >:: begin fun () ->
 	 let open Game in

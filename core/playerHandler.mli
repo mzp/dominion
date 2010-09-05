@@ -5,20 +5,15 @@ module Make : functor(S : Protocol.Rpc) -> sig
   ]
 
   type state = S.t HandlerBase.state
-  type client = {
-    client : S.t;
-    suspend: (S.t, request, state) ContHandler.suspend
-  }
+  val invoke : state -> unit
+  val handle : S.t -> request -> state -> (state,string) Base.either
+
+  (* for test *)
   type t = {
     me     : string;
     others  : string list;
     request : string -> request Rule.t
   }
-
-  val invoke : state -> unit
-  val handle : S.t -> request -> state -> (state,string) Base.either
-
-  (* for test *)
   val card_action   : t -> Game.card -> unit Rule.t
   val action_phase  : t -> unit Rule.t
   val buy_phase     : t -> unit Rule.t
