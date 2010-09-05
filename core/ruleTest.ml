@@ -70,6 +70,24 @@ let _ = begin "rule.ml" >::: [
       Cc.run @@ Rule.run (inc 3 game) ~f:(many f) in
       assert_equal (Left ([4;3;2], game)) result
   end;
+  "エラーを返さなかったらSomeになる" >:: begin fun () ->
+    let f =
+      return 42 in
+    let game =
+      Game.make [] [] in
+    let result =
+      Cc.run @@ Rule.run game ~f:(option f) in
+      assert_equal (Left (Some 42,game)) result
+  end;
+  "エラーを返したらNoneになる" >:: begin fun () ->
+    let f =
+      error "" in
+    let game =
+      Game.make [] [] in
+    let result =
+      Cc.run @@ Rule.run game ~f:(option f) in
+      assert_equal (Left (None,game)) result
+  end;
   "エラーを返さないほうを採用する" >:: begin fun () ->
     let f =
       error "" in

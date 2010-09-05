@@ -41,6 +41,17 @@ let rec many f game =
 	  return @@ Left ([],game)
     end
 
+let option f game =
+  let open Cc in
+    perform begin
+      x <-- f game;
+      match x with
+	  Left (y,game) ->
+	    return @@ Left (Some y,game)
+	| Right _ ->
+	    return @@ Left (None,game)
+    end
+
 let (<|>) f g game =
   let open Cc in
     perform begin
