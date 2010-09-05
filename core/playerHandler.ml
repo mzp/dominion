@@ -365,10 +365,13 @@ module Make(S : Protocol.Rpc) = struct
 	  let open Rule in
 	    wrap state @@ Rule.run state.game ~f:(draw name 3)
       | `Village ->
-	  state
-	  +> action 2 me
-	  +> draw 1 me
-	  +> return
+	  (* +1 ドロー
+	     +2 アクション *)
+	  let open Rule in
+	    wrap state @@ Rule.run state.game ~f:begin
+	      perform (action name @@ ((+) 2);
+		       draw   name 1)
+	    end
       | `Woodcutter ->
 	  state
 	  +> buy 1 me
