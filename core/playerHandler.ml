@@ -381,17 +381,15 @@ module Make(S : Protocol.Rpc) = struct
 		       coin name @@ ((+) 2))
 	    end
       | `Workshop ->
-	  perform begin
-	    (r, state) <-- select_card me client state
-	      ~p:(in_supply state <&&> (fun c -> Game.cost c <= 4));
-	    match r with
-		`Card c ->
-		  state
-		  +> move `Supply (`Hands me) [ c ]
-		  +> return
-	      | `Skip ->
-		  return state
-	  end
+	  (* コスト4以下のカードを1枚取る。 *)
+	  let open Rule in
+	    wrap state @@ Rule.run state.game ~f:begin
+	      perform begin
+		c <-- simple_filter (fun c _ -> Game.cost c <= 4) @@
+		  supply name client state;
+		move `Supply (`Hands name) [ c ]
+	      end
+	    end
       | `Moat ->
 	  return @@ draw 2 me state
       | `Militia ->
