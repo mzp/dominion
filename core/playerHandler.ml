@@ -24,15 +24,6 @@ module Make(S : Protocol.Rpc) = struct
     suspend: (S.t, request, state) ContHandler.suspend
   }
 
-  (*
-    ユーザとのインタラクション。
-    predを満すリクエストを受け取ると、処理を継続する。
-  *)
-  let user name ~p { suspend; _ } state =
-    let client =
-      fst @@ List.find (fun (_,y)-> y = name) state.clients in
-      suspend client p state
-
   (* ユーザに情報を送る *)
   let send { client; _ } e =
     S.send client e
@@ -45,6 +36,10 @@ module Make(S : Protocol.Rpc) = struct
 
   let error { client; _ } s =
     S.send client @@  `Error s
+
+  let update_game ~f state =
+    { state with game = f state.game }
+
 
   (* skipリクエストならtrueを返す *)
   let skip =  function
@@ -61,45 +56,7 @@ module Make(S : Protocol.Rpc) = struct
     op (f x) (g x)
 
   let (<||>) = bin_op (||)
-  let (<&&>) = bin_op (&&)
 
-  (*
-    fがNoneを返すまで、fを繰替えす。
-    fの返した値をリストにして返す
-  *)
-  let rec many ~f state =
-    perform begin
-      (result, state) <-- f state;
-      match result with
-	| None ->
-	    return ([], state)
-	| Some c ->
-	    perform ((xs,state) <-- many ~f state;
-		     return ((c :: xs), state))
-    end
-
-  (* fがNoneを返すまで、fを繰替えす。 *)
-  let rec many_ ~f state =
-    perform begin
-      result <-- f state;
-      match result with
-	| None ->
-	    return state
-	| Some state ->
-	    many_ ~f state
-    end
-
-
-  (* fがSomeを返すまで、fを繰替えす。*)
-  let rec until ~f state =
-    perform begin
-      (result,state) <-- f state;
-      match result with
-	| None ->
-	    until ~f state
-	| Some c ->
-	    return (c,state)
-    end
 
   let me state =
     (current_player state).name
@@ -109,114 +66,6 @@ module Make(S : Protocol.Rpc) = struct
 
   let others state =
     players state -- [ me state ]
-
-  let find_player x state =
-    List.find (fun {name; _ } -> name = x) state.game.players
-
-  let update_game ~f state =
-    { state with game = f state.game }
-
-  let update_player name ~f state =
-    update_game state ~f:(Game.update_player name ~f)
-
-  let update_board ~f state =
-    update_game state ~f:(Game.update_board ~f)
-
-  let update ~f kind state =
-    match kind with
-	`Hands name ->
-	  update_player name state ~f:(fun me -> { me with hands = f me.hands } )
-      | `Decks name ->
-	  update_player name state ~f:(fun me -> { me with decks = f me.decks } )
-      | `Discards name ->
-	  update_player name state ~f:(fun me -> { me with discards = f me.discards } )
-      | `PlayArea ->
-	  update_board state ~f:(fun b -> { b with play_area = f b.play_area })
-      | `Supply ->
-	  update_board state ~f:(fun b -> { b with supply = f b.supply })
-      | `Trash ->
-	  update_board state ~f:(fun b -> { b with trash = f b.trash })
-
-  (* カードの移動 *)
-  let move src dest xs state =
-    state
-    +> update src  ~f:(fun ys -> ys -- xs)
-    +> update dest ~f:(fun ys -> xs @  ys)
-
-  (* +n action/buy/coin/draw *)
-  let action n name state =
-    update_player name state ~f:(fun me -> { me with action = me.action + n })
-
-  let buy n name state =
-    update_player name state ~f:(fun me -> { me with buy = me.buy + n })
-
-  let coin n name state =
-    update_player name state ~f:(fun me -> { me with coin = me.coin + n })
-
-  let draw n name =
-    update_player name ~f:begin fun me ->
-      let len =
-	List.length me.decks in
-	if len >= n then
-	  { me with
-	      hands    = HList.take n me.decks @ me.hands;
-	      decks    = HList.drop n me.decks }
-	else
-	  let decks' =
-	    shuffle me.discards in
-	    { me with
-		discards = [];
-		hands    = me.decks @ HList.take (n - len) decks';
-		decks    = HList.drop (n - len) decks';
-	    }
-    end
-
-  (* カード選択の述語 *)
-  let in_hands state c =
-    List.mem c (current_player state).hands
-
-  let in_supply state c =
-    List.mem c state.game.board.supply
-
-  (* カードの選択 *)
-  let select_card name client state ~p =
-    until state ~f:begin fun state ->
-      perform begin
-	(request, state) <-- user name client state ~p:(skip <||> select);
-	match request with
-	  | `Skip ->
-	      return (Some `Skip, state)
-	  | `Select c ->
-	      if p c then
-		return (Some (`Card c), state)
-	      else
-		return (None, state)
-      end
-    end
-
-  let phase client state pred ~p ~f =
-    let me =
-      me state in
-    many_ state ~f:begin fun state ->
-      if pred @@ current_player state then
-	return None
-      else
-	perform begin
-	  (request, state) <-- select_card me client state ~p:(p state);
-	  match request with
-	    | `Skip ->
-		return None
-	    | `Card c ->
-		perform (r <-- f state c;
-			 match r with
-			     `Val state ->
-			       ok client;
-			       return @@ Some state
-			   | `Err msg ->
-			       error client msg;
-			       return @@ Some state)
-	end
-    end
 
   let rec fold_m ~f a =
     let open Rule in
