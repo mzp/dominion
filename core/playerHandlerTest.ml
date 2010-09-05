@@ -67,6 +67,7 @@ let card_action_test  =
 	    assert_run (make me) (card_action `Cellar)
 	      [`Select `Silver; `Select `Silver; `Skip] @@
 	      make { me with
+		       action = 2;
 		       hands = [`Cellar;`Province];
 		       decks = [`Silver];
 		       discards = [`Silver; `Silver] }
@@ -197,7 +198,7 @@ let _ = begin "handler.ml" >::: [
 	 let open Game in
 	 let game' =
 	   Game.update game ~f:(fun me -> { me with
-					      action = 0;
+					      action = 1;
 					      hands = [`Cellar;`Province];
 					      decks = [`Silver];
 					      discards = [`Silver; `Silver]
@@ -208,6 +209,7 @@ let _ = begin "handler.ml" >::: [
 					  (* 捨てるカードの選択 *)
 					  `Select `Silver;
 					  `Select `Silver;
+					  `Skip;
 					  `Skip] game'
        end;
        "actionの回数だけカードを使える" >:: begin fun () ->
@@ -217,7 +219,7 @@ let _ = begin "handler.ml" >::: [
 	     ~f:(fun me -> { me with action = 2 }) in
 	 let game' =
 	   Game.update game ~f:(fun me -> { me with
-					      action = 0;
+					      action = 2;
 					      hands = [`Province];
 					      discards = [`Silver; `Silver];
 					      decks = [`Silver] }) in
@@ -230,6 +232,7 @@ let _ = begin "handler.ml" >::: [
 	     `Skip;
 	     `Select `Cellar;
 	     `Select `Silver;
+	     `Skip;
 	     `Skip]
 	     game'
        end
