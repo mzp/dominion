@@ -3,21 +3,24 @@ open Game
 
 type 'a result = (unit, (('a * Game.t),string) Base.either) Cc.CONT.mc
 
-type 'a t = Game.t -> 'a result
+type tap = Game.t -> unit
+type 'a t = tap -> Game.t -> 'a result
 
-let error msg _  =
+let error msg _ _  =
   Cc.return @@ Right msg
 
-let return value game =
+let return value _ game =
   Cc.return @@ Left (value,game)
 
-let lift = id
+let lift (f : Game.t -> 'a result) : 'a t = fun _ game ->
+  f game
 
-let bind (f : 'a t) (g : 'a -> 'b t) : 'b t = fun game ->
-  Cc.bind (f game) begin fun r ->
+let bind (f : 'a t) (g : 'a -> 'b t) : 'b t = fun tap game ->
+  Cc.bind (f tap game) begin fun r ->
     match r with
 	Left (value, game') ->
-	  g value game'
+	  tap game';
+	  g value tap game'
       | Right msg ->
 	  Cc.return (Right msg)
   end
@@ -26,14 +29,14 @@ let left = function
     Left x -> x
   | Right _ -> failwith "must not happen"
 
-let rec many f game =
+let rec many (f : 'a t) : 'a list t = fun tap game ->
   let open Cc in
     perform begin
-      x <-- f game;
+      x <-- f tap game;
       match x with
 	Left (y,game) ->
 	  perform begin
-	    r <-- many f game;
+	    r <-- many f tap game;
 	    let (ys,game) = left r in
 	    return @@ Left (y::ys,game)
 	  end
@@ -41,10 +44,10 @@ let rec many f game =
 	  return @@ Left ([],game)
     end
 
-let option f game =
+let option f tap game =
   let open Cc in
     perform begin
-      x <-- f game;
+      x <-- f tap game;
       match x with
 	  Left (y,game) ->
 	    return @@ Left (Some y,game)
@@ -52,22 +55,22 @@ let option f game =
 	    return @@ Left (None,game)
     end
 
-let (<|>) f g game =
+let (<|>) f g tap game =
   let open Cc in
     perform begin
-      x <-- f game;
+      x <-- f tap game;
       match x with
 	  Left _ ->
 	    return x
 	| Right _ ->
-	    g game
+	    g tap game
     end
 
-let run game ~f =
-  f game
+let run_with_tap tap game ~f =
+  f tap game
 
-let run_with_tap _ =
-  assert false
+let run game ~f =
+  f ignore game
 
 type name = string
 let player name f : unit t = lift @@
@@ -91,7 +94,7 @@ type place = [
 | `Supply
 | `Trash
 ]
-let update ~f kind game =
+let update ~f kind = lift @@ fun game ->
   let game' =
     match kind with
 	`Hands name ->
@@ -156,5 +159,5 @@ let guard f =
       error ""
   end
 
-let many_ f =
+let many_ (f : 'a t) : unit t =
   (many f) >> (return ())

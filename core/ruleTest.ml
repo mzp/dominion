@@ -201,7 +201,7 @@ let _ = begin "rule.ml" >::: [
     let count =
       ref 0 in
     let tap _ =
-      incr count in
+      count := !count + 1 in
     let f n =
       lift (fun game -> ret (n, inc n game))
     in
@@ -214,6 +214,6 @@ let _ = begin "rule.ml" >::: [
 	Rule.return (x+y)
       end in
       assert_equal (Left (3,game)) result;
-      assert_equal 2 !count
+      assert_equal ~printer:Std.dump 2 !count
   end
 ] end +> run_test_tt_main
