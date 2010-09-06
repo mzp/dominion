@@ -32,6 +32,8 @@ module Make(T : Protocol.S) = struct
 	      p "clienup phase %s" name ()
 	  | `Notify s ->
 	      p "notify %s" s ()
+	  | `Game g ->
+	      p "----\n%s\n---" (Game.show g) ()
       end in
     let game =
 	ref "" in

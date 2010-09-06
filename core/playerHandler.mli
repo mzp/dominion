@@ -1,3 +1,5 @@
+val observer : Game.t Observer.t
+
 module Make : functor(S : Protocol.Rpc) -> sig
   type request = [
   | `Select of Game.card

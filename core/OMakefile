@@ -20,6 +20,7 @@ OCAMLC=ocamlc -thread
 NATIVE_ENABLED=false
 BYTE_ENABLED = true
 FILES[] =
+	observer
 	base
 	hList
 	game
@@ -41,7 +42,7 @@ FILES[] =
 	rule
 
 UseCamlp4(pa_monad)
-OUnitTest(playerHandler, playerHandler contHandler cc base logger game hList listUtil handlerBase maybe rule)
+OUnitTest(playerHandler, playerHandler contHandler cc base logger game hList listUtil handlerBase maybe rule observer)
 OUnitTest(commonHandler, commonHandler base maybe game handlerBase listUtil hList)
 OUnitTest(readyHandler , readyHandler base maybe game handlerBase listUtil hList)
 OUnitTest(contHandler  , contHandler base cc hList)

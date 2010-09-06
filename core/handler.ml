@@ -19,6 +19,13 @@ module Make(S : Protocol.Rpc) = struct
   }
 
   let handle client (req : Protocol.game_req) state =
+    let _ =
+      Observer.clear PlayerHandler.observer;
+      Observer.listen  PlayerHandler.observer begin fun g ->
+	List.iter (fun (client, _) ->
+		     S.send client @@ `Game g) state.clients
+      end
+    in
     let state' =
       match req with
 	  #Common.request as r ->

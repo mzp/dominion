@@ -15,6 +15,7 @@ type response = [
 | `Games of string list
 | `Chat  of player_name * string
 | `Cards of Game.card list
+| `Game  of Game.t
 | notify
 ]
 

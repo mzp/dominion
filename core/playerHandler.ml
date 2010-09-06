@@ -3,6 +3,9 @@ open ListUtil
 open HandlerBase
 open Rule
 
+let observer =
+  Observer.make ()
+
 module Make(S : Protocol.Rpc) = struct
   module B = HandlerBase.Make(S)
   open B
@@ -301,8 +304,11 @@ module Make(S : Protocol.Rpc) = struct
   let invoke state =
     ignore @@ ContHandler.start table ~f:begin fun suspend ->
       let open Cc in
+      let tap game =
+	Observer.__fire observer game in
       let cc =
-	Rule.run state.game ~f:(turn state @@ make suspend state) in
+	Rule.run_with_tap tap
+	  state.game ~f:(turn state @@ make suspend state) in
 	perform begin
 	  r <-- cc;
 	  match r with

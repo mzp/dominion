@@ -14,9 +14,8 @@ module Make(S : Protocol.Rpc) = struct
   let handle client request ({ clients; game; _ } as state) =
     match request with
       | `Join name ->
-	  S.send client `Ok;
 	  Left { state with
-	      clients = (client, name) :: clients }
+		   clients = (client, name) :: clients }
       | `Say msg ->
 	  ignore @@ Maybe.(perform begin
 			     name <-- lookup client clients;
