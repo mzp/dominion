@@ -8,6 +8,7 @@ OCAMLPACKS[] =
 	threads
 	ccell
 	str
+	curses
 
 
 if $(not $(OCAMLFIND_EXISTS))
@@ -40,6 +41,7 @@ FILES[] =
 	listUtil
 	contHandler
 	rule
+	shell
 
 UseCamlp4(pa_monad)
 OUnitTest(playerHandler, playerHandler contHandler cc base logger game hList listUtil handlerBase maybe rule observer)
