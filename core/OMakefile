@@ -42,6 +42,9 @@ FILES[] =
 	contHandler
 	rule
 	shell
+	turn
+	actionCard
+	cardSource
 
 OUNIT_LIBS[] =
 	oUnitUtil

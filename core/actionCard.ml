@@ -8,7 +8,7 @@ class type t = object
   method others : string list
 end
 
-let card_action t = function
+let effect t = function
   | `Cellar ->
       (* - +１アクション
 	 - 手札を好きな枚数捨て、同じ数だけ引く。 *)

@@ -4,4 +4,4 @@ class type t = object
   method others : string list
 end
 
-val card_action : #t -> Game.card -> unit Rule.t
+val effect : #t -> Game.card -> unit Rule.t
