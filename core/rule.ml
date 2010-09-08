@@ -161,3 +161,13 @@ let guard f =
 
 let many_ (f : 'a t) : unit t =
   (many f) >> (return ())
+
+let rec filter p cs =
+  perform begin
+    c <-- cs;
+    b <-- p c;
+    if b then
+      return c
+    else
+      filter p cs
+  end

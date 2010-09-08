@@ -58,6 +58,7 @@ OUnitTest(game, game)
 OUnitTest(rule, rule game cc )
 OUnitTest(observer, observer)
 
+
 OCAMLFLAGS=-annot -w A -warn-error A
 PROGRAM = dominion
 # OCAML_LIBS +=
