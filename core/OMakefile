@@ -39,7 +39,6 @@ FILES[] =
 	readyHandler
 	playerHandler
 	listUtil
-	contHandler
 	rule
 	shell
 	turn
@@ -54,13 +53,14 @@ OUNIT_LIBS[] =
 	listUtil
 
 UseCamlp4(pa_monad)
-OUnitTest(playerHandler, playerHandler contHandler cc logger game handlerBase maybe rule observer)
 OUnitTest(commonHandler, commonHandler maybe game handlerBase)
 OUnitTest(readyHandler , readyHandler maybe game handlerBase)
-OUnitTest(contHandler  , contHandler cc hList)
+OUnitTest(fiber , fiber cc)
 OUnitTest(game, game)
-OUnitTest(rule, rule game cc )
+OUnitTest(rule, rule game cc)
 OUnitTest(observer, observer)
+OUnitTest(actionCard, actionCard cardSource game rule cc)
+OUnitTest(turn, turn actionCard cardSource game rule cc)
 
 
 OCAMLFLAGS=-annot -w A -warn-error A
