@@ -1,12 +1,17 @@
-val observer : Game.t Observer.t
+type request = [
+| `Select of Game.card
+| `Skip
+]
 
-module Make : functor(S : Protocol.Rpc) -> sig
-  type request = [
-  | `Select of Game.card
-  | `Skip
-  ]
 
-  type state = S.t HandlerBase.state
-  val invoke : state -> unit
-  val handle : S.t -> request -> state -> (state,string) Base.either
+class type ['a] t = object('b)
+  method fiber     : (Game.t, ('a*request)) Fiber.t option
+  method set_fiber : (Game.t, ('a*request)) Fiber.t option -> 'b
+  method observer  : Game.t Observer.t
+  method game      : Game.t
+  method set_game  : Game.t -> 'b
+  method clients   : ('a * string) list
 end
+
+val invoke : ('a #t as 'b) -> 'b
+val handle : ('a #t as 'b) -> 'a -> request -> ('b,string) Base.either
