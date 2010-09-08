@@ -45,6 +45,7 @@ FILES[] =
 	turn
 	actionCard
 	cardSource
+	fiber
 
 OUNIT_LIBS[] =
 	oUnitUtil
