@@ -17,6 +17,7 @@ module Make(T : Protocol.S) = struct
 	    send ch' @@ `Games(id, List.map fst games);
 	    games
 	| `Make (id,name) ->
+	    Logger.debug "make room: %s" name ();
 	    send ch' @@ `Ok id;
 	    (name, Handler.create name) :: games
 	| `Game(name, request) ->
