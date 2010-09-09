@@ -5,28 +5,28 @@ open Ccell
 
 ListUtil.no_shuffle := true
 
-let table : (string, unit Protocol.peer) Hashtbl.t = Hashtbl.create 10
+let table = Hashtbl.create 10
 
 module S  = struct
   type t = unit
-  let rec connect host port =
-    try
-      Hashtbl.find table host
-    with Not_found ->
-      Thread.yield ();
-      connect host port
-
-  let server host _ ~f =
+  let rec connect host _ =
     let req =
       Event.new_channel () in
     let res =
-      Event.new_channel () in
+      Event.new_channel ()  in
     let peer =
       { Protocol.req; res; id = () } in
-      Hashtbl.add table host peer;
-      while true do
-	f { Protocol.req; res; id = () }
-      done
+    let f =
+      Hashtbl.find table host in
+      ignore @@ Thread.create (fun () ->
+				 while true do
+				   f peer
+				 done)
+	();
+      peer
+
+  let server host _ ~f =
+      Hashtbl.add table host f
 end
 
 module M = Server.Make(S)
@@ -52,7 +52,7 @@ let ok t res =
 let _ = begin "server.ml" >::: [
   "Listで作成したゲームした一覧が取得できる" >:: begin fun () ->
     let _ =
-      Thread.create (fun _ -> M.run "some-server" 1729) () in
+      M.run "some-server" 1729 in
     let c1 =
       S.connect "some-server" 1729 in
     let c2 =
@@ -63,16 +63,16 @@ let _ = begin "server.ml" >::: [
       ok   c2 @@ `Ok "id";
       send c1 @@ `List "id";
       ok   c1 @@ `Games ("id",["foo"]);
-      send c1 @@ `List "id";
+      send c2 @@ `List "id";
       ok   c2 @@ `Games ("id",["foo"]);
   end;
   "joinしてゲーム開始ができる" >:: begin fun () ->
     let _ =
-      Thread.create (fun _ -> M.run "some-server" 1729) () in
+      M.run "join" 1729 in
     let c1 =
-      S.connect "some-server" 1729 in
+      S.connect "join" 1729 in
     let c2 =
-      S.connect "some-server" 1729 in
+      S.connect "join" 1729 in
       (* 部屋の作成 *)
       send c2 @@ `Make ("id","foo");
       ok   c2 @@ `Ok "id";
