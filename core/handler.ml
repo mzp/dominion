@@ -1,6 +1,7 @@
 open Base
 open ThreadUtils
 open ListUtil
+open Ccell
 
 
 type t = (Protocol.response Event.channel * Protocol.game_request) Event.channel

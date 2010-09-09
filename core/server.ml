@@ -4,67 +4,35 @@ open Protocol
 open ThreadUtils
 
 module Make(T : Protocol.S) = struct
-  type state = {
-    games : (string * (game_req * response ch * T.t) ch) list;
-  }
-  let empty = {
-    games = []
-  }
+  let send ch e =
+    Event.sync @@ Event.send ch e
 
-
-  module M = Handler.Make(struct
-			    type t = (T.t * response ch)
-			    let equal (x,_) (y,_)= x = y
-			    let send (_,ch) e =
-			      ignore @@
-				Thread.create (Event.sync $ Event.send ch) e
-			  end)
-
-  let make_game _ =
-    let ch =
-      Event.new_channel () in
-      ret ch begin
-	state_daemon M.initial  ~f:begin fun state ->
-	  let (req, client, id) =
-	    Event.sync @@ Event.receive ch in
-	    match M.handle (id, client) req state with
-	      | Left state ->
-		  Event.sync @@ Event.send client `Ok;
-		  state
-	      | Right err ->
-		  Event.sync @@ Event.send client (`Error err);
-		  state
-	end
-      end
-
-  let master ch state =
-    let (req, client, id) =
+  let master ch games =
+    let (ch', req) =
       Event.sync @@ Event.receive ch in
-      Logger.debug "accept request" ();
-    match req with
-      | `List ->
-	  Event.sync @@ Event.send client (`Games (List.map fst state.games));
-	  state
-      | `Game (name,`Create) ->
-	  Event.sync @@ Event.send client `Ok;
-	  { games = (name, make_game name) :: state.games }
-      | `Game (name, req) ->
-	  begin match lookup name state.games with
-	    | Some game ->
-		Event.sync @@ Event.send game (req, client,id)
-	    | None ->
-		Logger.error "no room: %s" name ()
-	  end;
-	  state
+      match req with
+	| `List id ->
+	    send ch' @@ `Games(id, List.map fst games);
+	    games
+	| `Make (id,name) ->
+	    send ch' @@ `Ok id;
+	    (name, Handler.create name) :: games
+	| `Game(name, request) ->
+	    let open Maybe in
+	      ignore (perform begin
+		 t <-- lookup name games;
+		 return @@ Event.sync @@ Handler.handle t ch' request
+	       end);
+	      games
 
   let run host port =
     let ch =
       Event.new_channel () in
     let _ =
-      state_daemon ~f:(master ch) empty in
-      T.server host port ~f:begin fun {req; res; id} ->
+      state_daemon ~f:(master ch) [] in
+      T.server host port ~f:begin fun {req; res; _} ->
 	let request =
 	  Event.sync @@ Event.receive req in
-	  Event.sync @@ Event.send ch (request, res, id)
+	  Event.sync @@ Event.send ch (res,request)
       end
 end

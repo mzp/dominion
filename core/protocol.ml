@@ -16,11 +16,14 @@ type game_request = [
 ]
 type request = [
   `Game of game_name * game_request
+| `List of id
+| `Make of id * game_name
 ]
 type response = [
   `Ok      of id
 | `Error   of id * string
 | `Cards   of id * Game.card list
+| `Games   of id * string list
 | `Message of game_name * player_name * string
 ]
 (*
