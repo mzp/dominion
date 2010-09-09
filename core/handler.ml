@@ -2,6 +2,9 @@ open Base
 open ThreadUtils
 open ListUtil
 
+
+type t = (Protocol.response Event.channel * Protocol.game_request) Event.channel
+
 let send ch e =
   Event.sync @@ Event.send ch e
 
@@ -97,3 +100,6 @@ let create name =
 	handle state src req
     end in
     ch
+
+let handle =
+  uncurry $ Event.send
