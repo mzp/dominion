@@ -1,6 +1,5 @@
 module S = Server.Make(Socket)
 module C = Client.Make(Socket)
-module Sh = Shell.Make(Socket)
 
 let port = 8001
 
@@ -9,8 +8,6 @@ let _ =
     match Sys.argv.(1) with
 	"-client" ->
 	  C.connect "127.0.0.1" port
-      | "-shell" ->
-	  Sh.connect "127.0.0.1" port
       | _ ->
 	  failwith "unknown option"
   else

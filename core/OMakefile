@@ -37,7 +37,6 @@ FILES[] =
 	playerHandler
 	listUtil
 	rule
-	shell
 	turn
 	actionCard
 	cardSource

@@ -13,28 +13,41 @@ module Make(T : Protocol.S) = struct
   let game =
     ref ""
 
-  let send req line =
+  let send ch e =
+    Event.sync @@ Event.send ch e
+
+  let send (req : Protocol.request Ccell.Event.channel) line =
+    let id =
+      string_of_int @@ Random.int 100 in
     match Str.split (Str.regexp " ") @@ line with
 	["/rooms"] ->
-	  Event.sync @@ Event.send req `List
+	  send req @@ `List id
       | ["/room"; name] ->
-	  Event.sync @@ Event.send req (`Game (name,`Create))
+	  send req @@ `Make (id, name)
       | ["/join"; x; y] ->
 	  game := x;
-	  Event.sync @@ Event.send req (`Game (x,`Join y))
+	  send req @@ `Game (x,(`Query (id, `Join y)))
       | "/chat"::msgs ->
-	  Event.sync @@ Event.send req (`Game (!game,
-					       `Say (String.concat " " msgs)))
+	  send req @@
+	    `Game (!game,
+		   `Message (String.concat " " msgs))
       | ["/ready"] ->
-	  Event.sync @@ Event.send req (`Game (!game,`Ready))
+	  send req @@
+	    `Game (!game,`Query (id,`Ready))
       | ["/query"; "supply"] ->
-	  Event.sync @@ Event.send req (`Game (!game,`Query `Supply))
+	  send req @@
+	    `Game (!game,
+		   `Query (id, `List `Supply))
       | ["/query"; "mine"] ->
-	  Event.sync @@ Event.send req (`Game (!game,`Query `Mine))
+	  send req @@
+	    `Game (!game,
+		   `Query (id, `List `Mine))
       | ["/skip"] ->
-	  Event.sync @@ Event.send req (`Game (!game,`Skip))
+	  send req @@
+	    `Game (!game,`Query (id,`Skip))
       | ["/select"; c] ->
-	  Event.sync @@ Event.send req (`Game (!game,`Select (Game.of_string c)))
+	  send req @@
+	    `Game (!game,`Query (id, `Select (Game.of_string c)))
       | ["/q"] ->
 	  endwin ();
 	  exit 0
@@ -42,32 +55,16 @@ module Make(T : Protocol.S) = struct
 	  ()
 
   let to_string = function
-    | `Games xs ->
-	Left (Std.dump xs)
-    | `Chat (name,msg) ->
-	Left (Printf.sprintf "[%s]%s" name msg)
-    | `Ok ->
+    | `Ok _ ->
 	Left ("ok")
-    | `Error s ->
+    | `Error (_,s) ->
 	Left (Printf.sprintf "error: %s" s)
-    | `GameStart ->
-	Left "game start"
-    | `Cards xs ->
+    | `Games (_,xs) ->
+	Left (Std.dump xs)
+    | `Cards (_,xs) ->
 	Left (Std.dump @@ List.map (fun x -> p "%s" (Game.to_string x) ()) xs)
-    | `Turn name ->
-	Left (Printf.sprintf "turn: %s" name)
-    | `Phase (`Action, name) ->
-	Left (Printf.sprintf "action phase %s" name)
-    | `Phase (`Buy, name) ->
-	Left (Printf.sprintf "buy phase %s" name)
-    | `Phase (`Cleanup, name) ->
-	Left (Printf.sprintf  "clienup phase %s" name)
-    | `Notify s ->
-	Left (Printf.sprintf  "notify %s" s)
-    | `Game g ->
-	Right (Game.show g)
-    | _ ->
-	Left "unkwnown"
+    | `Message (game, name,msg) ->
+	Left (Printf.sprintf "%s@%s: %s" name game msg)
 
   let wait_loop (game, response) ch xs =
     let e =
@@ -124,10 +121,4 @@ module Make(T : Protocol.S) = struct
 	Curses.refresh () in
 	iter (wait_loop (game,response) res a) (prompt_loop prompt req b) in
       iter [] ()
-(*    let _ =
-      wait_loop (game,response) res in
-      while true do
-	let _ =
-	  Curses.refresh () in
-      done*)
 end
