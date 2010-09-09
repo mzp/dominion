@@ -27,7 +27,6 @@ let players t =
 let others t =
   players t -- [ me t ]
 
-
 let request t suspend name =
   let open Cc in
   let client =

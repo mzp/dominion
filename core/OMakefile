@@ -35,8 +35,6 @@ FILES[] =
 	handler
 	threadUtils
 	handlerBase
-	commonHandler
-	readyHandler
 	playerHandler
 	listUtil
 	rule
@@ -46,22 +44,13 @@ FILES[] =
 	cardSource
 	fiber
 
-OUNIT_LIBS[] =
-	oUnitUtil
-	base
-	hList
-	listUtil
-
-UseCamlp4(pa_monad)
-OUnitTest(commonHandler, commonHandler maybe game handlerBase)
-OUnitTest(readyHandler , readyHandler maybe game handlerBase)
-OUnitTest(fiber , fiber cc)
-OUnitTest(game, game)
-OUnitTest(rule, rule game cc)
-OUnitTest(observer, observer)
-OUnitTest(actionCard, actionCard cardSource game rule cc)
-OUnitTest(turn, turn actionCard cardSource game rule cc)
-
+UseCamlp4(pa_monad pa_oo)
+OUnitTest(fiber , fiber base cc hList)
+OUnitTest(game, game base hList)
+OUnitTest(rule, rule game base cc hList listUtil)
+OUnitTest(observer, observer base)
+OUnitTest(actionCard, actionCard cardSource game rule cc listUtil hList base)
+OUnitTest(turn, turn actionCard cardSource game rule cc listUtil hList base)
 
 OCAMLFLAGS=-annot -w A -warn-error A
 PROGRAM = dominion

@@ -1,61 +1,99 @@
 open Base
-open HandlerBase
+open ThreadUtils
 open ListUtil
 
-module Make(S : Protocol.Rpc) = struct
-  module B = HandlerBase.Make(S)
-  module Common = CommonHandler.Make(S)
-  module Ready  = ReadyHandler.Make(S)
-  module Player = PlayerHandler.Make(S)
+let send ch e =
+  Event.sync @@ Event.send ch e
 
-  open B
-  type t = Common.state
+let game t =
+  let players =
+    ListLabels.map t#clients ~f:begin fun (_,name)->
+      let (hands, decks) =
+	Game.initial_hands
+	+> ListUtil.shuffle
+	+> HList.splitAt 5 in
+	Game.make_player name ~hands ~decks
+    end in
+  let cards =
+    List.concat [ Game.first_game;
+		  Game.treasures;
+		  Game.victories @@ List.length players]
+  in
+    Game.make players cards
 
-  let initial = {
-    clients = [];
-    ready   = [];
-    playing = false;
-    game    = Game.make [] []
-  }
+let ready t ch id =
+  if List.mem ch @@ List.map fst t#clients then
+    if List.mem ch t#ready then
+      (send ch @@ `Error (id, "already ready");
+       t)
+    else
+      let t =
+	t#ready <- ch :: t#ready in
+	if List.length t#ready = List.length t#clients then begin
+	  let t =
+	    t#game <- game t in
+	  let t =
+	    PlayerHandler.invoke t in
+	    send ch @@ `Ok id;
+	    t
+	end else begin
+	  send ch @@ `Ok id;
+	  t
+	end
+  else
+    (send ch @@ `Error (id, "not join player");
+     t)
 
-  let handle client (req : Protocol.game_req) state =
-    let _ =
-      Observer.clear PlayerHandler.observer;
-      Observer.listen  PlayerHandler.observer begin fun g ->
-	List.iter (fun (client, _) ->
-		     S.send client @@ `Game g) state.clients
+let handle t ch = function
+  | `Message msg ->
+      let open Maybe in
+	(ignore @@ perform begin
+	   name <-- lookup ch t#clients;
+	   let response =
+	     `Message (t#name, name, msg) in
+	   return @@
+	     List.iter (fun (ch',_)-> send ch' response) t#clients
+	 end);
+	t
+  | `Query (id, `Join name) ->
+      send ch @@ `Ok id;
+      t#clients <- (ch, name) :: t#clients
+  | `Query (id, `Ready) ->
+      ready t ch id
+  | `Query (id, (#PlayerHandler.request as req)) ->
+      begin match PlayerHandler.handle t ch req with
+	  Left t ->
+	    send ch @@ `Ok id;
+	    t
+	| Right msg ->
+	    send ch @@ `Error (id,msg);
+	    t
       end
-    in
-    let state' =
-      match req with
-	  #Common.request as r ->
-	    Common.handle client r state
-	| #Ready.request as r ->
-	    if state.playing then
-	      Right "already started"
-	    else
-	      Ready.handle client r state
-	| #Player.request as r ->
-	    if client = current_client state then
-	      Player.handle client r state
-	    else
-	      Right "not your turn"
-	| `Create ->
-	    failwith "must not happen" in
-      match state' with
-	  Left s when s.playing ->
-	    Player.invoke s;
-	    state'
-	| Left _ | Right _ ->
-	    state'
+  | `Query (id, `List `Mine) ->
+      let open Game in
+	send ch @@ `Cards (id, (me t#game).hands);
+	t
+  | `Query (id, `List `Supply) ->
+      let open Game in
+	send ch @@ `Cards (id, t#game.board.supply);
+	t
 
-  let game { game; _ } =
-    game
+let initial name = {|
+    name     = name;
+    fiber    = None;
+    observer = Observer.make ();
+    game     = Game.make [] [];
+    clients  = [];
+    ready    = []
+|}
 
-  let make_dummy xs g =
-    { game=g;
-      clients=[(List.hd xs, "alice")];
-      ready=xs;
-      playing =true }
-end
-
+let create name =
+  let ch =
+    Event.new_channel () in
+  let _ =
+    state_daemon (initial name) ~f:begin fun state ->
+      let (src, req) =
+	Event.sync @@ Event.receive ch in
+	handle state src req
+    end in
+    ch

@@ -59,3 +59,10 @@ val cost : card -> int
 val coin : card -> int
 
 val show : t -> string
+
+val initial_hands : card list
+val treasures : card list
+val victories : int -> card list
+
+(* action card set *)
+val first_game : card list

@@ -212,3 +212,38 @@ let show { board; players; _ } =
 	sprintf "Discards: %s" @@ cards player.discards
       ] end players
     ]
+
+let initial_hands =
+  List.concat [
+    HList.replicate 7 `Copper;
+    HList.replicate 3 `Estate;
+  ]
+
+let first_game =
+  HList.concat_map (HList.replicate 10) [
+    `Cellar;
+    `Market;
+    `Mine;
+    `Remodel;
+    `Smithy;
+    `Village;
+    `Woodcutter;
+    `Workshop;
+    `Militia;
+    `Moat;
+  ]
+
+let treasures =
+  HList.concat_map (HList.replicate 30) [
+    `Gold;
+    `Silver;
+    `Copper
+  ]
+
+let victories n =
+  HList.concat_map (HList.replicate (if n <= 2 then 8 else 12)) [
+    `Estate;
+    `Duchy;
+    `Province
+  ]
+

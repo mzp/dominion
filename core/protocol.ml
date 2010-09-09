@@ -1,7 +1,29 @@
 type 'a ch = 'a Ccell.Event.channel
 
 type player_name = string
+type game_name   = string
+type id = string
 
+type game_request = [
+  `Query   of id * [
+    `Join of player_name
+  | `Ready
+  | `Select of Game.card
+  | `Skip
+  | `List of [ `Mine | `Supply ]
+  ]
+| `Message of string
+]
+type request = [
+  `Game of game_name * game_request
+]
+type response = [
+  `Ok      of id
+| `Error   of id * string
+| `Cards   of id * Game.card list
+| `Message of game_name * player_name * string
+]
+(*
 type notify = [
 | `GameStart
 | `Turn of player_name
@@ -42,7 +64,7 @@ type master = [
 
 type request = [
   master
-]
+]*)
 
 type 'a peer = {
   id  : 'a;

@@ -3,7 +3,6 @@ type request = [
 | `Skip
 ]
 
-
 class type ['a] t = object('b)
   method fiber     : (Game.t, ('a*request)) Fiber.t option
   method set_fiber : (Game.t, ('a*request)) Fiber.t option -> 'b

@@ -1,6 +1,1 @@
-module Make : functor(S : Protocol.Rpc) -> sig
-  type t
-
-  val initial : t
-  val handle : S.t -> Protocol.game_req -> t -> (t,string) Base.either
-end
+val create : string -> (Protocol.response Event.channel * Protocol.game_request) Event.channel
