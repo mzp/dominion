@@ -10,8 +10,10 @@ module Make(T : Protocol.S) = struct
   let master ch games =
     let (ch', req) =
       Event.sync @@ Event.receive ch in
+      Logger.debug "accept request" ();
       match req with
 	| `List id ->
+	    Logger.debug "sending game rooms: %s" (Std.dump @@ List.map fst games) ();
 	    send ch' @@ `Games(id, List.map fst games);
 	    games
 	| `Make (id,name) ->

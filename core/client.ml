@@ -20,9 +20,9 @@ module Make(T : Protocol.S) = struct
     let id =
       string_of_int @@ Random.int 100 in
     match Str.split (Str.regexp " ") @@ line with
-	["/rooms"] ->
+	["/ls"] ->
 	  send req @@ `List id
-      | ["/room"; name] ->
+      | ["/make"; name] ->
 	  send req @@ `Make (id, name)
       | ["/join"; x; y] ->
 	  game := x;
@@ -76,7 +76,6 @@ module Make(T : Protocol.S) = struct
 		  ignore @@ wclear   response;
 		  ignore @@ mvwaddstr response 0 0 @@ String.concat "\n" (x::xs);
 		  ignore @@ wrefresh response;
-		  ignore @@ Curses.refresh ();
 		  x::xs
 	      | Right g ->
 		  ignore @@ wclear game;
@@ -113,7 +112,7 @@ module Make(T : Protocol.S) = struct
     let _ =
       ignore @@ mvaddch 0 0 (int_of_char '$');
       ignore @@ Curses.mvwaddstr game 0 0 (Game.show @@ Game.make [] [`Cellar]);
-      ignore @@ Curses.mvwaddstr response 0 0 "";
+      ignore @@ Curses.mvwaddstr response 0 0 "hi";
       ignore @@ Curses.mvwaddstr prompt 0 0 "";
       ignore @@ immedok top true in
     let rec iter a b =
