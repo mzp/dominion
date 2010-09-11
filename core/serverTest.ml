@@ -141,5 +141,36 @@ let _ = begin "server.ml" >::: [
       (* -- 3rd time -- *)
       send c1 @@ game @@ `List `Mine;
       ok c1 @@ `Cards (get_last_id(),[`Silver; `Copper;`Copper;`Copper;`Copper])
-  end
+  end;
+  "カードが使える" >:: begin fun () ->
+    let (c1,c2) =
+      start () in
+    let skip c =
+      send c @@ game @@ `Skip;
+      ok   c @@ `Ok (get_last_id());
+      send c @@ game @@ `Skip;
+      ok   c @@ `Ok (get_last_id()) in
+      (* -- 1st time -- *)
+      (* c1 action *)
+      send c1 @@ game `Skip;
+      ok c1 @@ `Ok (get_last_id());
+      (* c1 buy gold *)
+      send c1 @@ game @@ `Select `Moat;
+      ok   c1 @@ `Ok (get_last_id());
+      send c1 @@ game @@ `Skip;
+      ok   c1 @@ `Ok (get_last_id());
+      (* c2 action/buy *)
+      skip c2;
+      (* -- 2nd time -- *)
+      skip c1; skip c2;
+      (* -- 3rd time -- *)
+      send c1 @@ game @@ `List `Mine;
+      ok c1 @@ `Cards (get_last_id(),[`Moat; `Copper;`Copper;`Copper;`Copper]);
+      send c1 @@ game @@ `Select `Moat;
+      ok c1 @@ `Ok (get_last_id());
+
+      (* draw 2 card *)
+      send c1 @@ game @@ `List `Mine;
+      ok c1 @@ `Cards (get_last_id(),[`Copper;`Copper;`Copper;`Copper;`Copper;`Copper]);
+  end;
 ] end +> run_test_xml_main
