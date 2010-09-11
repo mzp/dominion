@@ -10,14 +10,14 @@ Logger.set_level Logger.Never;;
 let table = Hashtbl.create 10
 
 module S  = struct
-  type t = unit
+  type t = int
   let rec connect host _ =
     let req =
       Event.new_channel () in
     let res =
       Event.new_channel ()  in
     let peer =
-      { Protocol.req; res; id = () } in
+      { Protocol.req; res; id = Std.unique() } in
     let f =
       Hashtbl.find table host in
       ignore @@ Thread.create (fun () ->
