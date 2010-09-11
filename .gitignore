@@ -9,3 +9,4 @@ a.out
 *.run
 *.annot
 *-runner
+*.properties
