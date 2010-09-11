@@ -40,14 +40,46 @@ let rec wait_for ({ Protocol.res = ch ; _ } as t) id =
       | _ ->
 	  wait_for t id
 
+let last_id = ref ""
+
+let id () =
+  last_id :=  string_of_int @@ Std.unique ();
+  !last_id
+
+let get_last_id () =
+  !last_id
+
 let send { Protocol.req; _ } x =
   Event.sync @@ Event.send req x
 
 let game x =
- `Game("foo", `Query("id", x))
+ `Game("foo", `Query(id (), x))
 
 let ok t res =
-  assert_equal ~printer:Std.dump res @@ wait_for t "id"
+  assert_equal ~printer:Std.dump res @@ wait_for t (get_last_id())
+
+let start _ =
+    let _ =
+      M.run "join" 1729 in
+    let c1 =
+      S.connect "join" 1729 in
+    let c2 =
+      S.connect "join" 1729 in
+      (* 部屋の作成 *)
+      send c2 @@ `Make (id (),"foo");
+      ok   c2 @@ `Ok (get_last_id());
+      (* join *)
+      send c1 @@ game @@ `Join "alice";
+      ok   c1 @@ `Ok (get_last_id());
+      send c2 @@ game @@ `Join "bob";
+      ok   c2 @@ `Ok (get_last_id());
+      (* ready *)
+      send c1 @@ game @@ `Ready;
+      ok   c1 @@ `Ok (get_last_id());
+      send c2 @@ game @@ `Ready;
+      ok   c2 @@ `Ok (get_last_id());
+      (c1,c2)
+
 
 let _ = begin "server.ml" >::: [
   "Listで作成したゲームした一覧が取得できる" >:: begin fun () ->
@@ -57,34 +89,57 @@ let _ = begin "server.ml" >::: [
       S.connect "some-server" 1729 in
     let c2 =
       S.connect "some-server" 1729 in
-      send c1 @@ `List "id";
-      ok   c1 @@ `Games ("id",[]);
-      send c2 @@ `Make ("id","foo");
-      ok   c2 @@ `Ok "id";
-      send c1 @@ `List "id";
-      ok   c1 @@ `Games ("id",["foo"]);
-      send c2 @@ `List "id";
-      ok   c2 @@ `Games ("id",["foo"]);
+      send c1 @@ `List (id());
+      ok   c1 @@ `Games (get_last_id(),[]);
+      send c2 @@ `Make (id(),"foo");
+      ok   c2 @@ `Ok (get_last_id());
+      send c1 @@ `List (id());
+      ok   c1 @@ `Games (get_last_id(),["foo"]);
+      send c2 @@ `List (id());
+      ok   c2 @@ `Games (get_last_id(),["foo"]);
   end;
   "joinしてゲーム開始ができる" >:: begin fun () ->
-    let _ =
-      M.run "join" 1729 in
-    let c1 =
-      S.connect "join" 1729 in
-    let c2 =
-      S.connect "join" 1729 in
-      (* 部屋の作成 *)
-      send c2 @@ `Make ("id","foo");
-      ok   c2 @@ `Ok "id";
-      (* join *)
-      send c1 @@ game @@ `Join "alice";
-      ok   c1 @@ `Ok "id";
-      send c2 @@ game @@ `Join "bob";
-      ok   c2 @@ `Ok "id";
-      (* ready *)
-      send c1 @@ game @@ `Ready;
-      ok   c1 @@ `Ok "id";
-      send c2 @@ game @@ `Ready;
-      ok   c2 @@ `Ok "id";
+    ignore @@ start ()
+  end;
+  "queryでガードを取得できる" >:: begin fun () ->
+    let (c1,c2) =
+      start () in
+      send c1 @@ game @@ `List `Mine;
+      ok c1 @@ `Cards (get_last_id(),[ `Copper; `Copper; `Copper; `Copper; `Copper]);
+      send c2 @@ game @@ `List `Mine;
+      ok c2 @@ `Cards (get_last_id(),[ `Copper; `Copper; `Copper; `Copper; `Copper])
+  end;
+  "自分のターンならskipできる" >:: begin fun () ->
+    let (c1,c2) =
+      start () in
+      send c1 @@ game @@ `Skip;
+      ok c1 @@ `Ok (get_last_id());
+      send c2 @@ game @@ `Skip;
+      ok c2 @@ `Error (get_last_id(),"not your turn");
+  end;
+  "買うとカードが増える" >:: begin fun () ->
+    let (c1,c2) =
+      start () in
+    let skip c =
+      send c @@ game @@ `Skip;
+      ok   c @@ `Ok (get_last_id());
+      send c @@ game @@ `Skip;
+      ok   c @@ `Ok (get_last_id()) in
+      (* -- 1st time -- *)
+      (* c1 action *)
+      send c1 @@ game `Skip;
+      ok c1 @@ `Ok (get_last_id());
+      (* c1 buy gold *)
+      send c1 @@ game @@ `Select `Silver;
+      ok c1 @@ `Ok (get_last_id());
+      send c1 @@ game @@ `Skip;
+      ok c1 @@ `Ok (get_last_id());
+      (* c2 action/buy *)
+      skip c2;
+      (* -- 2nd time -- *)
+      skip c1; skip c2;
+      (* -- 3rd time -- *)
+      send c1 @@ game @@ `List `Mine;
+      ok c1 @@ `Cards (get_last_id(),[`Silver; `Copper;`Copper;`Copper;`Copper])
   end
 ] end +> run_test_xml_main
