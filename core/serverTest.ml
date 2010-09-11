@@ -3,7 +3,9 @@ open Base
 open OUnitUtil
 open Ccell
 
-ListUtil.no_shuffle := true
+ListUtil.no_shuffle := true;;
+
+Logger.set_level Logger.Never;;
 
 let table = Hashtbl.create 10
 
@@ -41,9 +43,11 @@ let rec wait_for ({ Protocol.res = ch ; _ } as t) id =
 	  wait_for t id
 
 let last_id = ref ""
+let n = ref 0
 
 let id () =
-  last_id :=  string_of_int @@ Std.unique ();
+  last_id :=  string_of_int @@ !n;
+  incr n;
   !last_id
 
 let get_last_id () =
