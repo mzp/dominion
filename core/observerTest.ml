@@ -1,5 +1,5 @@
 open Base
-open OUnit
+open OUnitUtil
 open Observer
 
 let ok expect f n =
@@ -55,5 +55,5 @@ let _ = begin "observer.ml" >::: [
       __fire b "foo";
       assert_equal (Some (Right "foo")) !actual;
   end
-] end +> run_test_tt_main
+] end +> run_test_xml_main
 

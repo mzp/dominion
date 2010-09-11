@@ -1,5 +1,5 @@
 open Base
-open OUnit
+open OUnitUtil
 open Turn
 
 let run xs f game =
@@ -168,6 +168,6 @@ let _ = begin "turn.ml" >::: [
 	assert_equal [ ] discards
     end;
   ]
-] end +> run_test_tt_main
+] end +> run_test_xml_main
 
 

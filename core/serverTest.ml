@@ -1,6 +1,6 @@
 (* ゲーム全体がちゃんとうごくかどうかのシステムテスト。  *)
 open Base
-open OUnit
+open OUnitUtil
 open Ccell
 
 ListUtil.no_shuffle := true
@@ -87,4 +87,4 @@ let _ = begin "server.ml" >::: [
       send c2 @@ game @@ `Ready;
       ok   c2 @@ `Ok "id";
   end
-] end +> run_test_tt_main
+] end +> run_test_xml_main

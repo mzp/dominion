@@ -1,5 +1,5 @@
 open Base
-open OUnit
+open OUnitUtil
 
 (*
   ただしクライアントへのデータ送信はstubに置き換えて、
@@ -166,5 +166,5 @@ let _ = begin "handler.ml" >::: [
 	assert_equal [ ] discards
     end;
   ]
-] end +> run_test_tt_main
+] end +> run_test_xml_main
 

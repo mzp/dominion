@@ -1,5 +1,5 @@
 open Base
-open OUnit
+open OUnitUtil
 open Rule
 open Game
 
@@ -216,4 +216,4 @@ let _ = begin "rule.ml" >::: [
       assert_equal (Left (3,game)) result;
       assert_equal ~printer:Std.dump 2 !count
   end
-] end +> run_test_tt_main
+] end +> run_test_xml_main

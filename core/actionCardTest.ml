@@ -1,5 +1,5 @@
 open Base
-open OUnit
+open OUnitUtil
 open ActionCard
 open Game
 
@@ -167,5 +167,5 @@ let _ = begin "actionCard.ml" >::: [
   end
 
 
-] end +> run_test_tt_main
+] end +> run_test_xml_main
 

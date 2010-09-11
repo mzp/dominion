@@ -48,6 +48,7 @@ OUNIT_LIBS[] =
 	base
 	hList
 	listUtil
+	oUnitUtil
 
 OUnitTest(fiber, fiber cc)
 OUnitTest(game, game)
