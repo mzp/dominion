@@ -25,15 +25,15 @@ let test =
 		       ])]) in
   function
     RSuccess path ->
-      make path "yes" "-" "success"
+      make path "yes" "-" "100"
   | RFailure (path, descr) ->
-      make path "no" descr "failure"
+      make path "no" descr "200"
   | RError (path, descr) ->
-      make path "no" descr "error"
+      make path "no" descr "300"
   | RSkip (path, descr) ->
-      make path "no" descr "skip"
+      make path "no" descr "400"
   | RTodo (path, descr) ->
-      make path "no" descr "todo"
+      make path "no" descr "500"
 
 let rec was_successful results =
   match results with
