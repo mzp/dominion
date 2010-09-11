@@ -1,0 +1,5 @@
+#!/bin/sh
+ALL=$(awk '{ i += 1 } END{printf "%d\n",i}' *.ml)
+CODE=$(ls -1 *.ml | grep -v Test.ml | xargs awk '{ i += 1 } END{printf "%d\n",i}')
+echo "<measurement><name>All(LOC)</name><value>$ALL</value></measurement>"
+echo "<measurement><name>Code(LOC)</name><value>$CODE</value></measurement>"
