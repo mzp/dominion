@@ -9,7 +9,7 @@ OCAMLPACKS[] =
 	ccell
 	str
 	curses
-
+	xml-light
 
 if $(not $(OCAMLFIND_EXISTS))
     eprintln("This project requires ocamlfind, but is was not found.")
@@ -43,14 +43,20 @@ FILES[] =
 	rule
 	shell
 
+OUNIT_LIBS[] =
+	oUnitUtil
+	base
+	hList
+	listUtil
+
 UseCamlp4(pa_monad)
-OUnitTest(playerHandler, playerHandler contHandler cc base logger game hList listUtil handlerBase maybe rule observer)
-OUnitTest(commonHandler, commonHandler base maybe game handlerBase listUtil hList)
-OUnitTest(readyHandler , readyHandler base maybe game handlerBase listUtil hList)
-OUnitTest(contHandler  , contHandler base cc hList)
-OUnitTest(game, game base hList)
-OUnitTest(rule, rule game base cc hList listUtil)
-OUnitTest(observer, observer base)
+OUnitTest(playerHandler, playerHandler contHandler cc logger game handlerBase maybe rule observer)
+OUnitTest(commonHandler, commonHandler maybe game handlerBase)
+OUnitTest(readyHandler , readyHandler maybe game handlerBase)
+OUnitTest(contHandler  , contHandler cc hList)
+OUnitTest(game, game)
+OUnitTest(rule, rule game cc )
+OUnitTest(observer, observer)
 
 OCAMLFLAGS=-annot -w A -warn-error A
 PROGRAM = dominion

@@ -1,5 +1,5 @@
 open Base
-open OUnit
+open OUnitUtil
 open Game
 
 let _ = begin "game.ml" >::: [
@@ -29,5 +29,5 @@ let _ = begin "game.ml" >::: [
 	}
       } @@ make [alice;bob] [`Moat]
   end
-] end +> run_test_tt_main
+] end +> run_test_xml_main
 
