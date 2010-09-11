@@ -88,7 +88,10 @@ let run_test_xml_main suite =
     let ch =
       open_out (get_name suite ^ ".xml") in
     let xml =
-      Element ("report",[],
+      Element ("report",[
+		 ("name", get_name suite);
+		 ("categ","unit test")
+	       ],
 	       List.concat [
 		 [ Element ("start",[], date start) ];
 		 List.map test result;
