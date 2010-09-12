@@ -35,7 +35,7 @@ let request t suspend name =
     perform begin
       (client',request) <-- suspend (ret game);
       if client != client' then
-	f (const (right "not your turn")) game
+	f (const @@ right "not your turn") game
       else
 	let o =
 	  match request with
@@ -78,10 +78,18 @@ let rec handle t client request =
 	Fiber.resume f (client,request);
 	begin match Fiber.value f with
 	    Left game ->
-	      Left (t#game <- game)
+	      let t =
+		t#game <- game in
+	      let t =
+		if Fiber.is_alive f then
+		  t
+		else
+		  invoke t
+	      in
+		Left t
 	  | Right _ as r ->
 	      r
 	end
     | None ->
-	failwith ""
+	failwith "must not happen"
 	(*handle (invoke t) client request*)

@@ -90,6 +90,33 @@ let skip_turn c =
   send c @@ game @@ `Skip;
   ok   c @@ `Ok (get_last_id())
 
+let buy c1 c2 card =
+  (* デッキ:[銅*8; 領土*2]
+     捨て札:[] *)
+  send c1 @@ game `Skip;
+  ok   c1 @@ `Ok (get_last_id());
+  send c1 @@ game @@ `Select card;
+  ok   c1 @@ `Ok (get_last_id());
+  skip_turn c2;
+  (* デッキ:[銅*2; 領土*3]
+     捨て札:[銅*5; c*1] *)
+  send c1 @@ game @@ `List `Mine;
+  ok   c1 @@ `Cards (get_last_id(),[`Copper;`Copper;`Estate;`Estate; `Estate]);
+  skip_turn c1; skip_turn c2;
+  (* デッキ:[銅*2; 領土*3; 銅*5; c*1]
+     捨て札:[] *)
+  send c1 @@ game @@ `List `Mine;
+  ok   c1 @@ `Cards (get_last_id(),[`Copper;`Copper;`Estate;`Estate; `Estate]);
+  skip_turn c1; skip_turn c2;
+  (* デッキ:[ 銅*5; c*1]
+     捨て札:[ 銅*2; 領土*3] *)
+  send c1 @@ game @@ `List `Mine;
+  ok   c1 @@ `Cards (get_last_id(),[`Copper;`Copper;`Copper;`Copper;`Copper]);
+  skip_turn c1; skip_turn c2;
+  (* デッキ:[ c*1]
+     捨て札:[ 銅*5; 銅*2; 領土*3] *)
+  send c1 @@ game @@ `List `Mine;
+  ok   c1 @@ `Cards (get_last_id(),[card; `Copper; `Copper; `Copper; `Copper])
 
 let _ = begin "server.ml" >::: [
   "Listで作成したゲームした一覧が取得できる" >:: begin fun () ->
@@ -140,47 +167,17 @@ let _ = begin "server.ml" >::: [
   "買うとカードが増える" >:: begin fun () ->
     let (c1,c2) =
       start () in
-      (* -- 1st time -- *)
-      (* c1 action *)
-      send c1 @@ game `Skip;
-      ok c1 @@ `Ok (get_last_id());
-      (* c1 buy gold *)
-      send c1 @@ game @@ `Select `Silver;
-      ok c1 @@ `Ok (get_last_id());
-      send c1 @@ game @@ `Skip;
-      ok c1 @@ `Ok (get_last_id());
-      (* c2 action/buy *)
-      skip_turn c2;
-      (* -- 2nd time -- *)
-      skip_turn c1; skip_turn c2;
-      (* -- 3rd time -- *)
-      send c1 @@ game @@ `List `Mine;
-      ok c1 @@ `Cards (get_last_id(),[`Silver; `Copper;`Copper;`Copper;`Copper])
+      buy c1 c2 `Silver
   end;
   "カードが使える" >:: begin fun () ->
     let (c1,c2) =
       start () in
-      (* -- 1st time -- *)
-      (* c1 action *)
-      send c1 @@ game `Skip;
-      ok c1 @@ `Ok (get_last_id());
-      (* c1 buy gold *)
+      buy c1 c2 `Moat;
       send c1 @@ game @@ `Select `Moat;
       ok   c1 @@ `Ok (get_last_id());
-      send c1 @@ game @@ `Skip;
-      ok   c1 @@ `Ok (get_last_id());
-      (* c2 action/buy *)
-      skip_turn c2;
-      (* -- 2nd time -- *)
-      skip_turn c1; skip_turn c2;
-      (* -- 3rd time -- *)
-      send c1 @@ game @@ `List `Mine;
-      ok c1 @@ `Cards (get_last_id(),[`Moat; `Copper;`Copper;`Copper;`Copper]);
-      send c1 @@ game @@ `Select `Moat;
-      ok c1 @@ `Ok (get_last_id());
 
       (* draw 2 card *)
       send c1 @@ game @@ `List `Mine;
-      ok c1 @@ `Cards (get_last_id(),[`Copper;`Copper;`Copper;`Copper;`Copper;`Copper]);
+      ok   c1 @@ `Cards (get_last_id(),[`Copper;`Copper;`Copper;`Copper;`Copper;`Copper])
   end;
 ] end +> run_test_xml_main

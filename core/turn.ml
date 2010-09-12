@@ -1,3 +1,4 @@
+(* -*- coding:utf-8 -*- *)
 open Base
 open Rule
 open CardSource
