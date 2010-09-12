@@ -46,20 +46,20 @@ let request t suspend name =
     end in
     Rule.lift f
 
-let of_state suspend state = object
+let make suspend t = object
   method me =
-    me state
+    me t
   method others =
-    others state
+    others t
   method request =
-    request state suspend
+    request t suspend
 end
 
 let handle t client request =
   match t#fiber with
       Some f ->
 	Fiber.resume f (client,request);
-	Left (t#set_game (Fiber.value f))
+	Left (t#game <- Fiber.value f)
     | None ->
 	Right "not invoked"
 
@@ -68,7 +68,7 @@ let invoke t =
     Fiber.create begin fun suspend ->
       let open Cc in
 	perform begin
-	  r <-- Rule.run t#game ~f:(many (Turn.turn @@ of_state suspend t));
+	  r <-- Rule.run t#game ~f:(many (Turn.turn @@ make suspend t));
 	  match r with
 	      Left (_, game) ->
 		Fiber.end_ game
@@ -77,4 +77,4 @@ let invoke t =
 	end
     end
   in
-    t#set_fiber (Some t')
+    t#fiber <- Some t'
