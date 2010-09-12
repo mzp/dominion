@@ -43,11 +43,11 @@ let rec wait_for ({ Protocol.res = ch ; _ } as t) id =
       | `Ok id' | `Error (id',_) | `Cards (id',_) | `Games (id',_) when id = id' ->
 	  res
       | _ ->
-	  history := res :: ! history;
+	  history := (t,res) :: ! history;
 	  wait_for t id
 
-let assert_mem x =
-  List.mem x !history
+let assert_mem c x =
+  List.mem (c,x) !history
 
 let last_id = ref ""
 let n = ref 0
@@ -209,13 +209,19 @@ let _ = begin "server.ml" >::: [
       start () in
       send c1 @@ `Game (game_name, `Message "hi");
       concurrent [
-	(fun _ -> assert_equal (`Message (game_name,"alice","hi")) @@ recv c1);
-	(fun _ -> assert_equal (`Message (game_name,"alice","hi")) @@ recv c2)
+	(fun _ -> assert_equal (`Message (game_name,`Player("alice","hi"))) @@ recv c1);
+	(fun _ -> assert_equal (`Message (game_name,`Player("alice","hi"))) @@ recv c2)
       ];
       send c2 @@ `Game (game_name, `Message "hi");
       concurrent [
-	(fun _ -> assert_equal (`Message (game_name,"bob","hi")) @@ recv c1);
-	(fun _ -> assert_equal (`Message (game_name,"bob","hi")) @@ recv c2)
+	(fun _ -> assert_equal (`Message (game_name,`Player("bob","hi"))) @@ recv c1);
+	(fun _ -> assert_equal (`Message (game_name,`Player("bob","hi"))) @@ recv c2)
       ];
-  end
+  end;
+  "ゲーム開始が通知される" >:: begin fun () ->
+    let (_c1, _c2) =
+      start () in
+
+      ()
+  end;
 ] end +> run_test_xml_main

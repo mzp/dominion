@@ -54,7 +54,7 @@ let handle t ch pid = function
 	(ignore @@ perform begin
 	   name <-- lookup pid t#names;
 	   let response =
-	     `Message (t#name, name, msg) in
+	     `Message (t#name, `Player (name, msg)) in
 	   return @@
 	     List.iter (fun (_,ch')-> send ch' response) t#clients
 	 end);

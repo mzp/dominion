@@ -66,8 +66,10 @@ module Make(T : Protocol.S) = struct
 	Left (Std.dump xs)
     | `Cards (_,xs) ->
 	Left (Std.dump @@ List.map (fun x -> p "%s" (Game.to_string x) ()) xs)
-    | `Message (game, name,msg) ->
+    | `Message (game, `Player(name,msg)) ->
 	Left (Printf.sprintf "%s@%s: %s" name game msg)
+    | `Message (game, `System(msg)) ->
+	Left (Printf.sprintf "%s: %s" game msg)
 
   let wait_loop (game, response) ch xs =
     let e =
