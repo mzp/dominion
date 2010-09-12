@@ -47,7 +47,7 @@ let rec wait_for ({ Protocol.res = ch ; _ } as t) id =
 	  wait_for t id
 
 let assert_mem c x =
-  List.mem (c,x) !history
+  assert_equal true @@ List.mem (c,x) !history
 
 let last_id = ref ""
 let n = ref 0
@@ -71,6 +71,9 @@ let game_name =
 
 let game x =
  `Game(game_name, `Query(id (), x))
+
+let message x =
+  `Message(game_name,x)
 
 let ok t res =
   assert_equal ~printer:Std.dump res @@ wait_for t (get_last_id())
@@ -209,19 +212,19 @@ let _ = begin "server.ml" >::: [
       start () in
       send c1 @@ `Game (game_name, `Message "hi");
       concurrent [
-	(fun _ -> assert_equal (`Message (game_name,`Player("alice","hi"))) @@ recv c1);
-	(fun _ -> assert_equal (`Message (game_name,`Player("alice","hi"))) @@ recv c2)
+	(fun _ -> assert_equal (message @@ `Player("alice","hi")) @@ recv c1);
+	(fun _ -> assert_equal (message @@ `Player("alice","hi")) @@ recv c2)
       ];
       send c2 @@ `Game (game_name, `Message "hi");
       concurrent [
-	(fun _ -> assert_equal (`Message (game_name,`Player("bob","hi"))) @@ recv c1);
-	(fun _ -> assert_equal (`Message (game_name,`Player("bob","hi"))) @@ recv c2)
+	(fun _ -> assert_equal (message @@ `Player("bob","hi")) @@ recv c1);
+	(fun _ -> assert_equal (message @@ `Player("bob","hi")) @@ recv c2)
       ];
   end;
   "ゲーム開始が通知される" >:: begin fun () ->
-    let (_c1, _c2) =
+    let (c1, c2) =
       start () in
-
-      ()
+      assert_mem c1 (message @@ `System "game start");
+      assert_mem c2 (message @@ `System "game start")
   end;
 ] end +> run_test_xml_main
