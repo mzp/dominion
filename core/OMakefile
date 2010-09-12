@@ -70,4 +70,4 @@ PROGRAM = dominion
 OCamlProgram($(PROGRAM), main $(FILES))
 
 clean:
-	$(RM) *.cm[iox] *.o $(PROGRAM) *.opt *-runner *.run *.annot
+	$(RM) *.cm[iox] *.o $(PROGRAM) *.opt *-runner *.run *.annot *.ml.xml
