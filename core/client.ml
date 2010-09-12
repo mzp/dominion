@@ -98,23 +98,27 @@ module Make(T : Protocol.S) = struct
 	    ignore @@ wrefresh prompt;
 	    send req @@ strip s
 
+  let make w ~l ~c ~x ~y =
+    Curses.subwin w l c y x
+
   let connect host port =
+    let (h,w) =
+      Curses.get_size () in
     let {res; req; _ } =
       T.connect host port in
     let top =
       Curses.initscr () in
+    let w' =
+      (w*2)/3 in
     let game =
-      Curses.subwin top 20 80 1 0 in
+      make top ~l:(h-1) ~c:w' ~y:1 ~x:0 in
     let response =
-      Curses.subwin top 10 20 1 80 in
+      make top ~l:(h-1) ~c:(w - w') ~y:1 ~x:w' in
     let prompt =
-      Curses.subwin top 1 80 0 2 in
+      make top ~l:1 ~c:80 ~y:0 ~x:2 in
     let _ =
       ignore @@ mvaddch 0 0 (int_of_char '$');
-      ignore @@ Curses.mvwaddstr game 0 0 (Game.show @@ Game.make [] [`Cellar]);
-      ignore @@ Curses.mvwaddstr response 0 0 "hi";
-      ignore @@ Curses.mvwaddstr prompt 0 0 "";
-      ignore @@ immedok top true in
+      ignore @@ Curses.mvwaddstr game 1 1 (Game.show @@ Game.make [] [`Cellar]);
     let rec iter a b =
       let _ =
 	Curses.refresh () in
