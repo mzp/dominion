@@ -70,6 +70,8 @@ module Make(T : Protocol.S) = struct
 	Left (Printf.sprintf "%s@%s: %s" name game msg)
     | `Message (game, `System(msg)) ->
 	Left (Printf.sprintf "%s: %s" game msg)
+    | `Message (_, _) ->
+	Left "some event"
 
   let wait_loop (game, response) ch xs =
     let e =

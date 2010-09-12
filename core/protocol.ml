@@ -25,7 +25,12 @@ type response = [
 | `Cards   of id * Game.card list
 | `Games   of id * string list
 | `Message of game_name * [ `Player of player_name * string
-			  | `System of string]
+                          | `System of string
+			  | `GameStart
+			  | `Turn         of player_name
+			  | `ActionPhase  of player_name
+			  | `BuyPhase     of player_name
+			  | `CleanupPhase of player_name ]
 ]
 
 type 'a peer = {

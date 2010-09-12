@@ -43,11 +43,11 @@ let rec wait_for ({ Protocol.res = ch ; _ } as t) id =
       | `Ok id' | `Error (id',_) | `Cards (id',_) | `Games (id',_) when id = id' ->
 	  res
       | _ ->
-	  history := (t,res) :: ! history;
+	  history := res :: ! history;
 	  wait_for t id
 
-let assert_mem c x =
-  assert_equal true @@ List.mem (c,x) !history
+let assert_mem x =
+  assert_equal true @@ List.mem x !history
 
 let last_id = ref ""
 let n = ref 0
@@ -222,9 +222,31 @@ let _ = begin "server.ml" >::: [
       ];
   end;
   "ゲーム開始が通知される" >:: begin fun () ->
-    let (c1, c2) =
+    let _ =
+      history := [] in
+    let _ =
       start () in
-      assert_mem c1 (message @@ `System "game start");
-      assert_mem c2 (message @@ `System "game start")
+      assert_mem @@ message @@ `GameStart;
+  end;
+  "各ターンが通知される" >:: begin fun () ->
+    let (c1,c2) =
+      start () in
+      assert_mem @@ message @@ `Turn "alice";
+      assert_mem @@ message @@ `ActionPhase "alice";
+      send c1 @@ game @@ `Skip;
+      ok   c1 @@ `Ok (get_last_id());
+      assert_mem @@ message @@ `BuyPhase "alice";
+      send c1 @@ game @@ `Skip;
+      ok   c1 @@ `Ok (get_last_id());
+      assert_mem @@ message @@ `CleanupPhase "alice";
+
+      assert_mem @@ message @@ `Turn "bob";
+      assert_mem @@ message @@ `ActionPhase "bob";
+      send c2 @@ game @@ `Skip;
+      ok   c2 @@ `Ok (get_last_id());
+      assert_mem @@ message @@ `BuyPhase "bob";
+      send c2 @@ game @@ `Skip;
+      ok   c2 @@ `Ok (get_last_id());
+      assert_mem @@ message @@ `CleanupPhase "bob";
   end;
 ] end +> run_test_xml_main
