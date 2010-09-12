@@ -4,7 +4,7 @@ open ListUtil
 open Ccell
 
 
-type t = (Protocol.response Event.channel * Protocol.game_request) Event.channel
+type 'a t = ('a * Protocol.response Event.channel * Protocol.game_request) Event.channel
 
 let send ch e =
   Event.sync @@ Event.send ch e
@@ -25,14 +25,14 @@ let game t =
   in
     Game.make players cards
 
-let ready t ch id =
-  if List.mem ch @@ List.map fst t#clients then
-    if List.mem ch t#ready then
-      (send ch @@ `Error (id, "already ready");
-       t)
-    else
+let ready t ch peer id =
+  if List.mem peer t#joined then
+    if List.mem peer t#ready then begin
+      send ch @@ `Error (id, "already ready");
+      t
+    end else
       let t =
-	t#ready <- ch :: t#ready in
+	t#ready <- peer :: t#ready in
 	if List.length t#ready = List.length t#clients then begin
 	  let t =
 	    t#game <- game t in
@@ -44,11 +44,12 @@ let ready t ch id =
 	  send ch @@ `Ok id;
 	  t
 	end
-  else
-    (send ch @@ `Error (id, "not join player");
-     t)
+  else begin
+    send ch @@ `Error (id, "not join player");
+    t
+  end
 
-let handle t ch = function
+let handle t ch peer = function
   | `Message msg ->
       let open Maybe in
 	(ignore @@ perform begin
@@ -61,9 +62,11 @@ let handle t ch = function
 	t
   | `Query (id, `Join name) ->
       send ch @@ `Ok id;
-      t#clients <- (ch, name) :: t#clients
+      let t =
+	t#clients <- (ch, name) :: t#clients in
+	t#joined <- peer :: t#joined
   | `Query (id, `Ready) ->
-      ready t ch id
+      ready t ch peer id
   | `Query (id, (#PlayerHandler.request as req)) ->
       begin match PlayerHandler.handle t ch req with
 	  Left t ->
@@ -88,7 +91,8 @@ let initial name = {|
     observer = Observer.make ();
     game     = Game.make [] [];
     clients  = [];
-    ready    = []
+    ready    = [];
+    joined   = []
 |}
 
 let create name =
@@ -96,11 +100,11 @@ let create name =
     Event.new_channel () in
   let _ =
     state_daemon (initial name) ~f:begin fun state ->
-      let (src, req) =
+      let (peer, src, req) =
 	Event.sync @@ Event.receive ch in
-	handle state src req
+	handle state src peer req
     end in
     ch
 
-let handle =
-  uncurry $ Event.send
+let handle t x y z =
+  Event.send t (x, y, z)

@@ -8,7 +8,7 @@ module Make(T : Protocol.S) = struct
     Event.sync @@ Event.send ch e
 
   let master ch games =
-    let (ch', req) =
+    let (peer, ch', req) =
       Event.sync @@ Event.receive ch in
       Logger.debug "accept request" ();
       match req with
@@ -24,7 +24,7 @@ module Make(T : Protocol.S) = struct
 	    let open Maybe in
 	      ignore (perform begin
 		 t <-- lookup name games;
-		 return @@ Event.sync @@ Handler.handle t ch' request
+		 return @@ Event.sync @@ Handler.handle t peer ch' request
 	       end);
 	      games
 
@@ -33,9 +33,9 @@ module Make(T : Protocol.S) = struct
       Event.new_channel () in
     let _ =
       state_daemon ~f:(master ch) [] in
-      T.server host port ~f:begin fun {req; res; _} ->
+      T.server host port ~f:begin fun {id; req; res} ->
 	let request =
 	  Event.sync @@ Event.receive req in
-	  Event.sync @@ Event.send ch (res,request)
+	  Event.sync @@ Event.send ch (id, res,request)
       end
 end
