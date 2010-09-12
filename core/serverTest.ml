@@ -33,6 +33,9 @@ end
 
 module M = Server.Make(S)
 
+let history =
+  ref []
+
 let rec wait_for ({ Protocol.res = ch ; _ } as t) id =
   let res =
     Event.sync @@ Event.receive ch in
@@ -40,7 +43,11 @@ let rec wait_for ({ Protocol.res = ch ; _ } as t) id =
       | `Ok id' | `Error (id',_) | `Cards (id',_) | `Games (id',_) when id = id' ->
 	  res
       | _ ->
+	  history := res :: ! history;
 	  wait_for t id
+
+let assert_mem x =
+  List.mem x !history
 
 let last_id = ref ""
 let n = ref 0
@@ -56,11 +63,28 @@ let get_last_id () =
 let send { Protocol.req; _ } x =
   Event.sync @@ Event.send req x
 
+let recv { Protocol.res; _ } =
+  Event.sync @@ Event.receive res
+
+let game_name =
+  "foo"
+
 let game x =
- `Game("foo", `Query(id (), x))
+ `Game(game_name, `Query(id (), x))
 
 let ok t res =
   assert_equal ~printer:Std.dump res @@ wait_for t (get_last_id())
+
+let concurrent xs =
+  let e =
+    ref None in
+    List.iter Thread.join @@ List.map (fun f -> Thread.create (fun _ ->
+								 try f () with e' -> e := Some e') ())
+      xs;
+    match !e with
+	Some e -> raise e
+      | None -> ()
+
 
 let start _ =
     let _ =
@@ -180,4 +204,18 @@ let _ = begin "server.ml" >::: [
       send c1 @@ game @@ `List `Mine;
       ok   c1 @@ `Cards (get_last_id(),[`Copper;`Copper;`Copper;`Copper;`Copper;`Copper])
   end;
+  "チャットできる" >:: begin fun () ->
+    let (c1, c2) =
+      start () in
+      send c1 @@ `Game (game_name, `Message "hi");
+      concurrent [
+	(fun _ -> assert_equal (`Message (game_name,"alice","hi")) @@ recv c1);
+	(fun _ -> assert_equal (`Message (game_name,"alice","hi")) @@ recv c2)
+      ];
+      send c2 @@ `Game (game_name, `Message "hi");
+      concurrent [
+	(fun _ -> assert_equal (`Message (game_name,"bob","hi")) @@ recv c1);
+	(fun _ -> assert_equal (`Message (game_name,"bob","hi")) @@ recv c2)
+      ];
+  end
 ] end +> run_test_xml_main

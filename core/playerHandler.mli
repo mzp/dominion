@@ -15,7 +15,7 @@ class type ['a] t = object('b)
   method observer  : Game.t Observer.t
   method game      : Game.t
   method set_game  : Game.t -> 'b
-  method clients   : ('a * string) list
+  method clients   : (string * 'a) list
 end
 
 (** ゲーム開始 *)

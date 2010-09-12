@@ -15,7 +15,7 @@ class type ['a] t = object('b)
   method observer  : Game.t Observer.t
   method game      : Game.t
   method set_game  : Game.t -> 'b
-  method clients   : ('a * string) list
+  method clients   : (string * 'a) list
 end
 
 let me t =
@@ -30,7 +30,7 @@ let others t =
 let request t suspend name =
   let open Cc in
   let client =
-    fst @@ List.find (fun (_,y)-> y = name) t#clients in
+    List.assoc name t#clients in
   let rec f ret game =
     perform begin
       (client',request) <-- suspend (ret game);

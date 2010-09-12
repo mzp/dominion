@@ -3,7 +3,6 @@ open ThreadUtils
 open ListUtil
 open Ccell
 
-
 type 'a t = ('a * Protocol.response Event.channel * Protocol.game_request) Event.channel
 
 let send ch e =
@@ -11,7 +10,7 @@ let send ch e =
 
 let game t =
   let players =
-    ListLabels.rev_map t#clients ~f:begin fun (_,name)->
+    ListLabels.rev_map t#clients ~f:begin fun (name,_)->
       let (hands, decks) =
 	Game.initial_hands
 	+> ListUtil.shuffle
@@ -25,15 +24,15 @@ let game t =
   in
     Game.make players cards
 
-let ready t ch peer id =
-  if List.mem peer t#joined then
-    if List.mem peer t#ready then begin
+let ready t ch pid id =
+  if lookup pid t#names <> None then
+    if List.mem pid t#ready then begin
       send ch @@ `Error (id, "already ready");
       t
     end else
       let t =
-	t#ready <- peer :: t#ready in
-	if List.length t#ready = List.length t#clients then begin
+	t#ready <- pid :: t#ready in
+	if List.length t#ready = List.length t#names then begin
 	  let t =
 	    t#game <- game t in
 	  let t =
@@ -49,24 +48,24 @@ let ready t ch peer id =
     t
   end
 
-let handle t ch peer = function
+let handle t ch pid = function
   | `Message msg ->
       let open Maybe in
 	(ignore @@ perform begin
-	   name <-- lookup ch t#clients;
+	   name <-- lookup pid t#names;
 	   let response =
 	     `Message (t#name, name, msg) in
 	   return @@
-	     List.iter (fun (ch',_)-> send ch' response) t#clients
+	     List.iter (fun (_,ch')-> send ch' response) t#clients
 	 end);
 	t
   | `Query (id, `Join name) ->
       send ch @@ `Ok id;
       let t =
-	t#clients <- (ch, name) :: t#clients in
-	t#joined <- peer :: t#joined
+	t#clients <- (name, ch) :: t#clients in
+	t#names <- (pid, name) :: t#names
   | `Query (id, `Ready) ->
-      ready t ch peer id
+      ready t ch pid id
   | `Query (id, (#PlayerHandler.request as req)) ->
       begin match PlayerHandler.handle t ch req with
 	  Left t ->
@@ -92,7 +91,7 @@ let initial name = {|
     game     = Game.make [] [];
     clients  = [];
     ready    = [];
-    joined   = []
+    names    = []
 |}
 
 let create name =
