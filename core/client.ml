@@ -118,10 +118,11 @@ module Make(T : Protocol.S) = struct
       make top ~l:1 ~c:80 ~y:0 ~x:2 in
     let _ =
       ignore @@ mvaddch 0 0 (int_of_char '$');
-      ignore @@ Curses.mvwaddstr game 1 1 (Game.show @@ Game.make [] [`Cellar]);
+      ignore @@ Curses.mvwaddstr game 1 1 (Game.show @@ Game.make [] [`Cellar]) in
     let rec iter a b =
       let _ =
 	Curses.refresh () in
-	iter (wait_loop (game,response) res a) (prompt_loop prompt req b) in
+	iter (wait_loop (game,response) res a) (prompt_loop prompt req b)
+    in
       iter [] ()
 end
