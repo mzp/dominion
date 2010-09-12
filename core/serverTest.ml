@@ -229,9 +229,17 @@ let _ = begin "server.ml" >::: [
       assert_mem @@ message @@ `GameStart;
   end;
   "各ターンが通知される" >:: begin fun () ->
-    let (c1,c2) =
+    let _ =
+      history := [] in
+    let _ =
       start () in
       assert_mem @@ message @@ `Turn "alice";
+  end;
+  "フェーズごとに通知される" >:: begin fun () ->
+    let _ =
+      history := [] in
+    let (c1,c2) =
+      start () in
       assert_mem @@ message @@ `ActionPhase "alice";
       send c1 @@ game @@ `Skip;
       ok   c1 @@ `Ok (get_last_id());
@@ -247,6 +255,6 @@ let _ = begin "server.ml" >::: [
       assert_mem @@ message @@ `BuyPhase "bob";
       send c2 @@ game @@ `Skip;
       ok   c2 @@ `Ok (get_last_id());
-      assert_mem @@ message @@ `CleanupPhase "bob";
-  end;
+      assert_mem @@ message @@ `CleanupPhase "bob"
+  end
 ] end +> run_test_xml_main

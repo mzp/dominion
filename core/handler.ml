@@ -8,10 +8,13 @@ type 'a t = ('a * Protocol.response Event.channel * Protocol.game_request) Event
 let send ch e =
   Event.sync @@ Event.send ch e
 
+let weak_sync =
+  ignore $ Event.poll
+
 let broadcast t e =
   List.map snd t#clients
   +> List.map (fun ch -> Event.send ch e)
-  +> List.iter (ignore $ Event.poll)
+  +> List.iter weak_sync
 
 let game t =
   let players =
@@ -43,7 +46,7 @@ let ready t ch pid id =
 	  let t =
 	    PlayerHandler.invoke t in
 	  let _ =
-	    broadcast t @@ `Message( t#name, `GameStart) in
+	    Observer.__fire t#observer `GameStart in
 	    send ch @@ `Ok id;
 	    t
 	end else begin
@@ -70,6 +73,8 @@ let handle t ch pid = function
       send ch @@ `Ok id;
       let t =
 	t#clients <- (name, ch) :: t#clients in
+      let _ =
+	Observer.listen t#observer (fun c -> weak_sync @@ Event.send ch @@ `Message(t#name, c)) in
 	t#names <- (pid, name) :: t#names
   | `Query (id, `Ready) ->
       ready t ch pid id
@@ -101,7 +106,7 @@ let initial name = {|
     names    = []
 |}
 
-let create name =
+let create name : 'a t =
   let ch =
     Event.new_channel () in
   let _ =

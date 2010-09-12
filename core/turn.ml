@@ -7,7 +7,13 @@ class type t = object
   method request : string -> Game.card option Rule.t
   method me : string
   method others : string list
+  method observer : Protocol.game_response Observer.t
 end
+
+let fire t e =
+  lift (fun game ->
+	  Observer.__fire t#observer e;
+	  Cc.return (Left ((),game)))
 
 let action_phase t =
   many_ @@ perform begin
@@ -41,20 +47,23 @@ let buy_phase t =
 
 (* cleanupフェーズ *)
 let cleanup_phase t  =
-  let open Rule in
-    perform begin
-      g <-- game;
-      move (`Hands t#me) (`Discards t#me) Game.((me g).hands);
-      draw   t#me 5;
-      action t#me @@ const 1;
-      buy    t#me @@ const 1;
-      coin   t#me @@ const 0
-    end
+  perform begin
+    g <-- game;
+    move (`Hands t#me) (`Discards t#me) Game.((me g).hands);
+    draw   t#me 5;
+    action t#me @@ const 1;
+    buy    t#me @@ const 1;
+    coin   t#me @@ const 0
+  end
 
 let turn t =
   perform begin
+    fire t (`Turn t#me);
+    fire t (`ActionPhase t#me);
     action_phase t;
+    fire t (`BuyPhase t#me);
     buy_phase t;
+    fire t (`CleanupPhase t#me);
     cleanup_phase t;
     g <-- Rule.game;
     set_game Game.({ g with me = (g.me + 1) mod List.length g.players})

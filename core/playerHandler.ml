@@ -12,7 +12,7 @@ type 'a fiber = ( (Game.t,string) either, ('a*request)) Fiber.t
 class type ['a] t = object('b)
   method fiber     : 'a fiber option
   method set_fiber : 'a fiber option -> 'b
-  method observer  : Game.t Observer.t
+  method observer  : Protocol.game_response Observer.t
   method game      : Game.t
   method set_game  : Game.t -> 'b
   method clients   : (string * 'a) list
@@ -54,6 +54,8 @@ let make suspend t = object
     others t
   method request =
     request t suspend
+  method observer =
+    t#observer
 end
 
 let invoke t =
