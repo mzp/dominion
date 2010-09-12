@@ -8,9 +8,10 @@ type request = [
 | `Skip
 ]
 
+type 'a fiber = ( (Game.t,string) either, ('a*request)) Fiber.t
 class type ['a] t = object('b)
-  method fiber     : (Game.t, ('a*request)) Fiber.t option
-  method set_fiber : (Game.t, ('a*request)) Fiber.t option -> 'b
+  method fiber     : 'a fiber option
+  method set_fiber : 'a fiber option -> 'b
   method observer  : Game.t Observer.t
   method game      : Game.t
   method set_game  : Game.t -> 'b
@@ -30,11 +31,11 @@ let request t suspend name =
   let open Cc in
   let client =
     fst @@ List.find (fun (_,y)-> y = name) t#clients in
-  let rec f game =
+  let rec f ret game =
     perform begin
-      (client',request) <-- suspend game;
+      (client',request) <-- suspend (ret game);
       if client != client' then
-	f game
+	f (const (right "not your turn")) game
       else
 	let o =
 	  match request with
@@ -44,7 +45,7 @@ let request t suspend name =
 		None in
 	  return @@ Left(o, game)
     end in
-    Rule.lift f
+    Rule.lift (f left)
 
 let make suspend t = object
   method me =
@@ -59,7 +60,12 @@ let handle t client request =
   match t#fiber with
       Some f ->
 	Fiber.resume f (client,request);
-	Left (t#game <- Fiber.value f)
+	begin match Fiber.value f with
+	    Left game ->
+	      Left (t#game <- game)
+	  | Right _ as r ->
+	      r
+	end
     | None ->
 	Right "not invoked"
 
@@ -71,9 +77,9 @@ let invoke t =
 	  r <-- Rule.run t#game ~f:(many (Turn.turn @@ make suspend t));
 	  match r with
 	      Left (_, game) ->
-		Fiber.end_ game
-	    | Right msg ->
-		failwith msg
+		Fiber.end_ (Left game)
+	    | Right _ as r ->
+		Fiber.end_ r
 	end
     end
   in

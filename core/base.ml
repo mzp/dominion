@@ -21,6 +21,8 @@ let maybe  f x = try `Val (f x) with e -> `Error e
 let tee f x = try ignore @@ f x; x with _ -> x
 
 type ('a,'b) either = Left of 'a | Right of 'b
+let left x = Left x
+let right x = Right x
 
 let failwithf fmt = Printf.kprintf (fun s () -> failwith s) fmt
 
