@@ -21,3 +21,5 @@ val value : ('a,'b) t -> 'a
 
 (** 処理を完了する *)
 val end_ : 'a -> (unit, ('a, 'b) cc) Cc.CONT.mc
+
+val is_alive : ('a,'b) t -> bool

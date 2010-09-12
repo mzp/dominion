@@ -48,3 +48,6 @@ let resume t x =
 
 let value t =
   Option.get t.value
+
+let is_alive t =
+  t.action <> None

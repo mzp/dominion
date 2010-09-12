@@ -84,6 +84,12 @@ let start _ =
       ok   c2 @@ `Ok (get_last_id());
       (c1,c2)
 
+let skip_turn c =
+  send c @@ game @@ `Skip;
+  ok   c @@ `Ok (get_last_id());
+  send c @@ game @@ `Skip;
+  ok   c @@ `Ok (get_last_id())
+
 
 let _ = begin "server.ml" >::: [
   "Listで作成したゲームした一覧が取得できる" >:: begin fun () ->
@@ -120,6 +126,16 @@ let _ = begin "server.ml" >::: [
       ok c1 @@ `Ok (get_last_id());
       send c2 @@ game @@ `Skip;
       ok c2 @@ `Error (get_last_id(),"not your turn");
+  end;
+  "ターン交代できる" >:: begin fun () ->
+    let (c1,c2) =
+      start () in
+      skip_turn c1;
+      skip_turn c2;
+      skip_turn c1;
+      skip_turn c2;
+      skip_turn c1;
+      skip_turn c2
   end;
   "買うとカードが増える" >:: begin fun () ->
     let (c1,c2) =

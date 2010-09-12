@@ -20,7 +20,9 @@ let _ = begin "fiber.ml" >::: [
 	  end_ @@ x+1
 	end
       end in
+      assert_equal true @@ is_alive t;
       resume t 0;
-      assert_equal 1 @@ value t
+      assert_equal 1 @@ value t;
+      assert_equal false @@ is_alive t;
   end
 ] end +> run_test_xml_main
