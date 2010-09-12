@@ -6,9 +6,12 @@ open Protocol
 
 module Make(T : Protocol.S) = struct
   let strip s =
-    let n =
-      String.index s '\000' in
-      String.sub s 0 n
+    try
+      let n =
+	String.index s '\000' in
+	String.sub s 0 n
+    with Not_found ->
+      s
 
   let game =
     ref ""
@@ -88,15 +91,16 @@ module Make(T : Protocol.S) = struct
 
   let prompt_loop prompt req () =
     let s =
-      String.make 30 ' ' in
+      String.make 20 '\000' in
       match Unix.select [ Unix.stdin ] [] [] 0.0 with
 	  [],_,_ ->
 	    ()
 	| _ ->
-	    ignore @@ wgetstr prompt s;
-	    ignore @@ wclear prompt;
-	    ignore @@ wrefresh prompt;
+	    assert (wgetstr prompt s);
+	    wclear prompt;
+	    assert (wrefresh prompt);
 	    send req @@ strip s
+
 
   let make w ~l ~c ~x ~y =
     Curses.subwin w l c y x
@@ -110,18 +114,21 @@ module Make(T : Protocol.S) = struct
       Curses.initscr () in
     let w' =
       (w*2)/3 in
+    let prompt =
+      make top ~l:1 ~c:w' ~y:0 ~x:2 in
     let game =
       make top ~l:(h-1) ~c:w' ~y:1 ~x:0 in
     let response =
       make top ~l:(h-1) ~c:(w - w') ~y:1 ~x:w' in
-    let prompt =
-      make top ~l:1 ~c:80 ~y:0 ~x:2 in
     let _ =
-      ignore @@ mvaddch 0 0 (int_of_char '$');
-      ignore @@ Curses.mvwaddstr game 1 1 (Game.show @@ Game.make [] [`Cellar]) in
+      assert (mvaddch 0 0 (int_of_char '#'));
+      assert (Curses.mvwaddstr response 0 0 "<nobinion>");
+      ignore @@ Curses.mvwaddstr game 0 0 "<a>";
+      ignore @@ immedok top true
+    in
     let rec iter a b =
       let _ =
-	Curses.refresh () in
+	assert (Curses.refresh ()) in
 	iter (wait_loop (game,response) res a) (prompt_loop prompt req b)
     in
       iter [] ()
