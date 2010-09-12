@@ -8,6 +8,11 @@ type 'a t = ('a * Protocol.response Event.channel * Protocol.game_request) Event
 let send ch e =
   Event.sync @@ Event.send ch e
 
+let broadcast t e =
+  List.map snd t#clients
+  +> List.map (fun ch -> Event.send ch e)
+  +> List.iter (ignore $ Event.poll)
+
 let game t =
   let players =
     ListLabels.rev_map t#clients ~f:begin fun (name,_)->
@@ -37,6 +42,8 @@ let ready t ch pid id =
 	    t#game <- game t in
 	  let t =
 	    PlayerHandler.invoke t in
+	  let _ =
+	    broadcast t @@ `Message( t#name, `GameStart) in
 	    send ch @@ `Ok id;
 	    t
 	end else begin
