@@ -11,7 +11,7 @@ let send ch e =
 
 let game t =
   let players =
-    ListLabels.map t#clients ~f:begin fun (_,name)->
+    ListLabels.rev_map t#clients ~f:begin fun (_,name)->
       let (hands, decks) =
 	Game.initial_hands
 	+> ListUtil.shuffle
