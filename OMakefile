@@ -32,7 +32,7 @@ public.OUnitTest(name,files) =
 	export
 
 RM=rm -f *~ *.omc
-.SUBDIRS: protocol core camlp4
+.SUBDIRS: protocol core camlp4 msgpack
 
 .PHONY: clean
 clean:
