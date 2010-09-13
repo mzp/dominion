@@ -6,7 +6,9 @@ Open Local Scope list_scope.
 
 Inductive data :=
 | Bool (_ : bool)
-| Nil.
+| Nil
+| PFixnum: forall n,
+  nat_of_ascii n < 128 -> data.
 
 Definition singleton {A : Type} (x : A) := x :: nil.
 Inductive Serialized : data -> list ascii -> Prop :=
@@ -15,18 +17,7 @@ Inductive Serialized : data -> list ascii -> Prop :=
 | STrue :
   Serialized (Bool true) (singleton "195")
 | SFalse :
-  Serialized (Bool false) (singleton "194").
-
-Theorem injective : forall x1 x2 y1 y2,
-  x1 <> y1 ->
-  Serialized x1 x2 ->
-  Serialized y1 y2 ->
-  x2 <> y2.
-Proof.
-intros.
-inversion H0; inversion H1;
-  try (intro; discriminate);
-  try (rewrite <- H2, <- H4 in H;
-       assert False;
-         [ apply H; reflexivity | contradiction ]).
-Qed.
+  Serialized (Bool false) (singleton "194")
+| SPFixnum : forall x1 x2 x3 x4 x5 x6 x7 P,
+  Serialized (PFixnum   (Ascii x1 x2 x3 x4 x5 x6 x7 false) P)
+             (singleton (Ascii x1 x2 x3 x4 x5 x6 x7 false)).
