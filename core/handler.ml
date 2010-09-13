@@ -8,8 +8,16 @@ type 'a t = ('a * Protocol.response Event.channel * Protocol.game_request) Event
 let send ch e =
   Event.sync @@ Event.send ch e
 
-let weak_sync =
-  ignore $ Event.poll
+let rec try_it f n =
+  if n = 0 then
+    None
+  else
+    match f () with
+	Some _ as o -> o
+      | None -> try_it f (n-1)
+
+let weak_sync e =
+  ignore (try_it (fun () -> Event.poll e) 100)
 
 let broadcast t e =
   List.map snd t#clients
