@@ -10,3 +10,5 @@ a.out
 *.annot
 *-runner
 *.properties
+*.vo
+*.glob
