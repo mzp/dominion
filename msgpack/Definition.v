@@ -1,6 +1,5 @@
 Require Import Strings.Ascii.
 Require Import List.
-Require Import AsciiUtil.
 
 Open Local Scope char_scope.
 Open Local Scope list_scope.
