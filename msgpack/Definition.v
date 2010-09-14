@@ -120,6 +120,12 @@ Ltac try_all :=
   try (apply FloatEq);
   try (apply DoubleEq); tauto.
 
+Ltac prefix X Y :=
+  case (ascii_dec X Y);
+   intro __e; [ | apply not_prefix_hd; auto ];
+   rewrite __e in *;
+   clear __e;
+   apply not_prefix_tl.
 
 Theorem NotPrefix : forall x1 x2 y1 y2,
   ~(eq_data x1 x2) ->
@@ -153,13 +159,90 @@ inversion H0; inversion H1;
        try_all).
 
   apply not_prefix_tl.
-  destruct (ascii_dec x0 x4); try (apply not_prefix_hd; tauto).
-  rewrite e in *.
-  apply not_prefix_tl.
-  apply not_prefix_hd.
+  prefix x0 x4.
+  prefix x3 x5.
   intro.
   apply H.
-  rewrite <- H2,<- H4,<- H6.
+  rewrite <- H2, <- H4.
   try_all.
-Abort.
 
+  apply not_prefix_tl.
+  prefix x0 x6.
+  prefix x3 x7.
+  prefix x4 x8.
+  prefix x5 x9.
+  intro.
+  apply H.
+  rewrite <- H2,<- H4.
+  try_all.
+
+  apply not_prefix_tl.
+  prefix x0 x10.
+  prefix x3 x11.
+  prefix x4 x12.
+  prefix x5 x13.
+  prefix x6 x14.
+  prefix x7 x15.
+  prefix x8 x16.
+  prefix x9 x17.
+  intro.
+  apply H.
+  rewrite <- H2, <- H4.
+  try_all.
+
+  apply not_prefix_tl.
+  prefix x0 x4.
+  prefix x3 x5.
+  intro.
+  apply H.
+  rewrite <- H2, <- H4.
+  try_all.
+
+  apply not_prefix_tl.
+  prefix x0 x6.
+  prefix x3 x7.
+  prefix x4 x8.
+  prefix x5 x9.
+  intro.
+  apply H.
+  rewrite <- H2,<- H4.
+  try_all.
+
+  apply not_prefix_tl.
+  prefix x0 x10.
+  prefix x3 x11.
+  prefix x4 x12.
+  prefix x5 x13.
+  prefix x6 x14.
+  prefix x7 x15.
+  prefix x8 x16.
+  prefix x9 x17.
+  intro.
+  apply H.
+  rewrite <- H2, <- H4.
+  try_all.
+
+  apply not_prefix_tl.
+  prefix x0 x6.
+  prefix x3 x7.
+  prefix x4 x8.
+  prefix x5 x9.
+  intro.
+  apply H.
+  rewrite <- H2,<- H4.
+  try_all.
+
+  apply not_prefix_tl.
+  prefix x0 x10.
+  prefix x3 x11.
+  prefix x4 x12.
+  prefix x5 x13.
+  prefix x6 x14.
+  prefix x7 x15.
+  prefix x8 x16.
+  prefix x9 x17.
+  intro.
+  apply H.
+  rewrite <- H2, <- H4.
+  try_all.
+Qed.
