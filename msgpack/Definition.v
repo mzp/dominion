@@ -91,19 +91,6 @@ Inductive Serialized : data -> list ascii -> Prop :=
 | SDouble : forall x1 x2 x3 x4 x5 x6 x7 x8,
   Serialized (Double x1 x2 x3 x4 x5 x6 x7 x8) ("203"::x1::x2::x3::x4::x5::x6::x7::x8::nil).
 
-
-
-Lemma PFixnum_inv : forall x y P Q,
-  ~ eq_data (PFixnum x P) (PFixnum y Q) ->
-  x <> y.
-Proof.
-intros.
-intro.
-apply H.
-apply PFixnumEq.
-tauto.
-Qed.
-
 Ltac try_all :=
   try (apply BoolEq);
   try (apply NilEq);
