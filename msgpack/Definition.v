@@ -1,5 +1,7 @@
 Require Import Strings.Ascii.
 Require Import List.
+Require Import Bool.
+
 
 Open Local Scope char_scope.
 Open Local Scope list_scope.
@@ -11,7 +13,7 @@ Inductive data :=
   nat_of_ascii n < 128 -> data
 | NFixnum: forall n,
   (* 負の数を導入したくないので、補数表現を使う。 *)
-  224 <= nat_of_ascii n /\ nat_of_ascii  n <= 255 ->
+  224 <= nat_of_ascii n /\ nat_of_ascii n <= 255 ->
   data
 | Uint8  (_ : ascii)
 | Uint16 (_ _ : ascii)
@@ -24,7 +26,40 @@ Inductive data :=
 | Float  (_ _ _ _ : ascii)
 | Double (_ _ _ _ _ _ _ _ : ascii).
 
+Inductive eq_data : data -> data -> Prop :=
+| BoolEq : forall b,
+  eq_data (Bool b) (Bool b)
+| NilEq  :
+  eq_data Nil Nil
+| PFixnumEq: forall n m P Q,
+  n = m ->
+  eq_data (PFixnum n P) (PFixnum m Q)
+| NFixnumEq: forall n m P Q,
+  n = m ->
+  eq_data (NFixnum n P) (NFixnum m Q)
+| Uint8Eq : forall c,
+  eq_data (Uint8 c) (Uint8 c)
+| Uint16Eq : forall c1 c2,
+  eq_data (Uint16 c1 c2) (Uint16 c1 c2)
+| Uint32Eq : forall c1 c2 c3 c4,
+  eq_data (Uint32 c1 c2 c3 c4) (Uint32 c1 c2 c3 c4)
+| Uint64Eq : forall c1 c2 c3 c4 c5 c6 c7 c8,
+  eq_data (Uint64 c1 c2 c3 c4 c5 c6 c7 c8) (Uint64 c1 c2 c3 c4 c5 c6 c7 c8)
+| Int8Eq : forall c,
+  eq_data (Int8 c) (Int8 c)
+| Int16Eq : forall c1 c2,
+  eq_data (Int16 c1 c2) (Int16 c1 c2)
+| Int32Eq : forall c1 c2 c3 c4,
+  eq_data (Int32 c1 c2 c3 c4) (Int32 c1 c2 c3 c4)
+| Int64Eq : forall c1 c2 c3 c4 c5 c6 c7 c8,
+  eq_data (Int64 c1 c2 c3 c4 c5 c6 c7 c8) (Int64 c1 c2 c3 c4 c5 c6 c7 c8)
+| FloatEq : forall c1 c2 c3 c4,
+  eq_data (Float c1 c2 c3 c4) (Float c1 c2 c3 c4)
+| DoubleEq : forall c1 c2 c3 c4 c5 c6 c7 c8,
+  eq_data (Double c1 c2 c3 c4 c5 c6 c7 c8) (Double c1 c2 c3 c4 c5 c6 c7 c8).
+
 Definition singleton {A : Type} (x : A) := x :: nil.
+
 Inductive Serialized : data -> list ascii -> Prop :=
 | SNil  :
   Serialized Nil (singleton "192")
@@ -64,9 +99,9 @@ Definition Prefix {A} (xs ys : list A) := forall x y i,
   value y = nth_error ys i ->
   x = y.
 
-Lemma not_prefix_singleton : forall A (c1 c2 : A),
+Lemma not_prefix_hd : forall A (c1 c2 : A) xs ys,
   c1 <> c2 ->
-  ~ Prefix (singleton c1) (singleton c2).
+  ~ Prefix (c1::xs) (c2::ys).
 Proof.
 intros.
 intro.
@@ -75,16 +110,132 @@ unfold Prefix in H0.
 apply (H0 c1 c2 0); simpl; reflexivity.
 Qed.
 
+
+Lemma not_prefix_tl : forall A (c : A) xs ys,
+  ~ Prefix xs ys->
+  ~ Prefix (c::xs) (c::ys).
+Proof.
+intros.
+intro.
+apply H.
+unfold Prefix in |- *.
+intros.
+unfold Prefix in H0.
+apply (H0 _ _ (S i)); simpl; tauto.
+Qed.
+
+Lemma not_prefix_singleton : forall A (c1 c2 : A),
+  c1 <> c2 ->
+  ~ Prefix (singleton c1) (singleton c2).
+Proof.
+intros.
+unfold singleton.
+apply not_prefix_hd.
+tauto.
+Qed.
+
+Lemma PFixnum_inv : forall x y P Q,
+  ~ eq_data (PFixnum x P) (PFixnum y Q) ->
+  x <> y.
+Proof.
+intros.
+intro.
+apply H.
+apply PFixnumEq.
+tauto.
+Qed.
+
+Ltac try_all :=
+  try (apply BoolEq);
+  try (apply NilEq);
+  try (apply PFixnumEq);
+  try (apply NFixnumEq);
+  try (apply Uint8Eq);
+  try (apply Uint16Eq);
+  try (apply Uint32Eq);
+  try (apply Uint64Eq);
+  try (apply Int8Eq);
+  try (apply Int16Eq);
+  try (apply Int32Eq);
+  try (apply Int64Eq);
+  try (apply FloatEq);
+  try (apply DoubleEq); tauto.
+
 (*
 Theorem NotPrefix : forall x1 x2 y1 y2,
-  x1 <> x2 ->
+  ~(eq_data x1 x2) ->
   Serialized x1 y1 ->
   Serialized x2 y2 ->
   ~ Prefix y1 y2.
 Proof.
 intros.
 inversion H0; inversion H1;
- try( intro; apply H; rewrite <- H2,<-H4; reflexivity );
- try( apply not_prefix_singleton; intro; discriminate ).
-intro.
-*)
+  try( intro; apply H; rewrite <- H2, <- H4; apply BoolEq);
+  try( intro; apply H; rewrite <- H2, <- H4; apply NilEq);
+  try( apply not_prefix_singleton;
+       intro;
+       discriminate);
+  try( unfold singleton;
+       apply not_prefix_hd;
+       intro;
+       discriminate);
+  try( apply not_prefix_singleton;
+       intro;
+       apply H;
+       rewrite <- H2, <- H4;
+       try_all;
+       tauto);
+  try( apply not_prefix_tl;
+       apply not_prefix_hd;
+       intro;
+       apply H;
+       rewrite <- H2,<- H4;
+       rewrite H6;
+       try_all).
+
+  apply not_prefix_tl.
+  destruct (ascii_dec x0 x4); try (apply not_prefix_hd; tauto).
+  rewrite e in *.
+  apply not_prefix_tl.
+  apply not_prefix_hd.
+  intro.
+  apply H.
+  rewrite <- H2,<- H4,<- H6.
+  try_all.
+
+  intro.
+  apply H.
+  destruct (ascii_dec x0 x6);
+    try (repeat (apply not_prefix_tl); apply not_prefix_hd; tauto).
+  destruct (ascii_dec x3 x7);
+    try (repeat (apply not_prefix_tl); apply not_prefix_hd; tauto).
+  destruct (ascii_dec x4 x8);
+    try (repeat (apply not_prefix_tl); apply not_prefix_hd; tauto).
+  rewrite e,e0,e1 in *.
+  repeat (apply not_prefix_tl).
+  apply not_prefix_hd.
+  intro.
+  apply H.
+  rewrite <- H2,<- H4,<- H6.
+  try_all.
+
+  destruct (ascii_dec x0 x6); try (apply not_prefix_hd; tauto).
+  destruct (ascii_dec x3 x7); try (apply not_prefix_hd; tauto).
+  destruct (ascii_dec x4 x8); try (apply not_prefix_hd; tauto).
+  rewrite e,e0,e1 in *.
+  repeat (apply not_prefix_tl).
+  apply not_prefix_hd.
+  intro.
+  apply H.
+  rewrite <- H2,<- H4,<- H6.
+  try_all.
+
+
+
+ apply not_prefix_tl.
+ apply not_prefix_hd.
+ intro.
+ apply H.
+ rewrite <- H2,<- H4.
+ rewrite H6.
+ apply Uint8Eq.*)
