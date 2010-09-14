@@ -25,6 +25,7 @@ Inductive data :=
 | Float  (_ _ _ _ : ascii)
 | Double (_ _ _ _ _ _ _ _ : ascii).
 
+(* データの等値性を定義。依存型の証明部分は無視する。*)
 Inductive eq_data : data -> data -> Prop :=
 | BoolEq : forall b,
   eq_data (Bool b) (Bool b)
@@ -57,6 +58,7 @@ Inductive eq_data : data -> data -> Prop :=
 | DoubleEq : forall c1 c2 c3 c4 c5 c6 c7 c8,
   eq_data (Double c1 c2 c3 c4 c5 c6 c7 c8) (Double c1 c2 c3 c4 c5 c6 c7 c8).
 
+(* MsgPackのシリアライズルールの定義 *)
 Inductive Serialized : data -> list ascii -> Prop :=
 | SNil  :
   Serialized Nil (singleton "192")
