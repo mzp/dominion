@@ -2,6 +2,7 @@ open CoqBuildRule
 .PHONY: all clean
 
 FILES[] =
+	AsciiUtil
 	Definition
 
 .DEFAULT: $(CoqProof $(FILES))

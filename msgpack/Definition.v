@@ -1,5 +1,6 @@
 Require Import Strings.Ascii.
 Require Import List.
+Require Import AsciiUtil.
 
 Open Local Scope char_scope.
 Open Local Scope list_scope.
@@ -8,7 +9,7 @@ Inductive data :=
 | Bool (_ : bool)
 | Nil
 | PFixnum: forall n,
-  nat_of_ascii n <= 128 -> data
+  nat_of_ascii n < 128 -> data
 | NFixnum: forall n,
   (* 負の数を導入したくないので、補数表現を使う。 *)
   224 <= nat_of_ascii n /\ nat_of_ascii  n <= 255 ->
@@ -58,3 +59,33 @@ Inductive Serialized : data -> list ascii -> Prop :=
   Serialized (Float x1 x2 x3 x4) ("202"::x1::x2::x3::x4::nil)
 | SDouble : forall x1 x2 x3 x4 x5 x6 x7 x8,
   Serialized (Double x1 x2 x3 x4 x5 x6 x7 x8) ("203"::x1::x2::x3::x4::x5::x6::x7::x8::nil).
+
+Definition Prefix {A} (xs ys : list A) := forall x y i,
+  value x = nth_error xs i ->
+  value y = nth_error ys i ->
+  x = y.
+
+Lemma not_prefix_singleton : forall A (c1 c2 : A),
+  c1 <> c2 ->
+  ~ Prefix (singleton c1) (singleton c2).
+Proof.
+intros.
+intro.
+apply H.
+unfold Prefix in H0.
+apply (H0 c1 c2 0); simpl; reflexivity.
+Qed.
+
+(*
+Theorem NotPrefix : forall x1 x2 y1 y2,
+  x1 <> x2 ->
+  Serialized x1 y1 ->
+  Serialized x2 y2 ->
+  ~ Prefix y1 y2.
+Proof.
+intros.
+inversion H0; inversion H1;
+ try( intro; apply H; rewrite <- H2,<-H4; reflexivity );
+ try( apply not_prefix_singleton; intro; discriminate ).
+intro.
+*)
