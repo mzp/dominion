@@ -1,7 +1,6 @@
-Require Import Strings.Ascii.
+Require Import Ascii.
 Require Import List.
-Require Import Bool.
-
+Require Import Prefix.
 
 Open Local Scope char_scope.
 Open Local Scope list_scope.
@@ -58,8 +57,6 @@ Inductive eq_data : data -> data -> Prop :=
 | DoubleEq : forall c1 c2 c3 c4 c5 c6 c7 c8,
   eq_data (Double c1 c2 c3 c4 c5 c6 c7 c8) (Double c1 c2 c3 c4 c5 c6 c7 c8).
 
-Definition singleton {A : Type} (x : A) := x :: nil.
-
 Inductive Serialized : data -> list ascii -> Prop :=
 | SNil  :
   Serialized Nil (singleton "192")
@@ -94,45 +91,7 @@ Inductive Serialized : data -> list ascii -> Prop :=
 | SDouble : forall x1 x2 x3 x4 x5 x6 x7 x8,
   Serialized (Double x1 x2 x3 x4 x5 x6 x7 x8) ("203"::x1::x2::x3::x4::x5::x6::x7::x8::nil).
 
-Definition Prefix {A} (xs ys : list A) := forall x y i,
-  value x = nth_error xs i ->
-  value y = nth_error ys i ->
-  x = y.
 
-Lemma not_prefix_hd : forall A (c1 c2 : A) xs ys,
-  c1 <> c2 ->
-  ~ Prefix (c1::xs) (c2::ys).
-Proof.
-intros.
-intro.
-apply H.
-unfold Prefix in H0.
-apply (H0 c1 c2 0); simpl; reflexivity.
-Qed.
-
-
-Lemma not_prefix_tl : forall A (c : A) xs ys,
-  ~ Prefix xs ys->
-  ~ Prefix (c::xs) (c::ys).
-Proof.
-intros.
-intro.
-apply H.
-unfold Prefix in |- *.
-intros.
-unfold Prefix in H0.
-apply (H0 _ _ (S i)); simpl; tauto.
-Qed.
-
-Lemma not_prefix_singleton : forall A (c1 c2 : A),
-  c1 <> c2 ->
-  ~ Prefix (singleton c1) (singleton c2).
-Proof.
-intros.
-unfold singleton.
-apply not_prefix_hd.
-tauto.
-Qed.
 
 Lemma PFixnum_inv : forall x y P Q,
   ~ eq_data (PFixnum x P) (PFixnum y Q) ->
@@ -161,7 +120,7 @@ Ltac try_all :=
   try (apply FloatEq);
   try (apply DoubleEq); tauto.
 
-(*
+
 Theorem NotPrefix : forall x1 x2 y1 y2,
   ~(eq_data x1 x2) ->
   Serialized x1 y1 ->
@@ -202,40 +161,5 @@ inversion H0; inversion H1;
   apply H.
   rewrite <- H2,<- H4,<- H6.
   try_all.
+Abort.
 
-  intro.
-  apply H.
-  destruct (ascii_dec x0 x6);
-    try (repeat (apply not_prefix_tl); apply not_prefix_hd; tauto).
-  destruct (ascii_dec x3 x7);
-    try (repeat (apply not_prefix_tl); apply not_prefix_hd; tauto).
-  destruct (ascii_dec x4 x8);
-    try (repeat (apply not_prefix_tl); apply not_prefix_hd; tauto).
-  rewrite e,e0,e1 in *.
-  repeat (apply not_prefix_tl).
-  apply not_prefix_hd.
-  intro.
-  apply H.
-  rewrite <- H2,<- H4,<- H6.
-  try_all.
-
-  destruct (ascii_dec x0 x6); try (apply not_prefix_hd; tauto).
-  destruct (ascii_dec x3 x7); try (apply not_prefix_hd; tauto).
-  destruct (ascii_dec x4 x8); try (apply not_prefix_hd; tauto).
-  rewrite e,e0,e1 in *.
-  repeat (apply not_prefix_tl).
-  apply not_prefix_hd.
-  intro.
-  apply H.
-  rewrite <- H2,<- H4,<- H6.
-  try_all.
-
-
-
- apply not_prefix_tl.
- apply not_prefix_hd.
- intro.
- apply H.
- rewrite <- H2,<- H4.
- rewrite H6.
- apply Uint8Eq.*)

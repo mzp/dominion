@@ -2,6 +2,7 @@ open CoqBuildRule
 .PHONY: all clean
 
 FILES[] =
+	Prefix
 	Definition
 
 .DEFAULT: $(CoqProof $(FILES))
