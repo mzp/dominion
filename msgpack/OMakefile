@@ -5,8 +5,6 @@ FILES[] =
 	Data
 	Serialize
 	Prefix
-#	Prefix
-#	Definition
 
 .DEFAULT: $(CoqProof $(FILES))
 
