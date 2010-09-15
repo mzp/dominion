@@ -2,7 +2,7 @@ open CoqBuildRule
 .PHONY: all clean
 
 FILES[] =
-	Data
+	Object
 	Serialize
 	Prefix
 	Soundness

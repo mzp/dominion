@@ -1,5 +1,5 @@
 Require Import List.
-Require Import Data.
+Require Import Object.
 Require Import Serialize.
 
 Open Scope list_scope.
@@ -106,7 +106,7 @@ clear H.
 inversion H0; inversion H1;
   (* 明かに等しいもの
      Eg. Bool b =~ Bool b *)
-  try apply_data_eq;
+  try apply_object_eq;
   (* 明らかに異なっているもの
      Eg. Bool b =~ Nil *)
   rewrite <- H3, <- H5 in *;
@@ -117,50 +117,50 @@ inversion H0; inversion H1;
  apply prefix8 in H7.
  decompose [and] H7.
  rewrite H7.
- apply_data_eq.
+ apply_object_eq.
 
  apply prefix16 in H7.
  decompose [and] H7.
  rewrite H8, H9.
- apply_data_eq.
+ apply_object_eq.
 
  apply prefix32 in H7.
  decompose [and] H7.
  rewrite H8,H9,H10,H12.
- apply_data_eq.
+ apply_object_eq.
 
  apply prefix64 in H7.
  decompose [and] H7.
  rewrite H8,H9,H10,H11,H12,H13,H14,H16.
- apply_data_eq.
+ apply_object_eq.
 
  apply prefix8 in H7.
  decompose [and] H7.
  rewrite H7.
- apply_data_eq.
+ apply_object_eq.
 
  apply prefix16 in H7.
  decompose [and] H7.
  rewrite H8, H9.
- apply_data_eq.
+ apply_object_eq.
 
  apply prefix32 in H7.
  decompose [and] H7.
  rewrite H8,H9,H10,H12.
- apply_data_eq.
+ apply_object_eq.
 
  apply prefix64 in H7.
  decompose [and] H7.
  rewrite H8,H9,H10,H11,H12,H13,H14,H16.
- apply_data_eq.
+ apply_object_eq.
 
  apply prefix32 in H7.
  decompose [and] H7.
  rewrite H8,H9,H10,H12.
- apply_data_eq.
+ apply_object_eq.
 
  apply prefix64 in H7.
  decompose [and] H7.
  rewrite H8,H9,H10,H11,H12,H13,H14,H16.
- apply_data_eq.
+ apply_object_eq.
 Qed.

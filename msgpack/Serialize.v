@@ -1,6 +1,6 @@
 Require Import List.
 Require Import Ascii.
-Require Import Data.
+Require Import Object.
 
 Open Scope list_scope.
 Open Scope char_scope.
@@ -8,7 +8,7 @@ Open Scope char_scope.
 Definition singleton {A} (x : A) := x :: nil.
 
 (* MsgPackのシリアライズルールの定義 *)
-Inductive Serialized : data -> list ascii -> Prop :=
+Inductive Serialized : object -> list ascii -> Prop :=
 | SNil  :
   Serialized Nil (singleton "192")
 | STrue :
