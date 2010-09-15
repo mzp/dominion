@@ -5,6 +5,7 @@ FILES[] =
 	Data
 	Serialize
 	Prefix
+	Soundness
 
 .DEFAULT: $(CoqProof $(FILES))
 

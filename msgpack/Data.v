@@ -1,4 +1,13 @@
 Require Import Ascii.
+Require Import List.
+
+Fixpoint pow (m n : nat) :=
+  match n with
+    | 0 =>
+      1
+    | (S n') =>
+      m * pow m n'
+  end.
 
 Inductive data :=
 | Bool (_ : bool)
@@ -7,7 +16,7 @@ Inductive data :=
   nat_of_ascii n < 128 -> data
 | NFixnum: forall n,
   (* 負の数を導入したくないので、補数表現を使う。 *)
-  224 <= nat_of_ascii n /\ nat_of_ascii n <= 255 ->
+  223 < nat_of_ascii n /\ nat_of_ascii n < 256 ->
   data
 | Uint8  (_ : ascii)
 | Uint16 (_ _ : ascii)
@@ -18,7 +27,13 @@ Inductive data :=
 | Int32  (_ _ _ _ : ascii)
 | Int64  (_ _ _ _ _ _ _ _ : ascii)
 | Float  (_ _ _ _ : ascii)
-| Double (_ _ _ _ _ _ _ _ : ascii).
+| Double (_ _ _ _ _ _ _ _ : ascii)
+| FixRaw: forall (xs : list ascii),
+  List.length xs < 32 -> data
+| Raw16: forall (xs : list ascii),
+  List.length xs < pow 2 16 -> data
+| Raw32: forall (xs : list ascii),
+  List.length xs < pow 2 32 -> data.
 
 (* データの等値性を定義。依存型の証明部分は無視する。*)
 Inductive eq_data : data -> data -> Prop :=
@@ -51,7 +66,13 @@ Inductive eq_data : data -> data -> Prop :=
 | FloatEq : forall c1 c2 c3 c4,
   eq_data (Float c1 c2 c3 c4) (Float c1 c2 c3 c4)
 | DoubleEq : forall c1 c2 c3 c4 c5 c6 c7 c8,
-  eq_data (Double c1 c2 c3 c4 c5 c6 c7 c8) (Double c1 c2 c3 c4 c5 c6 c7 c8).
+  eq_data (Double c1 c2 c3 c4 c5 c6 c7 c8) (Double c1 c2 c3 c4 c5 c6 c7 c8)
+| FixRawEq : forall xs ys P Q,
+  eq_data (FixRaw xs P) (FixRaw ys Q)
+| Raw16Eq : forall xs ys P Q,
+  eq_data (Raw16 xs P) (Raw16 ys Q)
+| Raw32Eq : forall xs ys P Q,
+  eq_data (Raw32 xs P) (Raw32 ys Q).
 
 Infix "=~" := eq_data (at level 60, right associativity).
 
@@ -69,7 +90,10 @@ Ltac apply_data_eq :=
   apply Int32Eq   ||
   apply Int64Eq   ||
   apply FloatEq   ||
-  apply DoubleEq.
+  apply DoubleEq  ||
+  apply FixRawEq  ||
+  apply Raw16Eq   ||
+  apply Raw32Eq.
 
 (* =~ が同値関係になってることの証明 *)
 
