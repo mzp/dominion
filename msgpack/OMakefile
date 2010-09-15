@@ -2,8 +2,11 @@ open CoqBuildRule
 .PHONY: all clean
 
 FILES[] =
+	Data
+	Serialize
 	Prefix
-	Definition
+#	Prefix
+#	Definition
 
 .DEFAULT: $(CoqProof $(FILES))
 
