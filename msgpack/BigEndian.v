@@ -1,12 +1,28 @@
+Require Import List.
 Require Import Ascii.
 Require Import BinPos.
 
 Definition ascii8 := ascii.
 Definition ascii16 : Set := (ascii * ascii)%type.
 Definition ascii32 : Set := (ascii * ascii * ascii * ascii)%type.
-Definition ascii64 : Set := (ascii * ascii * ascii * ascii *
-                             ascii * ascii * ascii * ascii)%type.
+Definition ascii64 : Set := (ascii * ascii * ascii * ascii * ascii * ascii * ascii * ascii)%type.
 
+(** * ascii8に落す変換 *)
+Definition ascii8_of_8  (x : ascii8) :=
+  x :: nil.
+
+Definition ascii8_of_16 (p : ascii16) :=
+  match p with (x1,x2) => x1::x2::nil end.
+Definition ascii8_of_32 (p : ascii32) :=
+  match p with (x1,x2,x3,x4) => x1::x2::x3::x4::nil end.
+
+Definition ascii8_of_64 (p : ascii64) :=
+  match p with (x1,x2,x3,x4,x5,x6,x7,x8) =>
+    x1::x2::x3::x4::x5::x6::x7::x8::nil
+  end.
+
+(** * natとの相互変換 *)
+(* todo: 証明 *)
 Definition to_ascii x :=
   match x with
     | None => zero

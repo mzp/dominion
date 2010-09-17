@@ -1,5 +1,6 @@
 Require Import List.
 Require Import Ascii.
+Require Import BigEndian.
 Require Import Object.
 
 Open Scope list_scope.
@@ -8,7 +9,7 @@ Open Scope char_scope.
 Definition singleton {A} (x : A) := x :: nil.
 
 (* MsgPackのシリアライズルールの定義 *)
-Inductive Serialized : object -> list ascii -> Prop :=
+Inductive Serialized : object -> list ascii8 -> Prop :=
 | SNil  :
   Serialized Nil (singleton "192")
 | STrue :
@@ -21,23 +22,23 @@ Inductive Serialized : object -> list ascii -> Prop :=
 | SNFixnum : forall  x1 x2 x3 x4 x5 P,
   Serialized (NFixnum   (Ascii x1 x2 x3 x4 x5 true true true) P)
              (singleton (Ascii x1 x2 x3 x4 x5 true true true))
-| SUint8 : forall x1,
-  Serialized (Uint8 x1) ("204"::x1::nil)
-| SUint16 : forall x1 x2,
-  Serialized (Uint16 x1 x2) ("205"::x1::x2::nil)
-| SUint32 : forall x1 x2 x3 x4,
-  Serialized (Uint32 x1 x2 x3 x4) ("206"::x1::x2::x3::x4::nil)
-| SUint64 : forall x1 x2 x3 x4 x5 x6 x7 x8,
-  Serialized (Uint64 x1 x2 x3 x4 x5 x6 x7 x8) ("207"::x1::x2::x3::x4::x5::x6::x7::x8::nil)
-| SInt8 : forall x1,
-  Serialized (Int8 x1) ("208"::x1::nil)
-| SInt16 : forall x1 x2,
-  Serialized (Int16 x1 x2) ("209"::x1::x2::nil)
-| SInt32 : forall x1 x2 x3 x4,
-  Serialized (Int32 x1 x2 x3 x4) ("210"::x1::x2::x3::x4::nil)
-| SInt64 : forall x1 x2 x3 x4 x5 x6 x7 x8,
-  Serialized (Int64 x1 x2 x3 x4 x5 x6 x7 x8) ("211"::x1::x2::x3::x4::x5::x6::x7::x8::nil)
-| SFloat : forall x1 x2 x3 x4,
-  Serialized (Float x1 x2 x3 x4) ("202"::x1::x2::x3::x4::nil)
-| SDouble : forall x1 x2 x3 x4 x5 x6 x7 x8,
-  Serialized (Double x1 x2 x3 x4 x5 x6 x7 x8) ("203"::x1::x2::x3::x4::x5::x6::x7::x8::nil).
+| SUint8 : forall c,
+  Serialized (Uint8 c) ("204"::ascii8_of_8 c)
+| SUint16 : forall c,
+  Serialized (Uint16 c) ("205"::ascii8_of_16 c)
+| SUint32 : forall c,
+  Serialized (Uint32 c) ("206"::ascii8_of_32 c)
+| SUint64 : forall c,
+  Serialized (Uint64 c) ("207"::ascii8_of_64 c)
+| SInt8 : forall c,
+  Serialized (Int8 c) ("208"::ascii8_of_8 c)
+| SInt16 : forall c,
+  Serialized (Int16 c) ("209"::ascii8_of_16 c)
+| SInt32 : forall c,
+  Serialized (Int32 c) ("210"::ascii8_of_32 c)
+| SInt64 : forall c,
+  Serialized (Int64 c) ("211"::ascii8_of_64 c)
+| SFloat : forall c,
+  Serialized (Float c) ("202"::ascii8_of_32 c)
+| SDouble : forall c,
+  Serialized (Double c) ("203"::ascii8_of_64 c).
