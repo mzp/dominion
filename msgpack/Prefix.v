@@ -1,6 +1,7 @@
 Require Import List.
 Require Import Object.
 Require Import Serialize.
+Require Import BigEndian.
 
 Open Scope list_scope.
 
@@ -25,32 +26,41 @@ split; intros.
   reflexivity.
 Qed.
 
-Lemma prefix8 : forall A (x1 y1 : A) tl1 tl2,
-  Prefix (x1::tl1) (y1::tl2) ->
-  x1 = y1.
+Lemma prefix8 : forall c1 c2,
+  Prefix (ascii8_of_8 c1) (ascii8_of_8 c2) ->
+  c1 = c2.
 Proof.
 intros.
+unfold ascii8_of_8 in *.
 apply prefix_inv in H.
+decompose [and] H.
+inversion H0.
 tauto.
 Qed.
 
-Lemma prefix16 : forall A (x1 x2 y1 y2 : A) tl1 tl2,
-  Prefix (x1::x2::tl1) (y1::y2::tl2) ->
-  x1 = y1 /\ x2 = y2.
+Lemma prefix16 : forall c1 c2,
+  Prefix (ascii8_of_16 c1) (ascii8_of_16 c2) ->
+  c1 = c2.
 Proof.
+unfold ascii8_of_16.
 intros.
+destruct c1; destruct c2.
 apply prefix_inv in H.
 decompose [and] H.
 apply prefix_inv in H1.
 decompose [and] H1.
-tauto.
+rewrite H0,H2.
+reflexivity.
 Qed.
 
-Lemma prefix32 : forall A (x1 x2 x3 x4 y1 y2 y3 y4: A) tl1 tl2,
-  Prefix (x1::x2::x3::x4::tl1) (y1::y2::y3::y4::tl2) ->
-  x1 = y1 /\ x2 = y2 /\ x3 = y3 /\ x4 = y4.
+Lemma prefix32 :forall c1 c2,
+  Prefix (ascii8_of_32 c1) (ascii8_of_32 c2) ->
+  c1 = c2.
 Proof.
+unfold ascii8_of_32.
 intros.
+destruct c1; destruct c2.
+repeat (destruct p; destruct p0).
 apply prefix_inv in H.
 decompose [and] H.
 apply prefix_inv in H1.
@@ -59,18 +69,19 @@ apply prefix_inv in H3.
 decompose [and] H3.
 apply prefix_inv in H5.
 decompose [and] H5.
-tauto.
+rewrite H0,H2,H4,H6.
+reflexivity.
 Qed.
 
 
-Lemma prefix64 : forall A (x1 x2 x3 x4 x5 x6 x7 x8
-                           y1 y2 y3 y4 y5 y6 y7 y8 : A) tl1 tl2,
-  Prefix (x1::x2::x3::x4::x5::x6::x7::x8::tl1)
-         (y1::y2::y3::y4::y5::y6::y7::y8::tl2) ->
-         x1 = y1 /\ x2 = y2 /\ x3 = y3 /\ x4 = y4 /\
-         x5 = y5 /\ x6 = y6 /\ x7 = y7 /\ x8 = y8.
+Lemma prefix64 :forall c1 c2,
+  Prefix (ascii8_of_64 c1) (ascii8_of_64 c2) ->
+  c1 = c2.
 Proof.
+unfold ascii8_of_64.
 intros.
+destruct c1; destruct c2.
+repeat (destruct p; destruct p0).
 apply prefix_inv in H.
 decompose [and] H.
 apply prefix_inv in H1.
@@ -87,7 +98,8 @@ apply prefix_inv in H11.
 decompose [and] H11.
 apply prefix_inv in H13.
 decompose [and] H13.
-tauto.
+rewrite H0,H2,H4,H6,H8,H10,H12,H14.
+reflexivity.
 Qed.
 
 (* 行頭符号になってないことの証明 *)
@@ -109,58 +121,15 @@ inversion H0; inversion H1;
   try apply_object_eq;
   (* 明らかに異なっているもの
      Eg. Bool b =~ Nil *)
-  rewrite <- H3, <- H5 in *;
-  apply prefix_inv in H2;
-  decompose [and] H2;
-  (discriminate || auto).
-
- apply prefix8 in H7.
- decompose [and] H7.
- rewrite H7.
- apply_object_eq.
-
- apply prefix16 in H7.
- decompose [and] H7.
- rewrite H8, H9.
- apply_object_eq.
-
- apply prefix32 in H7.
- decompose [and] H7.
- rewrite H8,H9,H10,H12.
- apply_object_eq.
-
- apply prefix64 in H7.
- decompose [and] H7.
- rewrite H8,H9,H10,H11,H12,H13,H14,H16.
- apply_object_eq.
-
- apply prefix8 in H7.
- decompose [and] H7.
- rewrite H7.
- apply_object_eq.
-
- apply prefix16 in H7.
- decompose [and] H7.
- rewrite H8, H9.
- apply_object_eq.
-
- apply prefix32 in H7.
- decompose [and] H7.
- rewrite H8,H9,H10,H12.
- apply_object_eq.
-
- apply prefix64 in H7.
- decompose [and] H7.
- rewrite H8,H9,H10,H11,H12,H13,H14,H16.
- apply_object_eq.
-
- apply prefix32 in H7.
- decompose [and] H7.
- rewrite H8,H9,H10,H12.
- apply_object_eq.
-
- apply prefix64 in H7.
- decompose [and] H7.
- rewrite H8,H9,H10,H11,H12,H13,H14,H16.
- apply_object_eq.
+  try( rewrite <- H3, <- H5 in *;
+       apply prefix_inv in H2;
+       decompose [and] H2;
+       (discriminate || auto));
+  (* prefix8/16/32/64で証明できるもの *)
+  try( apply prefix8 in H7
+         || apply prefix16 in H7
+         || apply prefix32 in H7
+         || apply prefix64 in H7;
+       rewrite H7;
+       apply_object_eq).
 Qed.
