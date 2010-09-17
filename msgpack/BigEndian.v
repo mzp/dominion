@@ -21,6 +21,42 @@ Definition ascii8_of_64 (p : ascii64) :=
     x1::x2::x3::x4::x5::x6::x7::x8::nil
   end.
 
+Lemma ascii8_of_16_eq : forall c1 c2,
+  ascii8_of_16 c1 = ascii8_of_16 c2 ->
+  c1 = c2.
+Proof.
+destruct c1; destruct c2.
+simpl.
+intros.
+inversion H.
+reflexivity.
+Qed.
+
+Lemma ascii8_of_32_eq : forall c1 c2,
+  ascii8_of_32 c1 = ascii8_of_32 c2 ->
+  c1 = c2.
+Proof.
+destruct c1; destruct c2.
+repeat (destruct p; destruct p0).
+simpl.
+intros.
+inversion H.
+reflexivity.
+Qed.
+
+Lemma ascii8_of_64_eq : forall c1 c2,
+  ascii8_of_64 c1 = ascii8_of_64 c2 ->
+  c1 = c2.
+Proof.
+destruct c1; destruct c2.
+repeat (destruct p; destruct p0).
+simpl.
+intros.
+inversion H.
+reflexivity.
+Qed.
+
+
 (** * natとの相互変換 *)
 (* todo: 証明 *)
 Definition to_ascii x :=
