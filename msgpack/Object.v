@@ -1,5 +1,5 @@
 Require Import List.
-Require Import MultiAscii.
+Require Import BigEndian.
 
 Inductive object :=
 | Bool (_ : bool)
