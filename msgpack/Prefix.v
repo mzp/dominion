@@ -10,6 +10,29 @@ Definition Prefix {A} (xs ys : list A) := forall x y i,
   value y = nth_error ys i ->
   x = y.
 
+Lemma prefix_eq : forall A (xs ys : list A),
+  length xs = length ys ->
+  Prefix xs ys ->
+  xs = ys.
+Proof.
+unfold Prefix in *.
+induction xs; induction ys; intros.
+ reflexivity.
+
+ simpl in H.
+ inversion H.
+
+ inversion H.
+
+ simpl in H.
+ inversion H.
+ apply IHxs in H2.
+ generalize H0.
+ rewrite H2, (H0 a a0 0); simpl; auto.
+ intros.
+ apply (H0 _ _ (S i)); simpl; auto.
+Qed.
+
 Lemma prefix_inv : forall A (x y : A) xs ys,
   Prefix (x::xs) (y::ys) ->
   x = y /\ Prefix xs ys.
@@ -73,7 +96,6 @@ rewrite H0,H2,H4,H6.
 reflexivity.
 Qed.
 
-
 Lemma prefix64 :forall c1 c2,
   Prefix (ascii8_of_64 c1) (ascii8_of_64 c2) ->
   c1 = c2.
@@ -131,5 +153,21 @@ inversion H0; inversion H1;
          || apply prefix32 in H7
          || apply prefix64 in H7;
        rewrite H7;
-       apply_object_eq).
+       apply_object_eq);
+ try( rewrite <- H3, <- H6 in *;
+      apply prefix_inv in H2;
+      decompose [and] H2;
+      inversion H7;
+      tauto);
+ try( rewrite <- H4, <- H6 in *;
+      apply prefix_inv in H2;
+      decompose [and] H2;
+      inversion H7;
+      tauto);
+ try( rewrite <- H4, <- H7 in *;
+      apply prefix_inv in H2;
+      decompose [and] H2;
+      inversion H8).
+
+ apply prefix_eq; auto.
 Qed.

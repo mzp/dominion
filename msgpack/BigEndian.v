@@ -1,6 +1,7 @@
 Require Import List.
 Require Import Ascii.
 Require Import BinPos.
+Require Import Wf_nat.
 
 Definition ascii8 := ascii.
 Definition ascii16 : Set := (ascii * ascii)%type.
@@ -162,3 +163,18 @@ Definition ascii64_of_nat n :=
           to_ascii (drop 8 p),
           ascii_of_pos p)
   end.
+
+Lemma ascii_of_nat_eq : forall (n : nat),
+  n < pow 2 8 ->
+  n = nat_of_ascii (ascii_of_nat n).
+Proof.
+intros until n.
+pattern n.
+apply lt_wf_ind.
+intros.
+unfold nat_of_ascii8, ascii8_of_nat.
+destruct n0.
+ simpl.
+ reflexivity.
+
+ destruct (P_of_succ_nat n0).
