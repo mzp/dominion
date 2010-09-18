@@ -29,12 +29,18 @@ type game_response = [
 | `BuyPhase     of player_name
 | `CleanupPhase of player_name ]
 
-type response = [
+type return = [
   `Ok      of id
 | `Error   of id * string
 | `Cards   of id * Game.card list
 | `Games   of id * string list
+]
+type notify = [
 | `Message of game_name * game_response
+]
+type response = [
+  return
+| notify
 ]
 
 type 'a peer = {

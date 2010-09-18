@@ -17,14 +17,15 @@ let rec try_it f n =
       | None -> try_it f (n-1)
 
 let weak_sync e =
-  ignore (try_it (fun () -> Event.poll e) 100)
+  ignore (try_it (fun () -> Event.poll e) 2000)
 
 let broadcast t e =
   List.map snd t#clients
   +> List.map (fun ch -> Event.send ch e)
   +> List.iter weak_sync
 
-let game t =
+(** ゲームの初期配置を構築する *)
+let make_game t =
   let players =
     ListLabels.rev_map t#clients ~f:begin fun (name,_)->
       let (hands, decks) =
@@ -50,7 +51,7 @@ let ready t ch pid id =
 	t#ready <- pid :: t#ready in
 	if List.length t#ready = List.length t#names then begin
 	  let t =
-	    t#game <- game t in
+	    t#game <- make_game t in
 	  let t =
 	    PlayerHandler.invoke t in
 	  let _ =
@@ -127,3 +128,4 @@ let create name : 'a t =
 
 let handle t x y z =
   Event.send t (x, y, z)
+
