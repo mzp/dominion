@@ -7,6 +7,7 @@ FILES[] =
 	Serialize
 	Prefix
 	Soundness
+	AsciiUtil
 
 .DEFAULT: $(CoqProof $(FILES))
 
