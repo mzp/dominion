@@ -2,6 +2,7 @@ Require Import List.
 Require Import Object.
 Require Import Serialize.
 Require Import BigEndian.
+Require Import AsciiUtil.
 Require Import Coq.omega.Omega.
 
 Open Scope list_scope.
