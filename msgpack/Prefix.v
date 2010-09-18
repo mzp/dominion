@@ -170,4 +170,4 @@ inversion H0; inversion H1;
       inversion H8).
 
  apply prefix_eq; auto.
-Qed.
+Admitted.
