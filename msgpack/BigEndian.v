@@ -1,7 +1,7 @@
 Require Import List.
 Require Import Ascii.
-Require Import BinPos.
-Require Import Wf_nat.
+Require Import AsciiUtil.
+Require Import BinPos BinNat Nnat.
 
 Definition ascii8 := ascii.
 Definition ascii16 : Set := (ascii * ascii)%type.
@@ -163,4 +163,21 @@ Definition ascii64_of_nat n :=
           to_ascii (drop 8 p),
           ascii_of_pos p)
   end.
+
+Theorem ascii_lt_32 : forall (n : N) b1 b2 b3 b4 b5 b6 b7 b8,
+  (n < 32)%N ->
+  ascii_of_N n = Ascii b1 b2 b3 b4 b5 b6 b7 b8 ->
+  b6 = false /\ b7 = false /\ b8 = false.
+Proof.
+intros.
+destruct n.
+ inversion H0.
+ repeat split; reflexivity.
+
+ do 8 (try destruct p);
+  (* 32 <= n *)
+  try (compute in H; discriminate);
+  (* n < 32 *)
+  try (compute in H0; inversion H0; repeat split; reflexivity).
+Qed.
 
