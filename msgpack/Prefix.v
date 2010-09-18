@@ -2,6 +2,7 @@ Require Import List.
 Require Import Object.
 Require Import Serialize.
 Require Import BigEndian.
+Require Import Coq.omega.Omega.
 
 Open Scope list_scope.
 
@@ -124,6 +125,19 @@ rewrite H0,H2,H4,H6,H8,H10,H12,H14.
 reflexivity.
 Qed.
 
+Lemma ascii_eq_nat : forall n m,
+  n < 256 ->
+  m < 256 ->
+  ascii8_of_nat n =  ascii8_of_nat m ->
+  n = m.
+Proof.
+unfold ascii8_of_nat.
+intros.
+rewrite <- (nat_ascii_embedding n), <- (nat_ascii_embedding m); auto.
+rewrite H1.
+reflexivity.
+Qed.
+
 (* 行頭符号になってないことの証明 *)
 Theorem NotPrefixEncoding : forall x1 x2 y1 y2,
   ~(x1 =~ x2) ->
@@ -170,4 +184,14 @@ inversion H0; inversion H1;
       inversion H8).
 
  apply prefix_eq; auto.
+ apply ascii_eq_nat; try omega.
+ rewrite <- H, <- H5.
+ generalize P; intro Q1.
+ apply (ascii_5bits _ b1 b2 b3  b4  b5  b6  b7  b8)  in Q1; auto.
+ generalize P0; intro Q2.
+ apply (ascii_5bits _ b0 b9 b10 b11 b12 b13 b14 b15) in Q2; auto.
+ decompose [and] Q1.
+ decompose [and] Q2.
+ rewrite H10, H11, H12, H13, H14, H15, H16, H17, H18, H20, H21.
+ reflexivity.
 Admitted.

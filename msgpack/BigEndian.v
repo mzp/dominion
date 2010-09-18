@@ -92,7 +92,7 @@ Definition nat_of_ascii8 :=
   nat_of_ascii.
 
 Definition ascii8_of_nat :=
-  ascii_of_nat.
+  AsciiUtil.ascii_of_nat.
 
 Lemma soundness_ascii8 : forall c,
   ascii8_of_nat (nat_of_ascii8 c) = c.
