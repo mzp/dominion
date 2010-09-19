@@ -35,7 +35,6 @@ FILES[] =
 	logger
 	protocol
 	maybe
-	handler
 	threadUtils
 	playerHandler
 	listUtil
