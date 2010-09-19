@@ -3,6 +3,7 @@ open Curses
 open Ccell
 open ThreadUtils
 open Protocol
+open Printf
 
 module Make(T : Protocol.S) = struct
   let strip s =
@@ -61,17 +62,25 @@ module Make(T : Protocol.S) = struct
     | `Ok _ ->
 	Left ("ok")
     | `Error (_,s) ->
-	Left (Printf.sprintf "error: %s" s)
+	Left (sprintf "error: %s" s)
     | `Games (_,xs) ->
 	Left (Std.dump xs)
     | `Cards (_,xs) ->
-	Left (Std.dump @@ List.map (fun x -> p "%s" (Game.to_string x) ()) xs)
+	Left (Std.dump @@ List.map (fun x -> p "%s" (tee (print_endline) @@ Game.to_string x) ()) xs)
     | `Message (game, `Player(name,msg)) ->
-	Left (Printf.sprintf "%s@%s: %s" name game msg)
+	Left (sprintf "%s@%s: %s" name game msg)
     | `Message (game, `System(msg)) ->
-	Left (Printf.sprintf "%s: %s" game msg)
-    | `Message (_, _) ->
-	Left "some event"
+	Left (sprintf "%s: %s" game msg)
+    | `Message (game, `GameStart) ->
+	Left (sprintf "start@%s" game)
+    | `Message (game, `Turn name) ->
+	Left (sprintf "%s's turn@%s" name game)
+    | `Message (game, `ActionPhase name) ->
+	Left (sprintf "%s's action phase@%s" name game)
+    | `Message (game, `BuyPhase name) ->
+	Left (sprintf "%s's buy phase@%s" name game)
+    | `Message (game, `CleanupPhase name) ->
+	Left (sprintf "%s's cleanup phase@%s" name game)
 
   let wait_loop (game, response) ch xs =
     let e =
