@@ -10,7 +10,7 @@ class type t = object
   method observer : Protocol.game_response Observer.t
 end
 
-let fire t e =
+let fire t e  =
   lift (fun game ->
 	  Observer.__fire t#observer e;
 	  Cc.return (Left ((),game)))

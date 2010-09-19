@@ -74,7 +74,7 @@ let game_thread t ({ return; pid; _ } as r) =
     | `Message text ->
 	begin match lookup pid t#names with
 	    Some name ->
-	      Observer.__fire t#observer @@ `Player (name, text)
+	      Observer.__fire t#observer @@ `Player (name, text);
 	  | None ->
 	      ()
 	end;

@@ -4,36 +4,33 @@ open Protocol
 open ThreadUtils
 
 module Make(T : Protocol.S) = struct
-  let on_recv {id; req; res } system mbox =
-    let request =
-      Event.sync @@ Event.receive req in
+  let bind x f = Event.wrap x (fun v -> Event.sync (f v))
+
+  let on_request {id = pid ; req; res } system notify =
     let return =
       Ivar.make () in
-(*    let return_e =
- in
-    let notify_e =
-      Event.wrap (Mbox.pop mbox) @@ fun r ->
-	Event.sync @@ Event.send res (r :> Protocol.response) in
-    let rec loop () =
-      match Event.select [ Event.wrap return_e @@ const `Return;
-			   Event.wrap notify_e @@ const `Notify ] with
-	| `Return -> ()
-    in*)
-      Event.sync @@ Event.send system {
-	GameThread.pid = id;
-	request;
-	notify = mbox;
-	return;
-      };
-      Event.sync @@ Event.wrap (Ivar.read return) @@ fun r ->
-	Event.sync @@ Event.send res (r :> Protocol.response)
+      perform begin
+	request <-- Event.receive req;
+	Event.send system { GameThread.pid; request; notify; return };
+	value <-- Ivar.read return;
+	Event.send res (value :> Protocol.response)
+      end
+
+  let rec on_notify peer notify =
+    perform begin
+      value <-- Mbox.pop notify;
+      Event.send peer.res (value :> Protocol.response);
+      on_notify peer notify
+    end
 
   let run host port =
     let system =
       GameThread.start () in
       T.server host port ~f:begin fun client ->
-	let notify =
+	let mbox =
 	  Mbox.make () in
-	  forever (fun () -> on_recv client system notify) ()
+	let _ =
+	  Thread.create (fun () -> Event.sync @@ on_notify client mbox) () in
+	  forever (fun () -> Event.sync @@ on_request client system mbox) ()
       end
 end
