@@ -1,13 +1,105 @@
 Require Import List.
 Require Import Ascii.
 Require Import AsciiUtil.
-Require Import BinPos BinNat Nnat.
+Require Import NArith.
+Require Import Omega.
+Require Import Euclid.
+Require Import Recdef.
+
 
 (* 右のほうに上位の桁を格納する *)
 Definition ascii8 := ascii.
 Definition ascii16 : Set := (ascii * ascii)%type.
 Definition ascii32 : Set := (ascii * ascii * ascii * ascii)%type.
 Definition ascii64 : Set := (ascii * ascii * ascii * ascii * ascii * ascii * ascii * ascii)%type.
+
+Definition divmod (n m : nat) (P : m > 0) :=
+  eucl_dev m P n.
+
+Lemma l: 256 > 0.
+omega.
+Qed.
+
+Fixpoint pow (n : nat) :=
+  match n with
+    | 0 =>
+      1
+    | (S n') =>
+      2 * pow n'
+  end.
+
+Definition ascii16_of_nat (a : nat)  :=
+  let (q,r,_,_) := divmod a (pow 8) l in
+    (ascii_of_nat q, ascii_of_nat r).
+
+Definition nat_of_ascii16 (a : ascii16) :=
+  let (a1, a2) := a in
+    (nat_of_ascii a1) * (pow 8) + (nat_of_ascii a2).
+
+Lemma mult_S_lt_reg_l :
+  forall n m p, 0 < n -> n * m < n * p -> m < p.
+Proof.
+intros.
+destruct n.
+ inversion H.
+
+elim (le_or_lt m p).
+ intro.
+ inversion H1.
+  rewrite H2 in H0.
+   elim (lt_irrefl _ H0).
+   omega.
+
+   intro.
+   apply (mult_S_lt_compat_l n _ _) in H1.
+   omega.
+Qed.
+
+Lemma plus_elim: forall p a b,
+  a + p < b -> a < b.
+Proof.
+intros.
+omega.
+Qed.
+
+Lemma pow_add: forall n m,
+  pow n * pow m = pow (n + m).
+Proof.
+induction n; intros.
+ simpl in *.
+ omega.
+
+ simpl.
+ repeat rewrite plus_0_r.
+ rewrite <- IHn, mult_plus_distr_r.
+ reflexivity.
+Qed.
+
+Lemma soundness: forall n,
+  n < pow 16 ->
+  n = nat_of_ascii16 (ascii16_of_nat n).
+Proof.
+intros.
+unfold ascii16_of_nat.
+destruct (divmod n (pow 8) l).
+unfold nat_of_ascii16.
+rewrite (nat_ascii_embedding q), (nat_ascii_embedding r).
+ auto.
+
+ simpl in g.
+ omega.
+
+ rewrite e in H.
+ apply plus_elim in H.
+ change (pow 16) with (pow (8+8)) in H.
+ rewrite <- pow_add, mult_comm in H.
+ apply mult_S_lt_reg_l in H.
+  simpl in H.
+  assumption.
+
+  simpl.
+  omega.
+Qed.
 
 (** * ascii8に落す変換 *)
 Definition ascii8_of_8  (x : ascii8) :=
@@ -86,14 +178,6 @@ Fixpoint drop (n :nat) (p : positive) :=
       end
   end.
 
-Fixpoint pow (m n : nat) :=
-  match n with
-    | 0 =>
-      1
-    | (S n') =>
-      m * pow m n'
-  end.
-
 (** * nat<=>asciiの変換 *)
 
 Definition digits (a : ascii) :=
@@ -108,23 +192,6 @@ Definition ascii8_of_nat :=
   AsciiUtil.ascii_of_nat.
 
 (** ** 16 bits *)
-Definition ascii16_of_N (n : N) : ascii16 :=
-  match n with
-    | N0 => (zero, zero)
-    | Npos p =>
-      (ascii_of_pos p, to_ascii (drop 8 p))
-  end.
-
-Definition N_of_ascii16 (a : ascii16) : N :=
-  let (p1, p2) := a in
-    N_of_digits (digits p1 ++ digits p2).
-
-Definition ascii16_of_nat (a : nat) : ascii16 :=
-  ascii16_of_N (N_of_nat a).
-
-
-Definition nat_of_ascii16 (a : ascii16) :=
-  nat_of_N (N_of_ascii16 a).
 
 (** ** 32 bits *)
 Definition ascii32_of_N (n : N) : ascii32 :=

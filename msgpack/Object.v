@@ -23,9 +23,9 @@ Inductive object :=
 | FixRaw: forall (xs : list ascii8),
   List.length xs < 32 -> object
 | Raw16: forall (xs : list ascii8),
-  List.length xs < pow 2 16 -> object
+  List.length xs < pow 16 -> object
 | Raw32: forall (xs : list ascii8),
-  List.length xs < pow 2 32 -> object.
+  List.length xs < pow 32 -> object.
 
 (* データの等値性を定義。依存型の証明部分は無視する。*)
 Inductive eq_object : object -> object -> Prop :=
