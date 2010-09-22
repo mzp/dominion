@@ -11,9 +11,9 @@ intros.
   inversion H;
   rewrite <- H2 in *;
   inversion H0;
-  try (apply ascii8_of_16_eq in H5
-        || apply ascii8_of_32_eq in H5
-        || apply ascii8_of_64_eq in H5;
+  try (apply list_of_ascii16_eq in H5
+        || apply list_of_ascii32_eq in H5
+        || apply list_of_ascii64_eq in H5;
        rewrite H5);
   try apply_object_eq;
   try (rewrite <- H3 in *;

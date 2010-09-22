@@ -52,11 +52,11 @@ split; intros.
 Qed.
 
 Lemma prefix8 : forall c1 c2,
-  Prefix (ascii8_of_8 c1) (ascii8_of_8 c2) ->
+  Prefix (list_of_ascii8 c1) (list_of_ascii8 c2) ->
   c1 = c2.
 Proof.
 intros.
-unfold ascii8_of_8 in *.
+unfold list_of_ascii8 in *.
 apply prefix_inv in H.
 decompose [and] H.
 inversion H0.
@@ -64,12 +64,13 @@ tauto.
 Qed.
 
 Lemma prefix16 : forall c1 c2,
-  Prefix (ascii8_of_16 c1) (ascii8_of_16 c2) ->
+  Prefix (list_of_ascii16 c1) (list_of_ascii16 c2) ->
   c1 = c2.
 Proof.
-unfold ascii8_of_16.
+unfold list_of_ascii16.
 intros.
 destruct c1; destruct c2.
+simpl in H.
 apply prefix_inv in H.
 decompose [and] H.
 apply prefix_inv in H1.
@@ -79,12 +80,14 @@ reflexivity.
 Qed.
 
 Lemma prefix32 :forall c1 c2,
-  Prefix (ascii8_of_32 c1) (ascii8_of_32 c2) ->
+  Prefix (list_of_ascii32 c1) (list_of_ascii32 c2) ->
   c1 = c2.
 Proof.
-unfold ascii8_of_32.
+unfold list_of_ascii32.
 intros.
 destruct c1; destruct c2.
+destruct a; destruct a0; destruct a1; destruct a2.
+simpl in H.
 repeat (destruct p; destruct p0).
 apply prefix_inv in H.
 decompose [and] H.
@@ -99,13 +102,16 @@ reflexivity.
 Qed.
 
 Lemma prefix64 :forall c1 c2,
-  Prefix (ascii8_of_64 c1) (ascii8_of_64 c2) ->
+  Prefix (list_of_ascii64 c1) (list_of_ascii64 c2) ->
   c1 = c2.
 Proof.
-unfold ascii8_of_64.
+unfold list_of_ascii64.
 intros.
 destruct c1; destruct c2.
-repeat (destruct p; destruct p0).
+destruct a; destruct a0; destruct a1; destruct a2.
+destruct a; destruct a3; destruct a0; destruct a4;
+destruct a1; destruct a5; destruct a2; destruct a6.
+simpl in H.
 apply prefix_inv in H.
 decompose [and] H.
 apply prefix_inv in H1.
@@ -146,7 +152,19 @@ Lemma ascii16_eq_nat : forall n m,
   n = m.
 Proof.
 intros.
-rewrite (nat_ascii16_embedding n), (nat_ascii16_embedding m); auto.
+rewrite <- (nat_ascii16_embedding n), <- (nat_ascii16_embedding m); auto.
+rewrite H1.
+reflexivity.
+Qed.
+
+Lemma ascii32_eq_nat : forall n m,
+  n < pow 32 ->
+  m < pow 32 ->
+  ascii32_of_nat n =  ascii32_of_nat m ->
+  n = m.
+Proof.
+intros.
+rewrite <- (nat_ascii32_embedding n), <- (nat_ascii32_embedding m); auto.
 rewrite H1.
 reflexivity.
 Qed.
@@ -217,4 +235,18 @@ inversion H0; inversion H1;
  rewrite <- H, <- H5.
  rewrite H10,H12.
  reflexivity.
-Admitted.
+
+ apply prefix_inv in H9.
+ decompose [and] H9.
+ apply prefix_inv in H11.
+ decompose [and] H11.
+ apply prefix_inv in H13.
+ decompose [and] H13.
+ apply prefix_inv in H15.
+ decompose [and] H15.
+ apply prefix_eq; auto.
+ apply ascii32_eq_nat; try omega.
+ rewrite <- H, <- H5.
+ rewrite H10,H12,H14,H16.
+ reflexivity.
+Qed.
