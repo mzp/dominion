@@ -75,7 +75,7 @@ induction n; intros.
  reflexivity.
 Qed.
 
-Lemma soundness: forall n,
+Lemma nat_ascii16_embedding : forall n,
   n < pow 16 ->
   n = nat_of_ascii16 (ascii16_of_nat n).
 Proof.

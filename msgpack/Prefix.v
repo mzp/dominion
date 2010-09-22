@@ -126,7 +126,7 @@ rewrite H0,H2,H4,H6,H8,H10,H12,H14.
 reflexivity.
 Qed.
 
-Lemma ascii_eq_nat : forall n m,
+Lemma ascii8_eq_nat : forall n m,
   n < 256 ->
   m < 256 ->
   ascii8_of_nat n =  ascii8_of_nat m ->
@@ -135,6 +135,18 @@ Proof.
 unfold ascii8_of_nat.
 intros.
 rewrite <- (nat_ascii_embedding n), <- (nat_ascii_embedding m); auto.
+rewrite H1.
+reflexivity.
+Qed.
+
+Lemma ascii16_eq_nat : forall n m,
+  n < pow 16 ->
+  m < pow 16 ->
+  ascii16_of_nat n =  ascii16_of_nat m ->
+  n = m.
+Proof.
+intros.
+rewrite (nat_ascii16_embedding n), (nat_ascii16_embedding m); auto.
 rewrite H1.
 reflexivity.
 Qed.
@@ -185,7 +197,7 @@ inversion H0; inversion H1;
       inversion H8).
 
  apply prefix_eq; auto.
- apply ascii_eq_nat; try omega.
+ apply ascii8_eq_nat; try omega.
  rewrite <- H, <- H5.
  generalize P; intro Q1.
  apply (ascii_5bits _ b1 b2 b3  b4  b5  b6  b7  b8)  in Q1; auto.
@@ -194,5 +206,15 @@ inversion H0; inversion H1;
  decompose [and] Q1.
  decompose [and] Q2.
  rewrite H10, H11, H12, H13, H14, H15, H16, H17, H18, H20, H21.
+ reflexivity.
+
+ apply prefix_inv in H9.
+ decompose [and] H9.
+ apply prefix_inv in H11.
+ decompose [and] H11.
+ apply prefix_eq; auto.
+ apply ascii16_eq_nat; try omega.
+ rewrite <- H, <- H5.
+ rewrite H10,H12.
  reflexivity.
 Admitted.
