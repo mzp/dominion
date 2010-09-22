@@ -6,19 +6,15 @@ Require Import Omega.
 Require Import Euclid.
 Require Import Recdef.
 
-
-(* 右のほうに上位の桁を格納する *)
+(** 型の定義 *)
 Definition ascii8 := ascii.
-Definition ascii16 : Set := (ascii * ascii)%type.
-Definition ascii32 : Set := (ascii * ascii * ascii * ascii)%type.
-Definition ascii64 : Set := (ascii * ascii * ascii * ascii * ascii * ascii * ascii * ascii)%type.
+Definition ascii16 : Set := (ascii8  * ascii8)%type.
+Definition ascii32 : Set := (ascii16 * ascii16)%type.
+Definition ascii64 : Set := (ascii32 * ascii32)%type.
 
+(** 内部定義 *)
 Definition divmod (n m : nat) (P : m > 0) :=
   eucl_dev m P n.
-
-Lemma l: 256 > 0.
-omega.
-Qed.
 
 Fixpoint pow (n : nat) :=
   match n with
@@ -28,14 +24,49 @@ Fixpoint pow (n : nat) :=
       2 * pow n'
   end.
 
+Lemma pow_lt_O : forall n,
+  pow n > 0.
+Proof.
+induction n.
+ simpl.
+ omega.
+
+ simpl.
+ omega.
+Qed.
+
+(** natとの相互変換 *)
+Definition nat_of_ascii8 :=
+  AsciiUtil.nat_of_ascii.
+
+Definition ascii8_of_nat :=
+  AsciiUtil.ascii_of_nat.
+
 Definition ascii16_of_nat (a : nat)  :=
-  let (q,r,_,_) := divmod a (pow 8) l in
-    (ascii_of_nat q, ascii_of_nat r).
+  let (q,r,_,_) := divmod a (pow 8) (pow_lt_O 8) in
+    (ascii8_of_nat q, ascii8_of_nat r).
 
 Definition nat_of_ascii16 (a : ascii16) :=
   let (a1, a2) := a in
-    (nat_of_ascii a1) * (pow 8) + (nat_of_ascii a2).
+    (nat_of_ascii8 a1) * (pow 8) + (nat_of_ascii8 a2).
 
+Definition ascii32_of_nat (a : nat)  :=
+  let (q,r,_,_) := divmod a (pow 16) (pow_lt_O 16) in
+    (ascii16_of_nat q, ascii16_of_nat r).
+
+Definition nat_of_ascii32 (a : ascii32) :=
+  let (a1, a2) := a in
+    (nat_of_ascii16 a1) * (pow 16) + (nat_of_ascii16 a2).
+
+Definition ascii64_of_nat (a : nat)  :=
+  let (q,r,_,_) := divmod a (pow 32) (pow_lt_O 32) in
+    (ascii32_of_nat q, ascii32_of_nat r).
+
+Definition nat_of_ascii64 (a : ascii64) :=
+  let (a1, a2) := a in
+    (nat_of_ascii32 a1) * (pow 32) + (nat_of_ascii32 a2).
+
+(** n < 2^mなら元にもどせることの証明 *)
 Lemma mult_S_lt_reg_l :
   forall n m p, 0 < n -> n * m < n * p -> m < p.
 Proof.
@@ -75,18 +106,30 @@ induction n; intros.
  reflexivity.
 Qed.
 
+Lemma nat_ascii8_embedding : forall n,
+  n < pow 8 ->
+  nat_of_ascii8 (ascii8_of_nat n) = n.
+Proof.
+intros.
+unfold nat_of_ascii8,ascii8_of_nat.
+rewrite nat_ascii_embedding.
+ reflexivity.
+
+ simpl in H.
+ assumption.
+Qed.
+
 Lemma nat_ascii16_embedding : forall n,
   n < pow 16 ->
-  n = nat_of_ascii16 (ascii16_of_nat n).
+  nat_of_ascii16 (ascii16_of_nat n) = n.
 Proof.
 intros.
 unfold ascii16_of_nat.
-destruct (divmod n (pow 8) l).
+destruct (divmod n (pow 8) (pow_lt_O 8)).
 unfold nat_of_ascii16.
-rewrite (nat_ascii_embedding q), (nat_ascii_embedding r).
+rewrite (nat_ascii8_embedding q), (nat_ascii8_embedding r).
  auto.
 
- simpl in g.
  omega.
 
  rewrite e in H.
@@ -94,62 +137,106 @@ rewrite (nat_ascii_embedding q), (nat_ascii_embedding r).
  change (pow 16) with (pow (8+8)) in H.
  rewrite <- pow_add, mult_comm in H.
  apply mult_S_lt_reg_l in H.
-  simpl in H.
   assumption.
 
-  simpl.
-  omega.
+  apply pow_lt_O.
+Qed.
+
+Lemma nat_ascii32_embedding : forall n,
+  n < pow 32 ->
+  nat_of_ascii32 (ascii32_of_nat n) = n.
+Proof.
+intros.
+unfold ascii32_of_nat.
+destruct (divmod n (pow 16) (pow_lt_O 16)).
+unfold nat_of_ascii32.
+rewrite (nat_ascii16_embedding q), (nat_ascii16_embedding r).
+ auto.
+
+ omega.
+
+ rewrite e in H.
+ apply plus_elim in H.
+ change (pow 32) with (pow (16+16)) in H.
+ rewrite <- pow_add, mult_comm in H.
+ apply mult_S_lt_reg_l in H.
+  assumption.
+
+  apply pow_lt_O.
+Qed.
+
+Lemma nat_ascii64_embedding : forall n,
+  n < pow 64 ->
+  nat_of_ascii64 (ascii64_of_nat n) = n.
+Proof.
+intros.
+unfold ascii64_of_nat.
+destruct (divmod n (pow 32) (pow_lt_O 32)).
+unfold nat_of_ascii64.
+rewrite (nat_ascii32_embedding q), (nat_ascii32_embedding r).
+ auto.
+
+ omega.
+
+ rewrite e in H.
+ apply plus_elim in H.
+ change (pow 64) with (pow (32+32)) in H.
+ rewrite <- pow_add, mult_comm in H.
+ apply mult_S_lt_reg_l in H.
+  assumption.
+
+  apply pow_lt_O.
 Qed.
 
 (** * ascii8に落す変換 *)
-Definition ascii8_of_8  (x : ascii8) :=
+Definition list_of_ascii8  (x : ascii8) :=
   x :: nil.
 
-Definition ascii8_of_16 (p : ascii16) :=
+Definition list_of_ascii16 (p : ascii16) :=
   match p with
-    (x1,x2) => x2::x1::nil
+    (x1,x2) => (list_of_ascii8 x1) ++ (list_of_ascii8 x2)
   end.
 
-Definition ascii8_of_32 (p : ascii32) :=
+Definition list_of_ascii32 (p : ascii32) :=
   match p with
-    (x1,x2,x3,x4) => x4::x3::x2::x1::nil
+    (x1,x2) => (list_of_ascii16 x1) ++ (list_of_ascii16 x2)
   end.
 
-Definition ascii8_of_64 (p : ascii64) :=
+Definition list_of_ascii64 (p : ascii64) :=
   match p with
-    (x1,x2,x3,x4,x5,x6,x7,x8) =>
-    x8::x7::x6::x5::x4::x3::x2::x1::nil
+    (x1,x2) => (list_of_ascii32 x1) ++ (list_of_ascii32 x2)
   end.
 
-Lemma ascii8_of_16_eq : forall c1 c2,
-  ascii8_of_16 c1 = ascii8_of_16 c2 ->
+Lemma list_of_ascii16_eq : forall c1 c2,
+  list_of_ascii16 c1 = list_of_ascii16 c2 ->
   c1 = c2.
 Proof.
 destruct c1; destruct c2.
-simpl.
 intros.
 inversion H.
 reflexivity.
 Qed.
 
-Lemma ascii8_of_32_eq : forall c1 c2,
-  ascii8_of_32 c1 = ascii8_of_32 c2 ->
+Lemma list_of_ascii32_eq : forall c1 c2,
+  list_of_ascii32 c1 = list_of_ascii32 c2 ->
   c1 = c2.
 Proof.
+intros.
 destruct c1; destruct c2.
-repeat (destruct p; destruct p0).
-simpl.
+destruct a; destruct a0; destruct a1; destruct a2.
 intros.
 inversion H.
 reflexivity.
 Qed.
 
-Lemma ascii8_of_64_eq : forall c1 c2,
-  ascii8_of_64 c1 = ascii8_of_64 c2 ->
+Lemma list_of_ascii64_eq : forall c1 c2,
+  list_of_ascii64 c1 = list_of_ascii64 c2 ->
   c1 = c2.
 Proof.
 destruct c1; destruct c2.
-repeat (destruct p; destruct p0).
+destruct a; destruct a0; destruct a1; destruct a2.
+destruct a; destruct a3; destruct a0; destruct a4;
+destruct a1; destruct a5; destruct a2; destruct a6.
 simpl.
 intros.
 inversion H.
@@ -157,98 +244,7 @@ reflexivity.
 Qed.
 
 (** * natとの相互変換 *)
-(* todo: 証明 *)
-Definition to_ascii x :=
-  match x with
-    | None => zero
-    | Some p => ascii_of_pos p
-  end.
-
-Fixpoint drop (n :nat) (p : positive) :=
-  match n with
-    | 0 => Some p
-    | S n' =>
-      match p with
-        | xI p' =>
-          drop n' p'
-        | xO p' =>
-          drop n' p'
-        | xH =>
-          None
-      end
-  end.
-
-(** * nat<=>asciiの変換 *)
-
-Definition digits (a : ascii) :=
-  let (a0, a1, a2 , a3 , a4,  a5,  a6,  a7) := a in
-    a0::a1::a2::a3::a4::a5::a6::a7::nil.
-
-(** ** ascii8 *)
-Definition nat_of_ascii8 :=
-  nat_of_ascii.
-
-Definition ascii8_of_nat :=
-  AsciiUtil.ascii_of_nat.
-
-(** ** 16 bits *)
-
-(** ** 32 bits *)
-Definition ascii32_of_N (n : N) : ascii32 :=
-  match n with
-    | N0 => (zero, zero, zero, zero)
-    | Npos p =>
-      (ascii_of_pos p,
-        to_ascii (drop 8 p),
-        to_ascii (drop 16 p),
-        to_ascii (drop 24  p))
-  end.
-
-Definition N_of_ascii32 (a : ascii32) : N :=
-  let (p , p4) := a in
-  let (p , p3) := p in
-  let (p1, p2) := p in
-    N_of_digits (digits p1 ++ digits p2 ++ digits p3 ++ digits p4).
-
-Definition ascii32_of_nat (a : nat) : ascii32 :=
-  ascii32_of_N (N_of_nat a).
-
-Definition nat_of_ascii32 (a : ascii32) :=
-  nat_of_N (N_of_ascii32 a).
-
-(** 64bits *)
-Definition ascii64_of_N (n : N) : ascii64 :=
-  match n with
-    | N0 => (zero, zero, zero, zero, zero, zero, zero, zero)
-    | Npos p =>
-      (ascii_of_pos p,
-        to_ascii (drop 8  p),
-        to_ascii (drop 16 p),
-        to_ascii (drop 24 p),
-        to_ascii (drop 32  p),
-        to_ascii (drop 40 p),
-        to_ascii (drop 48 p),
-        to_ascii (drop 56  p))
-  end.
-
-Definition N_of_ascii64 (a : ascii64) : N :=
-  let (p , p8) := a in
-  let (p , p7) := p in
-  let (p , p6) := p in
-  let (p , p5) := p in
-  let (p , p4) := p in
-  let (p , p3) := p in
-  let (p1, p2) := p in
-    N_of_digits (digits p1 ++ digits p2 ++ digits p3 ++ digits p4 ++
-                 digits p5 ++ digits p6 ++ digits p7 ++ digits p8).
-
-Definition ascii64_of_nat (a : nat) : ascii64 :=
-  ascii64_of_N (N_of_nat a).
-
-Definition nat_of_ascii64 (a : ascii64) :=
-  nat_of_N (N_of_ascii64 a).
-
-Theorem ascii_5bits_N : forall (n : N) b1 b2 b3 b4 b5 b6 b7 b8,
+Lemma ascii_5bits_N : forall (n : N) b1 b2 b3 b4 b5 b6 b7 b8,
   (n < 32)%N ->
   ascii_of_N n = Ascii b1 b2 b3 b4 b5 b6 b7 b8 ->
   b6 = false /\ b7 = false /\ b8 = false.
@@ -265,7 +261,7 @@ destruct n.
   try (compute in H0; inversion H0; repeat split; reflexivity).
 Qed.
 
-Theorem ascii_5bits : forall (n : nat) b1 b2 b3 b4 b5 b6 b7 b8,
+Lemma ascii_5bits : forall (n : nat) b1 b2 b3 b4 b5 b6 b7 b8,
   (n < 32) ->
   ascii_of_nat n = Ascii b1 b2 b3 b4 b5 b6 b7 b8 ->
   b6 = false /\ b7 = false /\ b8 = false.
