@@ -7,6 +7,17 @@ Open Scope char_scope.
 
 Definition singleton {A} (x : A) := x :: nil.
 
+Definition Map {A B} P (xs : list A) (ys : list B) := forall i x y,
+  value x = nth_error xs i ->
+  value y = nth_error ys i ->
+  P x y.
+
+Definition lift {A B} (P : A -> B -> Prop) (p1 : (A*A)%type) ( p2 : (B*B)%type) :=
+  let (x1, x2) := p1 in
+  let (y1, y2) := p2 in
+    P x1 y1 /\ P x2 y2.
+
+
 (** MsgPackのシリアライズルールの定義 *)
 Inductive Serialized : object -> list ascii8 -> Prop :=
 | SNil  :
@@ -49,4 +60,32 @@ Inductive Serialized : object -> list ascii8 -> Prop :=
   Serialized (Raw16 cs) ("218"::s1::s2::cs)
 | SRaw32 : forall cs s1 s2 s3 s4,
   ((s1,s2),(s3,s4)) =  ascii32_of_nat (length cs) ->
-  Serialized (Raw32 cs) ("219"::s1::s2::s3::s4::cs).
+  Serialized (Raw32 cs) ("219"::s1::s2::s3::s4::cs)
+| SFixArray : forall xs ys b1 b2 b3 b4 b5 b6 b7 b8,
+  Ascii b1 b2 b3 b4 b5 b6 b7 b8 = ascii8_of_nat (length xs) ->
+  Map Serialized xs ys ->
+  Serialized (FixArray xs) ((Ascii b1 b2 b3 b4 true false false true)::flat_map (fun x=>x) ys)
+| SArray16 : forall xs ys s1 s2,
+  (s1,s2) = ascii16_of_nat (length xs) ->
+  Map Serialized xs ys ->
+  Serialized (Array16 xs) ("220"::s1::s2::flat_map (fun x=>x) ys)
+| SArray32 : forall xs ys s1 s2 s3 s4,
+  ((s1,s2),(s3,s4)) = ascii32_of_nat (length xs) ->
+  Map Serialized xs ys ->
+  Serialized (FixArray xs) ("221"::s1::s2::s3::s4::flat_map (fun x=>x) ys)
+| SFixMap : forall xs ys b1 b2 b3 b4 b5 b6 b7 b8,
+    Ascii b1 b2 b3 b4 b5 b6 b7 b8 = ascii8_of_nat (length xs) ->
+    Map (fun x (y : (list ascii8 * list ascii8))=>
+      Serialized (fst x) (fst y) /\ Serialized (snd x) (snd y)) xs ys ->
+    Serialized (FixMap xs) ((Ascii b1 b2 b3 b4 false false false true)::flat_map (fun p => (fst p) ++ (snd p)) ys)
+| SMap16 : forall xs ys s1 s2,
+  (s1,s2) = ascii16_of_nat (length xs) ->
+  Map (fun x (y : (list ascii8 * list ascii8))=>
+    Serialized (fst x) (fst y) /\ Serialized (snd x) (snd y)) xs ys ->
+  Serialized (Map16 xs) ("220"::s1::s2::flat_map (fun p => (fst p) ++ (snd p)) ys)
+| SMap32 : forall xs ys s1 s2 s3 s4,
+  ((s1,s2),(s3,s4)) = ascii32_of_nat (length xs) ->
+  Map (fun x (y : (list ascii8 * list ascii8))=>
+    Serialized (fst x) (fst y) /\ Serialized (snd x) (snd y)) xs ys ->
+  Serialized (FixMap xs) ("221"::s1::s2::s3::s4::flat_map (fun p => (fst p) ++ (snd p)) ys).
+
