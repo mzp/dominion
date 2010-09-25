@@ -20,12 +20,9 @@ Inductive object :=
 | Int64  (_ : ascii64)
 | Float  (_ : ascii32)
 | Double (_ : ascii64)
-| FixRaw: forall (xs : list ascii8),
-  List.length xs < 32 -> object
-| Raw16: forall (xs : list ascii8),
-  List.length xs < pow 16 -> object
-| Raw32: forall (xs : list ascii8),
-  List.length xs < pow 32 -> object.
+| FixRaw (_ : list ascii8)
+| Raw16  (_ : list ascii8)
+| Raw32  (_ : list ascii8).
 
 (* データの等値性を定義。依存型の証明部分は無視する。*)
 Inductive eq_object : object -> object -> Prop :=
@@ -59,15 +56,12 @@ Inductive eq_object : object -> object -> Prop :=
   eq_object (Float c) (Float c)
 | DoubleEq : forall c,
   eq_object (Double c) (Double c)
-| FixRawEq : forall xs ys P Q,
-  xs = ys ->
-  eq_object (FixRaw xs P) (FixRaw ys Q)
-| Raw16Eq : forall xs ys P Q,
-  xs = ys ->
-  eq_object (Raw16 xs P) (Raw16 ys Q)
-| Raw32Eq : forall xs ys P Q,
-  xs = ys ->
-  eq_object (Raw32 xs P) (Raw32 ys Q).
+| FixRawEq : forall xs,
+  eq_object (FixRaw xs) (FixRaw xs)
+| Raw16Eq : forall xs,
+  eq_object (Raw16 xs) (Raw16 xs)
+| Raw32Eq : forall xs,
+  eq_object (Raw32 xs) (Raw32 xs).
 
 Infix "=~" := eq_object (at level 60, right associativity).
 
@@ -117,3 +111,11 @@ inversion H;
          inversion H5;
          reflexivity).
 Qed.
+
+Inductive Valid : object -> Prop :=
+| VFixRaw : forall xs,
+  length xs < pow 5 -> Valid (FixRaw xs)
+| VRaw16 : forall xs,
+  length xs < pow 16 -> Valid (Raw16 xs)
+| VRaw32 : forall xs,
+  length xs < pow 32 -> Valid (Raw32 xs).
