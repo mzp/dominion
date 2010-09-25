@@ -20,7 +20,13 @@ Inductive object :=
 | Double (_ : ascii64)
 | FixRaw (_ : list ascii8)
 | Raw16  (_ : list ascii8)
-| Raw32  (_ : list ascii8).
+| Raw32  (_ : list ascii8)
+| FixArray ( _ : list object)
+| Array16  ( _ : list object)
+| Array32  ( _ : list object)
+| FixMap   ( _ : list (object * object)%type)
+| Map16    ( _ : list (object * object)%type)
+| Map32    ( _ : list (object * object)%type).
 
 (** 妥当なオブジェクトの定義 *)
 Inductive Valid : object -> Prop :=
@@ -34,4 +40,16 @@ Inductive Valid : object -> Prop :=
 | VRaw16 : forall xs,
   length xs < pow 16 -> Valid (Raw16 xs)
 | VRaw32 : forall xs,
-  length xs < pow 32 -> Valid (Raw32 xs).
+  length xs < pow 32 -> Valid (Raw32 xs)
+| VFixArray : forall xs,
+  length xs < pow 4 -> Valid (FixArray xs)
+| VArray16  : forall xs,
+  length xs < pow 16 -> Valid (Array16 xs)
+| VArray32   : forall xs,
+  length xs < pow 32 -> Valid (Array32 xs)
+| VFixMap    : forall xs,
+  length xs < pow 4 -> Valid (FixMap xs)
+| VMap16     : forall xs,
+  length xs < pow 16 -> Valid (Map16 xs)
+| VMap32    : forall xs,
+  length xs < pow 32 -> Valid (Map32 xs).
