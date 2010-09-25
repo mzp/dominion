@@ -172,81 +172,99 @@ Qed.
 (* 行頭符号になってないことの証明 *)
 Theorem NotPrefixEncoding : forall x1 x2 y1 y2,
   ~(x1 =~ x2) ->
+  Valid x1 ->
+  Valid x2 ->
   Serialized x1 y1 ->
   Serialized x2 y2 ->
   ~ Prefix y1 y2.
 Proof.
 (* notが登場すると証明が煩雑なので、対偶をとる *)
-intros.
-intro.
-apply H.
-clear H.
+intros x1 x2 y1 y2 eq v1 v2 s1 s2 p.
+contradiction eq.
+clear eq.
 
-inversion H0; inversion H1;
+inversion s1; inversion s2;
   (* 明かに等しいもの
      Eg. Bool b =~ Bool b *)
   try apply_object_eq;
   (* 明らかに異なっているもの
      Eg. Bool b =~ Nil *)
-  try( rewrite <- H3, <- H5 in *;
-       apply prefix_inv in H2;
-       decompose [and] H2;
+  try( rewrite <- H0, <- H2 in p ||
+       rewrite <- H0, <- H3 in p ||
+       rewrite <- H1, <- H3 in p ||
+       rewrite <- H1, <- H4 in p ||
+       rewrite <- H1, <- H5 in p;
+       apply prefix_inv in p;
+       decompose [and] p;
        (discriminate || auto));
-  (* prefix8/16/32/64で証明できるもの *)
-  try( apply prefix8 in H7
-         || apply prefix16 in H7
-         || apply prefix32 in H7
-         || apply prefix64 in H7;
-       rewrite H7;
-       apply_object_eq);
- try( rewrite <- H3, <- H6 in *;
-      apply prefix_inv in H2;
-      decompose [and] H2;
-      inversion H7;
-      tauto);
- try( rewrite <- H4, <- H6 in *;
-      apply prefix_inv in H2;
-      decompose [and] H2;
-      inversion H7;
-      tauto);
- try( rewrite <- H4, <- H7 in *;
-      apply prefix_inv in H2;
-      decompose [and] H2;
-      inversion H8).
+  try( apply prefix8 in H4
+         || apply prefix16 in H4
+         || apply prefix32 in H4
+         || apply prefix64 in H4;
+       rewrite H4;
+       apply_object_eq).
 
- apply prefix_eq; auto.
- apply ascii8_eq_nat; try omega.
- rewrite <- H, <- H5.
- generalize P; intro Q1.
- apply (ascii_5bits _ b1 b2 b3  b4  b5  b6  b7  b8)  in Q1; auto.
- generalize P0; intro Q2.
- apply (ascii_5bits _ b0 b9 b10 b11 b12 b13 b14 b15) in Q2; auto.
- decompose [and] Q1.
- decompose [and] Q2.
- rewrite H10, H11, H12, H13, H14, H15, H16, H17, H18, H20, H21.
- reflexivity.
+ cut (cs=cs0).
+  intro eq.
+  rewrite eq.
+  apply_object_eq.
 
- apply prefix_inv in H9.
- decompose [and] H9.
- apply prefix_inv in H11.
- decompose [and] H11.
- apply prefix_eq; auto.
- apply ascii16_eq_nat; try omega.
- rewrite <- H, <- H5.
- rewrite H10,H12.
- reflexivity.
+  rewrite <- H0 in v1.
+  rewrite <- H3 in v2.
+  inversion v1.
+  inversion v2.
+  simpl in H8.
+  simpl in H10.
+  apply prefix_eq; auto.
+  apply ascii8_eq_nat; [omega | omega | auto ].
+  rewrite <- H, <- H2.
+  inversion H5.
+  apply (ascii_5bits _ b1 b2 b3  b4  b5  b6  b7 b8)  in H8; auto.
+  apply (ascii_5bits _ b0 b9 b10 b11 b12 b13 b14 b15) in H10; auto.
+  decompose [and] H8.
+  decompose [and] H10.
+  rewrite H11,H17,H18,H19,H21,H22.
+  reflexivity.
 
- apply prefix_inv in H9.
- decompose [and] H9.
- apply prefix_inv in H11.
- decompose [and] H11.
- apply prefix_inv in H13.
- decompose [and] H13.
- apply prefix_inv in H15.
- decompose [and] H15.
- apply prefix_eq; auto.
- apply ascii32_eq_nat; try omega.
- rewrite <- H, <- H5.
- rewrite H10,H12,H14,H16.
- reflexivity.
+ cut (cs=cs0).
+  intro eq.
+  rewrite eq.
+  apply_object_eq.
+
+  rewrite <- H0 in v1.
+  rewrite <- H3 in v2.
+  inversion v1.
+  inversion v2.
+  apply prefix_inv in H6.
+  decompose [and] H6.
+  apply prefix_inv in H12.
+  decompose [and] H12.
+  apply prefix_eq; auto.
+  apply ascii16_eq_nat; [omega | omega | auto ].
+  rewrite <- H, <- H2.
+  rewrite H11,H13.
+  reflexivity.
+
+ cut (cs = cs0).
+  intro eq.
+  rewrite eq.
+  apply_object_eq.
+
+  rewrite <- H0 in v1.
+  rewrite <- H3 in v2.
+  inversion v1.
+  inversion v2.
+  apply prefix_inv in H6.
+  decompose [and] H6.
+  apply prefix_inv in H12.
+  decompose [and] H12.
+  apply prefix_inv in H14.
+  decompose [and] H14.
+  apply prefix_inv in H16.
+  decompose [and] H16.
+  apply prefix_eq; auto.
+  apply ascii32_eq_nat; try omega.
+  rewrite <- H, <- H2.
+  rewrite H11,H13,H15,H17.
+  reflexivity.
 Qed.
