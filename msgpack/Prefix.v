@@ -171,7 +171,7 @@ Qed.
 
 (* 行頭符号になってないことの証明 *)
 Theorem NotPrefixEncoding : forall x1 x2 y1 y2,
-  ~(x1 =~ x2) ->
+  ~(x1 = x2) ->
   Valid x1 ->
   Valid x2 ->
   Serialized x1 y1 ->
@@ -180,13 +180,13 @@ Theorem NotPrefixEncoding : forall x1 x2 y1 y2,
 Proof.
 (* notが登場すると証明が煩雑なので、対偶をとる *)
 intros x1 x2 y1 y2 eq v1 v2 s1 s2 p.
-contradiction eq.
+elim eq.
 clear eq.
 
 inversion s1; inversion s2;
+  try reflexivity;
   (* 明かに等しいもの
      Eg. Bool b =~ Bool b *)
-  try apply_object_eq;
   (* 明らかに異なっているもの
      Eg. Bool b =~ Nil *)
   try( rewrite <- H0, <- H2 in p ||
@@ -202,12 +202,18 @@ inversion s1; inversion s2;
          || apply prefix32 in H4
          || apply prefix64 in H4;
        rewrite H4;
-       apply_object_eq).
+       reflexivity).
+
+ inversion H3.
+ reflexivity.
+
+ inversion H3.
+ reflexivity.
 
  cut (cs=cs0).
   intro eq.
   rewrite eq.
-  apply_object_eq.
+  reflexivity.
 
   rewrite <- H0 in v1.
   rewrite <- H3 in v2.
@@ -229,7 +235,7 @@ inversion s1; inversion s2;
  cut (cs=cs0).
   intro eq.
   rewrite eq.
-  apply_object_eq.
+  reflexivity.
 
   rewrite <- H0 in v1.
   rewrite <- H3 in v2.
@@ -248,7 +254,7 @@ inversion s1; inversion s2;
  cut (cs = cs0).
   intro eq.
   rewrite eq.
-  apply_object_eq.
+  reflexivity.
 
   rewrite <- H0 in v1.
   rewrite <- H3 in v2.

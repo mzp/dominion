@@ -1,15 +1,13 @@
 (* -*- coding: utf-8 -*- *)
-Require Import List.
-Require Import Ascii.
-Require Import BigEndian.
-Require Import Object.
+Require Import List Ascii.
+Require Import BigEndian Object.
 
 Open Scope list_scope.
 Open Scope char_scope.
 
 Definition singleton {A} (x : A) := x :: nil.
 
-(* MsgPackのシリアライズルールの定義 *)
+(** MsgPackのシリアライズルールの定義 *)
 Inductive Serialized : object -> list ascii8 -> Prop :=
 | SNil  :
   Serialized Nil (singleton "192")
@@ -17,11 +15,11 @@ Inductive Serialized : object -> list ascii8 -> Prop :=
   Serialized (Bool true) (singleton "195")
 | SFalse :
   Serialized (Bool false) (singleton "194")
-| SPFixnum : forall x1 x2 x3 x4 x5 x6 x7 P,
-  Serialized (PFixnum   (Ascii x1 x2 x3 x4 x5 x6 x7 false) P)
+| SPFixnum : forall x1 x2 x3 x4 x5 x6 x7,
+  Serialized (PFixnum   (Ascii x1 x2 x3 x4 x5 x6 x7 false))
              (singleton (Ascii x1 x2 x3 x4 x5 x6 x7 false))
-| SNFixnum : forall  x1 x2 x3 x4 x5 P,
-  Serialized (NFixnum   (Ascii x1 x2 x3 x4 x5 true true true) P)
+| SNFixnum : forall  x1 x2 x3 x4 x5,
+  Serialized (NFixnum   (Ascii x1 x2 x3 x4 x5 true true true))
              (singleton (Ascii x1 x2 x3 x4 x5 true true true))
 | SUint8 : forall c,
   Serialized (Uint8 c) ("204"::list_of_ascii8 c)
