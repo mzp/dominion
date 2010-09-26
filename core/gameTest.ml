@@ -28,6 +28,10 @@ let _ = begin "game.ml" >::: [
 	  trash  = []
 	}
       } @@ make [alice;bob] [`Moat]
+  end;
+  "to_stringでカードを文字列化できる" >:: begin fun _ ->
+    assert_equal ~printer:Std.dump "gold" @@ Game.to_string `Gold;
+    assert_equal ~printer:Std.dump "silver" @@ Game.to_string `Silver;
   end
 ] end +> run_test_xml_main
 
