@@ -28,9 +28,11 @@ let failwithf fmt = Printf.kprintf (fun s () -> failwith s) fmt
 
 let lookup x xs = (option @@ List.assoc x) xs
 
-let string_of_list xs =
-  Printf.sprintf "[%s]"
-    @@ String.concat ";" xs
+let string_of_list show xs =
+  xs
+  +> List.map show
+  +> String.concat ";"
+  +> Printf.sprintf "[%s]"
 
 let rec unfold f init =
      match f init with

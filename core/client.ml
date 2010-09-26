@@ -66,7 +66,7 @@ module Make(T : Protocol.S) = struct
     | `Games (_,xs) ->
 	Left (Std.dump xs)
     | `Cards (_,xs) ->
-	Left (Std.dump @@ List.map (fun x -> p "%s" (tee (print_endline) @@ Game.to_string x) ()) xs)
+	Left (string_of_list Game.to_string xs)
     | `Message (game, `Player(name,msg)) ->
 	Left (sprintf "%s@%s: %s" name game msg)
     | `Message (game, `System(msg)) ->
