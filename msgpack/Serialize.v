@@ -82,10 +82,10 @@ Inductive Serialized : object -> list ascii8 -> Prop :=
   (s1,s2) = ascii16_of_nat (length xs) ->
   Map (fun x (y : (list ascii8 * list ascii8))=>
     Serialized (fst x) (fst y) /\ Serialized (snd x) (snd y)) xs ys ->
-  Serialized (Map16 xs) ("220"::s1::s2::flat_map (fun p => (fst p) ++ (snd p)) ys)
+  Serialized (Map16 xs) ("222"::s1::s2::flat_map (fun p => (fst p) ++ (snd p)) ys)
 | SMap32 : forall xs ys s1 s2 s3 s4,
   ((s1,s2),(s3,s4)) = ascii32_of_nat (length xs) ->
   Map (fun x (y : (list ascii8 * list ascii8))=>
     Serialized (fst x) (fst y) /\ Serialized (snd x) (snd y)) xs ys ->
-  Serialized (FixMap xs) ("221"::s1::s2::s3::s4::flat_map (fun p => (fst p) ++ (snd p)) ys).
+  Serialized (FixMap xs) ("223"::s1::s2::s3::s4::flat_map (fun p => (fst p) ++ (snd p)) ys).
 
