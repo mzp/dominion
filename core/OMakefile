@@ -38,6 +38,7 @@ FILES[] =
 	threadUtils
 	playerHandler
 	listUtil
+	shell
 	rule
 	turn
 	actionCard
