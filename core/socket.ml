@@ -64,8 +64,6 @@ module M : Protocol.S = struct
   let socket_with host port f =
     let s =
       Unix.socket PF_INET SOCK_STREAM 0 in
-    let _ =
-      at_exit (fun () -> shutdown s SHUTDOWN_ALL; close s) in
     let { ai_addr; _ } =
       List.hd @@ getaddrinfo host (string_of_int port) [] in
       f s ai_addr
@@ -87,6 +85,7 @@ module M : Protocol.S = struct
 
   let server host port ~f =
     socket_with host port begin fun s addr ->
+      setsockopt s SO_REUSEADDR true;
       bind   s addr;
       listen s 1;
       while true do
