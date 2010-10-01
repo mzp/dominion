@@ -97,9 +97,9 @@ module M : Protocol.S = struct
 	let write =
 	  Event.new_channel () in
 	  proxy read write client;
-	  ignore @@ Thread.create (forever (fun () -> f { req = read;
-							  res = write;
-							  id  = client })) ()
+	  ignore @@ Thread.create (fun () ->f { req = read;
+						res = write;
+						id  = client }) ()
       done
     end
 end

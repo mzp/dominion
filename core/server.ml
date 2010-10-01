@@ -4,38 +4,33 @@ open Protocol
 open ThreadUtils
 
 module Make(T : Protocol.S) = struct
-  let send ch e =
-    Event.sync @@ Event.send ch e
+  let bind x f = Event.wrap x (fun v -> Event.sync (f v))
 
-  let master ch games =
-    let (peer, ch', req) =
-      Event.sync @@ Event.receive ch in
-      Logger.debug "accept request" ();
-      match req with
-	| `List id ->
-	    Logger.debug "sending game rooms: %s" (Std.dump @@ List.map fst games) ();
-	    send ch' @@ `Games(id, List.map fst games);
-	    games
-	| `Make (id,name) ->
-	    Logger.debug "make room: %s" name ();
-	    send ch' @@ `Ok id;
-	    (name, Handler.create name) :: games
-	| `Game(name, request) ->
-	    let open Maybe in
-	      ignore (perform begin
-		 t <-- lookup name games;
-		 return @@ Event.sync @@ Handler.handle t peer ch' request
-	       end);
-	      games
+  let on_request {id = pid ; req; res } system notify =
+    let return =
+      Ivar.make () in
+      perform begin
+	request <-- Event.receive req;
+	Event.send system { GameThread.pid; request; notify; return };
+	value <-- Ivar.read return;
+	Event.send res (value :> Protocol.response)
+      end
+
+  let rec on_notify peer notify =
+    perform begin
+      value <-- Mbox.pop notify;
+      Event.send peer.res (value :> Protocol.response);
+      on_notify peer notify
+    end
 
   let run host port =
-    let ch =
-      Event.new_channel () in
-    let _ =
-      state_daemon ~f:(master ch) [] in
-      T.server host port ~f:begin fun {id; req; res} ->
-	let request =
-	  Event.sync @@ Event.receive req in
-	  Event.sync @@ Event.send ch (id, res,request)
+    let system =
+      GameThread.start () in
+      T.server host port ~f:begin fun client ->
+	let mbox =
+	  Mbox.make () in
+	let _ =
+	  Thread.create (fun () -> Event.sync @@ on_notify client mbox) () in
+	  forever (fun () -> Event.sync @@ on_request client system mbox) ()
       end
 end

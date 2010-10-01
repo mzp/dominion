@@ -19,12 +19,28 @@ type request = [
 | `List of id
 | `Make of id * game_name
 ]
-type response = [
+
+type game_response = [
+  `Player of player_name * string
+| `System of string
+| `GameStart
+| `Turn         of player_name
+| `ActionPhase  of player_name
+| `BuyPhase     of player_name
+| `CleanupPhase of player_name ]
+
+type return = [
   `Ok      of id
 | `Error   of id * string
 | `Cards   of id * Game.card list
 | `Games   of id * string list
-| `Message of game_name * player_name * string
+]
+type notify = [
+| `Message of game_name * game_response
+]
+type response = [
+  return
+| notify
 ]
 
 type 'a peer = {

@@ -2,6 +2,7 @@ class type t = object
   method request : string -> Game.card option Rule.t
   method me : string
   method others : string list
+  method observer : Protocol.game_response Observer.t
 end
 
 val action_phase  : #t -> unit Rule.t

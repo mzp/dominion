@@ -23,6 +23,7 @@ OCAMLC=ocamlc -thread
 NATIVE_ENABLED=false
 BYTE_ENABLED = true
 FILES[] =
+	gameThread
 	observer
 	base
 	hList
@@ -34,7 +35,6 @@ FILES[] =
 	logger
 	protocol
 	maybe
-	handler
 	threadUtils
 	playerHandler
 	listUtil
@@ -55,7 +55,7 @@ OUnitTest(game, game)
 OUnitTest(rule, rule game cc)
 OUnitTest(observer, observer)
 OUnitTest(actionCard, actionCard cardSource game rule cc)
-OUnitTest(turn, turn actionCard cardSource game rule cc)
+OUnitTest(turn, turn actionCard cardSource observer game rule cc)
 OUnitTest(server, $(FILES))
 
 OCAMLFLAGS=-annot -w A -warn-error A

@@ -8,8 +8,9 @@ let run xs f game =
   let players =
     Game.(List.map (fun x -> x.name) game.players) in
   let t = object
-    method me = List.hd players
+    method me     = List.hd players
     method others = List.tl players
+    method observer = Observer.make ()
     method request name =
       Rule.lift (fun game ->
 		   match !ys with

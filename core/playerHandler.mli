@@ -12,10 +12,10 @@ type 'a fiber
 class type ['a] t = object('b)
   method fiber     : 'a fiber option
   method set_fiber : 'a fiber option -> 'b
-  method observer  : Game.t Observer.t
+  method observer  : Protocol.game_response Observer.t
   method game      : Game.t
   method set_game  : Game.t -> 'b
-  method clients   : ('a * string) list
+  method clients   : (string * 'a) list
 end
 
 (** ゲーム開始 *)

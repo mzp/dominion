@@ -33,6 +33,9 @@ end
 
 module M = Server.Make(S)
 
+let history =
+  ref []
+
 let rec wait_for ({ Protocol.res = ch ; _ } as t) id =
   let res =
     Event.sync @@ Event.receive ch in
@@ -40,7 +43,32 @@ let rec wait_for ({ Protocol.res = ch ; _ } as t) id =
       | `Ok id' | `Error (id',_) | `Cards (id',_) | `Games (id',_) when id = id' ->
 	  res
       | _ ->
+	  history := res :: ! history;
 	  wait_for t id
+
+let assert_mem x =
+  assert_equal true @@ List.mem x !history
+
+let t =
+  Timeout.make 0.1
+
+let rec assert_recv count expect c =
+  if count = 0 then
+    assert false
+  else
+    match Event.sync (Timeout.with_timeout t 0.5 (Event.receive c.Protocol.res)) with
+      | None -> assert false
+      | Some v ->
+	  if expect = v then
+	    ()
+	  else
+	    assert_recv (count-1) expect c
+
+let assert_recv expect c =
+  if List.mem expect !history then
+    ()
+  else
+    assert_recv 10 expect c
 
 let last_id = ref ""
 let n = ref 0
@@ -56,13 +84,24 @@ let get_last_id () =
 let send { Protocol.req; _ } x =
   Event.sync @@ Event.send req x
 
+let recv { Protocol.res; _ } =
+  Event.sync @@ Event.receive res
+
+let game_name =
+  "foo"
+
 let game x =
- `Game("foo", `Query(id (), x))
+ `Game(game_name, `Query(id (), x))
+
+let message x =
+  `Message(game_name,x)
 
 let ok t res =
   assert_equal ~printer:Std.dump res @@ wait_for t (get_last_id())
 
 let start _ =
+    let _ =
+      history := [] in
     let _ =
       M.run "join" 1729 in
     let c1 =
@@ -180,4 +219,57 @@ let _ = begin "server.ml" >::: [
       send c1 @@ game @@ `List `Mine;
       ok   c1 @@ `Cards (get_last_id(),[`Copper;`Copper;`Copper;`Copper;`Copper;`Copper])
   end;
+  "チャットできる" >:: begin fun () ->
+    let (c1, c2) =
+      start () in
+      send c1 @@ `Game (game_name, `Message "hi");
+      assert_recv (message @@ `Player ("alice","hi")) c1;
+      assert_recv (message @@ `Player ("alice","hi")) c2;
+      send c2 @@ `Game (game_name, `Message "hi");
+      assert_recv (message @@ `Player ("bob","hi")) c1;
+      assert_recv (message @@ `Player ("bob","hi")) c2;
+  end;
+  "ゲーム開始が通知される" >:: begin fun () ->
+    let _ =
+      history := [] in
+    let (c1,c2) =
+      start () in
+      assert_recv (message @@ `GameStart) c1;
+      assert_recv (message @@ `GameStart) c2
+  end;
+  "各ターンが通知される" >:: begin fun () ->
+    let (c1,c2) =
+      start () in
+      assert_recv (message @@ `Turn "alice") c1;
+      assert_recv (message @@ `Turn "alice") c2
+  end;
+  "フェーズごとに通知される" >:: begin fun () ->
+    let _ =
+      history := [] in
+    let (c1,c2) =
+      start () in
+      send c1 @@ game @@ `Skip;
+      ok   c1 @@ `Ok (get_last_id());
+      send c1 @@ game @@ `Skip;
+      ok   c1 @@ `Ok (get_last_id());
+
+      send c2 @@ game @@ `Skip;
+      ok   c2 @@ `Ok (get_last_id());
+      send c2 @@ game @@ `Skip;
+      ok   c2 @@ `Ok (get_last_id());
+
+      assert_recv (message @@ `ActionPhase "alice")  c1;
+      assert_recv (message @@ `ActionPhase "alice")  c2;
+      assert_recv (message @@ `BuyPhase "alice")     c1;
+      assert_recv (message @@ `BuyPhase "alice")     c2;
+      assert_recv (message @@ `CleanupPhase "alice") c1;
+      assert_recv (message @@ `CleanupPhase "alice") c2;
+
+      assert_recv (message @@ `ActionPhase "alice")  c1;
+      assert_recv (message @@ `ActionPhase "bob")  c2;
+      assert_recv (message @@ `BuyPhase "bob")     c1;
+      assert_recv (message @@ `BuyPhase "bob")     c2;
+      assert_recv (message @@ `CleanupPhase "bob") c1;
+      assert_recv (message @@ `CleanupPhase "bob") c2;
+  end
 ] end +> run_test_xml_main

@@ -12,10 +12,10 @@ type 'a fiber = ( (Game.t,string) either, ('a*request)) Fiber.t
 class type ['a] t = object('b)
   method fiber     : 'a fiber option
   method set_fiber : 'a fiber option -> 'b
-  method observer  : Game.t Observer.t
+  method observer  : Protocol.game_response Observer.t
   method game      : Game.t
   method set_game  : Game.t -> 'b
-  method clients   : ('a * string) list
+  method clients   : (string * 'a) list
 end
 
 let me t =
@@ -30,7 +30,7 @@ let others t =
 let request t suspend name =
   let open Cc in
   let client =
-    fst @@ List.find (fun (_,y)-> y = name) t#clients in
+    List.assoc name t#clients in
   let rec f ret game =
     perform begin
       (client',request) <-- suspend (ret game);
@@ -54,6 +54,8 @@ let make suspend t = object
     others t
   method request =
     request t suspend
+  method observer =
+    t#observer
 end
 
 let invoke t =
