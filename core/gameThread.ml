@@ -51,7 +51,9 @@ let on_ready t id {pid; return; _}=
     end else
       let t =
 	t#ready <- pid :: t#ready in
-	if List.length t#ready = List.length t#names then begin
+      let n =
+	List.length t#ready in
+	if n > 1 && n = List.length t#names then begin
 	  let _ =
 	    Observer.__fire t#observer `GameStart in
 	  let t =
