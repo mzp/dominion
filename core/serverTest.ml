@@ -110,6 +110,20 @@ let message x =
 let ok t res =
   assert_equal ~printer:Std.dump res @@ wait_for t (get_last_id())
 
+let not' f =
+  let x =
+    try
+      f ();
+      `A
+    with _ ->
+      `B in
+    match x with
+	`A ->
+	  assert false
+      | `B ->
+	  ()
+
+
 let start _ =
     let _ =
       history := [] in
@@ -295,5 +309,24 @@ let _ = begin "server.ml" >::: [
       assert_recv (message @@ `BuyPhase "bob")     c2;
       assert_recv (message @@ `CleanupPhase "bob") c1;
       assert_recv (message @@ `CleanupPhase "bob") c2;
+  end;
+  "一人でreadyしてもゲームがはじまらない" >:: begin fun _ ->
+    let _ =
+      history := [] in
+    let _ =
+      M.run "join" 1729 in
+    let c1 =
+      S.connect "join" 1729 in
+    let c2 =
+      S.connect "join" 1729 in
+      (* 部屋の作成 *)
+      send c2 @@ `Make (id (),"foo");
+      ok   c2 @@ `Ok (get_last_id());
+      (* c1 ready *)
+      send c1 @@ game @@ `Join "alice";
+      ok   c1 @@ `Ok (get_last_id());
+      send c1 @@ game @@ `Ready;
+      ok   c1 @@ `Ok (get_last_id());
+      not' (fun _ -> assert_recv (message @@ `GameStart) c1)
   end
 ] end +> run_test_xml_main
