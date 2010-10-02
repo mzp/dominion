@@ -33,6 +33,16 @@ end
 
 module M = Server.Make(S)
 
+let rec index i x = function
+    [] -> -1
+  | y::ys ->
+      if x = y then
+	i
+      else
+	index (i+1) x ys
+
+let index x xs = index 0 x xs
+
 let history =
   ref []
 
@@ -62,7 +72,8 @@ let rec assert_recv count expect c =
 	  if expect = v then
 	    ()
 	  else
-	    assert_recv (count-1) expect c
+	    (history := v::!history;
+	     assert_recv (count-1) expect c)
 
 let assert_recv expect c =
   if List.mem expect !history then
@@ -242,6 +253,19 @@ let _ = begin "server.ml" >::: [
       start () in
       assert_recv (message @@ `Turn "alice") c1;
       assert_recv (message @@ `Turn "alice") c2
+  end;
+  "イベントは、ゲーム開始->ターン開始->フェーズ開始の順番" >:: begin fun () ->
+    let (c1,_) =
+      start () in
+      assert_recv (message @@ `ActionPhase "alice") c1;
+      let game =
+	index (message @@ `GameStart) !history in
+      let turn =
+	index (message @@ `Turn "alice") !history in
+      let phase =
+	index (message @@ `ActionPhase "alice") !history in
+	assert (game > turn);
+	assert (turn > phase)
   end;
   "フェーズごとに通知される" >:: begin fun () ->
     let _ =
