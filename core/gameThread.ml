@@ -52,12 +52,12 @@ let on_ready t id {pid; return; _}=
       let t =
 	t#ready <- pid :: t#ready in
 	if List.length t#ready = List.length t#names then begin
+	  let _ =
+	    Observer.__fire t#observer `GameStart in
 	  let t =
 	    t#game <- make_game t in
 	  let t =
 	    PlayerHandler.invoke t in
-	  let _ =
-	    Observer.__fire t#observer `GameStart in
 	    Ivar.put return @@ `Ok id;
 	    t
 	end else begin
