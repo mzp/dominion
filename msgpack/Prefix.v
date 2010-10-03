@@ -1,12 +1,35 @@
-Require Import List.
-Require Import Object.
-Require Import Serialize.
-Require Import BigEndian.
-Require Import AsciiUtil.
-Require Import Coq.omega.Omega.
+Require Import List Coq.omega.Omega.
+Require Import Object Serialize BigEndian AsciiUtil.
 
 Open Scope list_scope.
 
+Inductive Prefix : list ascii8 -> list ascii8 -> Prop :=
+  PrefixL : forall xs, Prefix nil xs
+| PrefixR : forall xs, Prefix xs  nil
+| PrefixInv : forall x xs ys,
+  Prefix xs ys -> Prefix (x::xs) (x::ys).
+
+Lemma PrefixEq : forall x1 x2 y1 y2,
+  Prefix y1 y2 ->
+  Valid x1 ->
+  Valid x2 ->
+  Serialized x1 y1 ->
+  Serialized x2 y2 ->
+  x1 = x2.
+Proof.
+intros until y2.
+pattern x1,y1.
+apply Serialized_ind; intros.
+ inversion H.
+  rewrite <- H5 in H3.
+  inversion H3.
+
+  rewrite <- H5 in H3.
+  inversion H3.
+  reflexivity.
+
+Focus 18.
+(*
 Definition Prefix {A} (xs ys : list A) := forall x y i,
   value x = nth_error xs i ->
   value y = nth_error ys i ->
@@ -274,3 +297,4 @@ inversion s1; inversion s2;
   rewrite H11,H13,H15,H17.
   reflexivity.
 Qed.
+*)

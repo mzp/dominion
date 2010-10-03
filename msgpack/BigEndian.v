@@ -242,36 +242,3 @@ intros.
 inversion H.
 reflexivity.
 Qed.
-
-(** * natとの相互変換 *)
-Lemma ascii_5bits_N : forall (n : N) b1 b2 b3 b4 b5 b6 b7 b8,
-  (n < 32)%N ->
-  ascii_of_N n = Ascii b1 b2 b3 b4 b5 b6 b7 b8 ->
-  b6 = false /\ b7 = false /\ b8 = false.
-Proof.
-intros.
-destruct n.
- inversion H0.
- repeat split; reflexivity.
-
- do 8 (try destruct p);
-  (* 32 <= n *)
-  try (compute in H; discriminate);
-  (* n < 32 *)
-  try (compute in H0; inversion H0; repeat split; reflexivity).
-Qed.
-
-Lemma ascii_5bits : forall (n : nat) b1 b2 b3 b4 b5 b6 b7 b8,
-  (n < 32) ->
-  ascii_of_nat n = Ascii b1 b2 b3 b4 b5 b6 b7 b8 ->
-  b6 = false /\ b7 = false /\ b8 = false.
-Proof.
-intros.
-unfold nat_of_ascii, ascii_of_nat in *.
-apply (ascii_5bits_N (N_of_nat n) b1 b2 b3 b4 b5); auto.
-unfold Nlt.
-change 32%N with (N_of_nat 32).
-rewrite <- N_of_nat_compare.
-rewrite <- Compare_dec.nat_compare_lt.
-assumption.
-Qed.

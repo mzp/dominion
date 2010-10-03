@@ -94,7 +94,6 @@ Lemma object_ind0 : forall P : object -> Prop,
 Proof.
 intros until o.
 generalize o.
-Check H23.
 refine (fix obj_resolve o : P o :=
   match o with
     | FixArray xs =>
