@@ -6,12 +6,14 @@ FILES[] =
 	Object
 	Serialize
 	Prefix
-	Soundness
 	AsciiUtil
 
-.DEFAULT: $(CoqProof $(FILES))
+.PHONY: clean graph proof
 
-.PHONY: clean graph
+.DEFAULT:
+proof: $(CoqProof $(FILES))
+
+
 
 clean:
 	rm -rf *.vo *.glob *~ *.omc .omakedb .omakedb.lock
