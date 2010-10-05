@@ -70,10 +70,10 @@ Inductive Serialized : object -> list ascii8 -> Prop :=
   Serialized (FixArray (x::xs)) ((Ascii b1 b2 b3 b4 true false false true)::y ++ ys)*)
 | SArray16Nil :
   Serialized (Array16 nil) ("221"::nil)
-| SArray16Cons : forall x xs y tag ys s1 s2,
+| SArray16Cons : forall x xs y ys s1 s2 j1 j2,
   (s1,s2) = ascii16_of_nat (length (x::xs)) ->
   Serialized x y ->
-  Serialized (Array16 xs) (tag::ys) ->
+  Serialized (Array16 xs) ("221"::j1::j2::ys) ->
   Serialized (Array16 (x::xs)) ("221"::s1::s2::y ++ ys).
 (*| SArray16 : forall xs ys s1 s2,
   (s1,s2) = ascii16_of_nat (length xs) ->
