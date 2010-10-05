@@ -61,13 +61,13 @@ Inductive Serialized : object -> list ascii8 -> Prop :=
 | SRaw32 : forall cs s1 s2 s3 s4,
   ((s1,s2),(s3,s4)) =  ascii32_of_nat (length cs) ->
   Serialized (Raw32 cs) ("219"::s1::s2::s3::s4::cs)
-(*| SFixArrayNil :
+| SFixArrayNil :
   Serialized (FixArray nil) ("072"::nil)
 | SFixArrayCons : forall x xs y tag ys b1 b2 b3 b4 b5 b6 b7 b8,
   Ascii b1 b2 b3 b4 b5 b6 b7 b8 = ascii8_of_nat (length (x::xs)) ->
   Serialized x y ->
   Serialized (FixArray xs) (tag::ys) ->
-  Serialized (FixArray (x::xs)) ((Ascii b1 b2 b3 b4 true false false true)::y ++ ys)*)
+  Serialized (FixArray (x::xs)) ((Ascii b1 b2 b3 b4 true false false true)::y ++ ys)
 | SArray16Nil :
   Serialized (Array16 nil) ("221"::nil)
 | SArray16Cons : forall x xs y ys s1 s2 j1 j2,
